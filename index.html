@@ -1,0 +1,1805 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fluxo · Gestão Financeira para Terapeutas</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sage: #6b8f71;
+    --sage-light: #a8c5ae;
+    --sage-dark: #3d5c42;
+    --cream: #faf7f2;
+    --warm: #f0ead8;
+    --text: #2a2a2a;
+    --text-muted: #7a7a7a;
+    --accent: #c17f3e;
+    --accent-light: #e8c99a;
+    --surface: #ffffff;
+    --border: #e2ddd4;
+    --shadow: 0 4px 24px rgba(0,0,0,0.06);
+    --red: #c0392b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    background: var(--sage-dark);
+    padding: 28px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    color: var(--cream);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent-light); font-style: italic; }
+  .header-sub {
+    font-size: 12px;
+    color: var(--sage-light);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .header-summary {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+  .hsum-item { text-align: right; }
+  .hsum-label { font-size: 11px; color: var(--sage-light); text-transform: uppercase; letter-spacing: 1.5px; }
+  .hsum-value { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--cream); margin-top: 2px; }
+  .hsum-divider { width: 1px; height: 40px; background: rgba(255,255,255,0.15); }
+  .header-month {
+    text-align: center;
+  }
+  .month-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    padding: 6px 16px 8px;
+  }
+  .month-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--cream);
+    text-transform: capitalize;
+    letter-spacing: 0.5px;
+  }
+  .month-year {
+    font-size: 11px;
+    color: var(--sage-light);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* MAIN */
+  main { max-width: 1200px; margin: 0 auto; padding: 48px 24px; }
+
+  /* SECTION TITLE */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+    margin-top: 48px;
+  }
+  .section-header:first-of-type { margin-top: 0; }
+  .section-pill {
+    background: var(--sage);
+    color: var(--cream);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 20px;
+  }
+  .section-pill.variable { background: var(--accent); }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: var(--text);
+  }
+
+  /* TABLE */
+  .table-wrapper {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead tr {
+    background: var(--warm);
+  }
+  thead th {
+    padding: 14px 20px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  thead th:not(:first-child) { text-align: right; }
+
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--warm); }
+
+  td {
+    padding: 12px 20px;
+    font-size: 14px;
+    vertical-align: middle;
+  }
+  td:not(:first-child) { text-align: right; }
+
+  /* Label cell */
+  .td-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .td-label input[type="text"] {
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    width: 160px;
+    padding: 4px 0;
+    border-bottom: 1px dashed transparent;
+    transition: border-color 0.2s;
+  }
+  .td-label input[type="text"]:focus {
+    outline: none;
+    border-bottom-color: var(--sage);
+  }
+
+  /* Value input */
+  .value-input-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    justify-content: flex-end;
+  }
+  .currency-sym {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  input[type="number"] {
+    border: none;
+    background: transparent;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    text-align: right;
+    width: 100px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+  input[type="number"]:focus {
+    outline: none;
+    border-color: var(--sage);
+    background: rgba(107,143,113,0.06);
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  /* Computed annual */
+  .annual-val {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+  .annual-val.has-value { color: var(--sage-dark); font-weight: 500; }
+
+  /* Delete row btn */
+  .btn-del {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .btn-del:hover { background: #fde8e8; border-color: var(--red); color: var(--red); }
+
+  /* Add row btn */
+  .btn-add-row {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    background: var(--warm);
+    color: var(--sage-dark);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-add-row:hover { background: var(--accent-light); color: var(--accent); }
+  .btn-add-row svg { width: 16px; height: 16px; }
+
+  /* Total row */
+  .total-row td {
+    background: var(--warm);
+    font-weight: 600;
+    font-size: 14px;
+    padding: 16px 20px;
+  }
+  .total-row td:first-child {
+    font-family: 'Playfair Display', serif;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+  }
+  .total-row .total-amount { color: var(--sage-dark); font-size: 16px; }
+  .total-row.variable .total-amount { color: var(--accent); }
+
+  /* SUMMARY CARDS */
+  .summary-section {
+    margin-top: 56px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-top: 24px;
+  }
+  .sum-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  .sum-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+  }
+  .sum-card.fixed::before { background: var(--sage); }
+  .sum-card.variable::before { background: var(--accent); }
+  .sum-card.total-annual::before { background: var(--sage-dark); }
+  .sum-card.total-monthly::before { background: linear-gradient(90deg, var(--sage), var(--accent)); }
+
+  .sum-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .sum-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 30px;
+    color: var(--text);
+    margin-top: 10px;
+    line-height: 1;
+  }
+  .sum-card.fixed .sum-value { color: var(--sage-dark); }
+  .sum-card.variable .sum-value { color: var(--accent); }
+  .sum-card.total-annual .sum-value,
+  .sum-card.total-monthly .sum-value { color: var(--text); }
+
+  .sum-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+  }
+
+  /* RESET BUTTON */
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 32px;
+  }
+  .btn-action {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.2s;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+  }
+  .btn-action:hover { background: var(--warm); }
+  .btn-action.primary {
+    background: var(--sage-dark);
+    color: var(--cream);
+    border-color: var(--sage-dark);
+  }
+  .btn-action.primary:hover { background: var(--sage); }
+
+  /* PRICING CALCULATOR */
+  .pricing-section {
+    margin-top: 56px;
+  }
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
+  }
+  .pricing-card {
+    background: var(--surface);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .pricing-card-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--warm);
+  }
+  .pricing-card-header h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--text);
+  }
+  .pricing-card-header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+  .pricing-body {
+    padding: 24px;
+  }
+  .pricing-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .pricing-row:last-of-type { border-bottom: none; }
+  .pricing-row-label {
+    font-size: 13px;
+    color: var(--text-muted);
+    flex: 1;
+  }
+  .pricing-row-input {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pricing-row-input input[type="number"] {
+    border: 1px solid var(--border);
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    text-align: right;
+    width: 110px;
+    transition: all 0.2s;
+  }
+  .pricing-row-input input[type="number"]:focus {
+    outline: none;
+    border-color: var(--sage);
+    background: white;
+  }
+  .pricing-row-input .unit {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 24px;
+  }
+  .pricing-result {
+    margin-top: 20px;
+    background: var(--sage-dark);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .pricing-result.accent { background: var(--accent); }
+  .pricing-result-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.7);
+    font-weight: 500;
+  }
+  .pricing-result-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    color: white;
+    margin-top: 4px;
+  }
+  .pricing-result-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.55);
+    margin-top: 3px;
+  }
+  .pricing-auto-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .auto-badge {
+    background: var(--sage-light);
+    color: var(--sage-dark);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .pricing-breakdown {
+    margin-top: 14px;
+    background: var(--warm);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 4px 0;
+    color: var(--text-muted);
+  }
+  .breakdown-row strong { color: var(--text); font-weight: 600; }
+  .breakdown-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 8px 0;
+  }
+
+  /* BUSINESS SECTION DIVIDER */
+  .section-divider {
+    margin: 64px 0 0;
+    border: none;
+    border-top: 2px dashed var(--border);
+    position: relative;
+  }
+  .section-divider-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--cream);
+    padding: 0 20px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: var(--text-muted);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* Business summary cards */
+  .sum-card.biz-fixed::before { background: #5a6e8c; }
+  .sum-card.biz-variable::before { background: #8c6e5a; }
+  .sum-card.biz-total-annual::before { background: #3a3a5c; }
+  .sum-card.biz-total-monthly::before { background: linear-gradient(90deg, #5a6e8c, #8c6e5a); }
+  .sum-card.biz-fixed .sum-value { color: #3a4e6c; }
+  .sum-card.biz-variable .sum-value { color: #6c4e3a; }
+  .sum-card.biz-total-annual .sum-value,
+  .sum-card.biz-total-monthly .sum-value { color: var(--text); }
+
+  .section-pill.biz { background: #5a6e8c; }
+  .section-pill.biz-var { background: #8c6e5a; }
+  .total-row.biz td { background: #f0f2f8; }
+  .total-row.biz .total-amount { color: #3a4e6c; }
+  .total-row.biz-var .total-amount { color: #6c4e3a; }
+
+  /* UNDO TOAST */
+  #undo-toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #2a2a2a;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    z-index: 9999;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.3s;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #undo-toast.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+  #undo-toast .toast-msg { color: rgba(255,255,255,0.75); }
+  #undo-toast .toast-name { color: #fff; font-weight: 500; }
+  #undo-btn {
+    background: var(--accent-light);
+    color: var(--accent);
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.15s;
+  }
+  #undo-btn:hover { background: #f5d9a8; }
+  #undo-timer {
+    width: 4px;
+    height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #undo-timer-bar {
+    width: 100%;
+    height: 100%;
+    background: var(--accent-light);
+    transform-origin: bottom;
+    transition: transform linear;
+  }
+
+  /* DUE DATE */
+  .due-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+  }
+  .due-input {
+    border: 1px solid var(--border);
+    background: var(--cream);
+    border-radius: 7px;
+    padding: 5px 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    width: 46px;
+    text-align: center;
+    transition: all 0.2s;
+    -moz-appearance: textfield;
+  }
+  .due-input::-webkit-inner-spin-button,
+  .due-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .due-input:focus {
+    outline: none;
+    border-color: var(--sage);
+    background: white;
+  }
+  .due-input::placeholder { color: var(--text-muted); font-size: 12px; }
+  .due-label-unit { font-size: 11px; color: var(--text-muted); }
+  .due-badge {
+    display: inline-block;
+    min-width: 28px;
+    text-align: center;
+    background: var(--warm);
+    color: var(--sage-dark);
+    border-radius: 5px;
+    padding: 3px 7px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .due-badge.urgent { background: #fde8e8; color: var(--red); }
+  .due-badge.soon { background: #fff3cd; color: #856404; }
+  .due-badge.empty { background: transparent; color: var(--text-muted); font-weight: 400; font-size: 11px; }
+
+  /* UNDO CLEAR TOAST */
+  #undo-clear-toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #5c2a2a;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+    z-index: 9999;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.3s;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  #undo-clear-toast.visible {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: all;
+  }
+  #undo-clear-timer {
+    width: 4px;
+    height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  #undo-clear-bar {
+    width: 100%;
+    height: 100%;
+    background: #f5a0a0;
+    transform-origin: bottom;
+  }
+  #undo-clear-btn {
+    background: #f5a0a0;
+    color: #5c2a2a;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  #undo-clear-btn:hover { background: #ffbcbc; }
+
+  /* Print */
+  @media print {
+    header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+    .btn-del, .btn-add-row, .actions { display: none; }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    header { flex-direction: column; gap: 20px; padding: 24px; }
+    .header-summary { width: 100%; justify-content: center; }
+    main { padding: 24px 16px; }
+    .summary-grid { grid-template-columns: 1fr 1fr; }
+    input[type="number"] { width: 80px; }
+    .td-label input[type="text"] { width: 120px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Fluxo<span>.</span></div>
+    <div class="header-sub">Gestão Financeira · Terapeutas</div>
+  </div>
+  <div class="header-summary">
+    <div class="header-month">
+      <div class="month-badge">
+        <div class="month-name" id="header-month-name">—</div>
+        <div class="month-year" id="header-month-year">—</div>
+      </div>
+    </div>
+    <div class="hsum-divider"></div>
+    <div class="hsum-item">
+      <div class="hsum-label">Custo Mensal</div>
+      <div class="hsum-value" id="header-monthly">R$ 0,00</div>
+    </div>
+    <div class="hsum-divider"></div>
+    <div class="hsum-item">
+      <div class="hsum-label">Custo Anual</div>
+      <div class="hsum-value" id="header-annual">R$ 0,00</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- FIXED COSTS -->
+  <div class="section-header">
+    <span class="section-pill">Fixos</span>
+    <h2 class="section-title">Custos Fixos Mensais</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="fixed-table">
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Vencimento</th>
+          <th>Mensal</th>
+          <th>Anual</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="fixed-body">
+      </tbody>
+      <tfoot>
+        <tr class="total-row" id="fixed-total-row">
+          <td>Total Custos Fixos</td>
+          <td></td>
+          <td><span class="total-amount" id="fixed-monthly-total">R$ 0,00</span></td>
+          <td><span class="total-amount" id="fixed-annual-total">R$ 0,00</span></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addRow('fixed')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar linha
+    </button>
+  </div>
+
+  <!-- VARIABLE COSTS -->
+  <div class="section-header">
+    <span class="section-pill variable">Variáveis</span>
+    <h2 class="section-title">Custos Variáveis</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="variable-table">
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Vencimento</th>
+          <th>Mensal</th>
+          <th>Anual</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="variable-body">
+      </tbody>
+      <tfoot>
+        <tr class="total-row variable" id="variable-total-row">
+          <td>Total Custos Variáveis</td>
+          <td></td>
+          <td><span class="total-amount" id="variable-monthly-total">R$ 0,00</span></td>
+          <td><span class="total-amount" id="variable-annual-total">R$ 0,00</span></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addRow('variable')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar linha
+    </button>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="summary-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill" style="background:var(--sage-dark)">Resumo</span>
+      <h2 class="section-title">Meu Orçamento Pessoal</h2>
+    </div>
+    <div class="summary-grid">
+      <div class="sum-card fixed">
+        <div class="sum-label">Total Fixo Anual</div>
+        <div class="sum-value" id="sum-fixed-annual">R$ 0</div>
+        <div class="sum-sub" id="sum-fixed-monthly-sub">R$ 0,00 / mês</div>
+      </div>
+      <div class="sum-card variable">
+        <div class="sum-label">Total Variável Anual</div>
+        <div class="sum-value" id="sum-variable-annual">R$ 0</div>
+        <div class="sum-sub" id="sum-variable-monthly-sub">R$ 0,00 / mês</div>
+      </div>
+      <div class="sum-card total-annual">
+        <div class="sum-label">Custo Total Anual</div>
+        <div class="sum-value" id="sum-total-annual">R$ 0</div>
+        <div class="sum-sub">Fixo + Variável</div>
+      </div>
+      <div class="sum-card total-monthly">
+        <div class="sum-label">Custo Total Mensal</div>
+        <div class="sum-value" id="sum-total-monthly">R$ 0</div>
+        <div class="sum-sub">Média mensal</div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- DIVIDER -->
+  <hr class="section-divider">
+
+  <!-- BIZ FIXED COSTS -->
+  <div class="section-header" style="margin-top:72px">
+    <span class="section-pill biz">Fixos</span>
+    <h2 class="section-title">Custos Fixos da Empresa</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Vencimento</th>
+          <th>Mensal</th>
+          <th>Anual</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="biz-fixed-body"></tbody>
+      <tfoot>
+        <tr class="total-row biz">
+          <td>Total Custos Fixos Empresa</td>
+          <td></td>
+          <td><span class="total-amount" id="biz-fixed-monthly-total">R$ 0,00</span></td>
+          <td><span class="total-amount" id="biz-fixed-annual-total">R$ 0,00</span></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addRow('biz-fixed')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar linha
+    </button>
+  </div>
+
+  <!-- BIZ VARIABLE COSTS -->
+  <div class="section-header">
+    <span class="section-pill biz-var">Variáveis</span>
+    <h2 class="section-title">Custos Variáveis da Empresa</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Vencimento</th>
+          <th>Mensal</th>
+          <th>Anual</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="biz-variable-body"></tbody>
+      <tfoot>
+        <tr class="total-row biz-var">
+          <td>Total Custos Variáveis Empresa</td>
+          <td></td>
+          <td><span class="total-amount" id="biz-variable-monthly-total">R$ 0,00</span></td>
+          <td><span class="total-amount" id="biz-variable-annual-total">R$ 0,00</span></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addRow('biz-variable')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar linha
+    </button>
+  </div>
+
+  <!-- BIZ SUMMARY -->
+  <div class="summary-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill" style="background:#3a3a5c">Resumo</span>
+      <h2 class="section-title">Orçamento Empresarial</h2>
+    </div>
+    <div class="summary-grid">
+      <div class="sum-card biz-fixed">
+        <div class="sum-label">Total Fixo Anual</div>
+        <div class="sum-value" id="biz-sum-fixed-annual">R$ 0</div>
+        <div class="sum-sub" id="biz-sum-fixed-monthly-sub">R$ 0,00 / mês</div>
+      </div>
+      <div class="sum-card biz-variable">
+        <div class="sum-label">Total Variável Anual</div>
+        <div class="sum-value" id="biz-sum-variable-annual">R$ 0</div>
+        <div class="sum-sub" id="biz-sum-variable-monthly-sub">R$ 0,00 / mês</div>
+      </div>
+      <div class="sum-card biz-total-annual">
+        <div class="sum-label">Custo Total Anual da Empresa</div>
+        <div class="sum-value" id="biz-sum-total-annual">R$ 0</div>
+        <div class="sum-sub">Fixo + Variável</div>
+      </div>
+      <div class="sum-card biz-total-monthly">
+        <div class="sum-label">Custo Mensal da Empresa</div>
+        <div class="sum-value" id="biz-sum-total-monthly">R$ 0</div>
+        <div class="sum-sub">Média mensal</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRICING CALCULATOR -->
+  <div class="pricing-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill" style="background:#5a6e8c">Precificação</span>
+      <h2 class="section-title">Custo do Serviço & Meta Mensal</h2>
+    </div>
+
+    <div class="pricing-grid">
+
+      <!-- CARD 1: Valor da Hora -->
+      <div class="pricing-card">
+        <div class="pricing-card-header">
+          <h3>Valor da Hora</h3>
+          <p>Calcule o mínimo que você precisa cobrar por hora de atendimento</p>
+        </div>
+        <div class="pricing-body">
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">
+              Custo mensal total
+              <div class="pricing-auto-note" style="margin-top:2px"><span class="auto-badge">auto</span> calculado pelo orçamento</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:15px;font-weight:600;color:var(--sage-dark)" id="hour-cost-display">R$ 0,00</div>
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Dias úteis de trabalho no mês</div>
+            <div class="pricing-row-input">
+              <input type="number" id="work-days" min="1" max="31" value="22" oninput="calcPricing()">
+              <span class="unit">dias</span>
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Horas de atendimento por dia</div>
+            <div class="pricing-row-input">
+              <input type="number" id="hours-per-day" min="1" max="16" value="8" oninput="calcPricing()">
+              <span class="unit">h/dia</span>
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Margem de lucro desejada</div>
+            <div class="pricing-row-input">
+              <input type="number" id="profit-margin" min="0" max="200" value="30" oninput="calcPricing()">
+              <span class="unit">%</span>
+            </div>
+          </div>
+
+          <div class="pricing-breakdown" id="hour-breakdown">
+            <div class="breakdown-row"><span>Total horas/mês disponíveis</span><strong id="bd-total-hours">—</strong></div>
+            <div class="breakdown-row"><span>Valor mínimo por hora (sem margem)</span><strong id="bd-min-hour">—</strong></div>
+            <hr class="breakdown-divider">
+            <div class="breakdown-row"><span>Margem de lucro (<span id="bd-margin-pct">30</span>%)</span><strong id="bd-margin-val">—</strong></div>
+          </div>
+
+          <div class="pricing-result">
+            <div>
+              <div class="pricing-result-label">Valor da Hora</div>
+              <div class="pricing-result-value" id="result-hour-value">R$ —</div>
+              <div class="pricing-result-sub">Com <span id="res-margin">30</span>% de margem de lucro</div>
+            </div>
+            <div style="font-size:48px;opacity:0.15">⏱</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- CARD 2: Meta Mensal -->
+      <div class="pricing-card">
+        <div class="pricing-card-header">
+          <h3>Meta de Faturamento</h3>
+          <p>Quantas sessões você precisa fazer para atingir sua meta</p>
+        </div>
+        <div class="pricing-body">
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Meta de faturamento mensal</div>
+            <div class="pricing-row-input">
+              <span style="font-size:12px;color:var(--text-muted)">R$</span>
+              <input type="number" id="monthly-goal" min="0" step="100" value="15000" oninput="calcPricing()">
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Valor cobrado por sessão</div>
+            <div class="pricing-row-input">
+              <span style="font-size:12px;color:var(--text-muted)">R$</span>
+              <input type="number" id="session-price" min="0" step="10" value="200" oninput="calcPricing()">
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Duração de cada sessão</div>
+            <div class="pricing-row-input">
+              <input type="number" id="session-duration" min="30" max="180" step="10" value="50" oninput="calcPricing()">
+              <span class="unit">min</span>
+            </div>
+          </div>
+
+          <div class="pricing-breakdown">
+            <div class="breakdown-row"><span>Sessões necessárias/mês</span><strong id="bd-sessions">—</strong></div>
+            <div class="breakdown-row"><span>Sessões por dia de trabalho</span><strong id="bd-sessions-day">—</strong></div>
+            <div class="breakdown-row"><span>Horas de trabalho/mês</span><strong id="bd-work-hours">—</strong></div>
+            <hr class="breakdown-divider">
+            <div class="breakdown-row"><span>Margem após cobrir custos</span><strong id="bd-profit" style="color:var(--sage-dark)">—</strong></div>
+          </div>
+
+          <div class="pricing-result accent">
+            <div>
+              <div class="pricing-result-label">Sessões para bater a meta</div>
+              <div class="pricing-result-value" id="result-sessions">— sess.</div>
+              <div class="pricing-result-sub" id="result-sessions-sub">— sessões/dia nos dias úteis</div>
+            </div>
+            <div style="font-size:48px;opacity:0.15">🎯</div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-action" onclick="showClearModal()">Limpar tudo</button>
+    <button class="btn-action primary" id="export-btn" onclick="exportWord()">
+      <span id="export-label">⬇ Exportar Word</span>
+    </button>
+  </div>
+
+</main>
+
+<!-- CLEAR CONFIRM MODAL -->
+<div id="clear-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:32px 36px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);text-align:center;">
+    <div style="font-size:36px;margin-bottom:12px;">🗑️</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:#2a2a2a;margin-bottom:8px;">Limpar todos os valores?</div>
+    <div style="font-size:13px;color:#7a7a7a;margin-bottom:28px;line-height:1.5;">Os nomes das categorias serão mantidos.<br>Apenas valores e datas serão apagados.</div>
+    <div style="display:flex;gap:12px;justify-content:center;">
+      <button onclick="hideClearModal()" style="padding:10px 24px;border-radius:8px;border:1px solid #e2ddd4;background:#faf7f2;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;color:#2a2a2a;">Cancelar</button>
+      <button onclick="doClearAll()" style="padding:10px 24px;border-radius:8px;border:none;background:#c0392b;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;color:#fff;">Limpar tudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNDO CLEAR TOAST -->
+<div id="undo-clear-toast">
+  <div id="undo-clear-timer"><div id="undo-clear-bar"></div></div>
+  <span class="toast-msg">Todos os valores foram <span style="color:#fff;font-weight:500">apagados</span></span>
+  <button id="undo-clear-btn" onclick="undoClear()">↩ Desfazer</button>
+</div>
+<div id="undo-toast">
+  <div id="undo-timer"><div id="undo-timer-bar"></div></div>
+  <span class="toast-msg">Linha <span id="toast-name" class="toast-name"></span> removida</span>
+  <button id="undo-btn" onclick="undoDelete()">↩ Desfazer</button>
+</div>
+
+<script>
+const FIXED_DEFAULTS = [
+  {name: 'Imposto', value: 195},
+  {name: 'Condomínio', value: 0},
+  {name: 'Água', value: 0},
+  {name: 'Luz', value: 380},
+  {name: 'Internet', value: 157},
+  {name: 'Diarista', value: 0},
+  {name: 'Seguro carro', value: 0},
+  {name: 'Plano de saúde', value: 1350},
+  {name: 'Escola', value: 0},
+  {name: 'Lazer (fixo)', value: 350},
+  {name: 'Academia', value: 300},
+  {name: 'Celular', value: 60},
+  {name: 'Assinaturas', value: 600},
+  {name: 'Empréstimos', value: 0},
+  {name: 'Terapia', value: 150},
+  {name: 'Investimentos', value: 1200},
+  {name: 'Autocuidado', value: 1000},
+];
+
+const VARIABLE_DEFAULTS = [
+  {name: 'Cartões', value: 1600},
+  {name: 'Farmácia (Suplementos)', value: 400},
+  {name: 'Gasolina', value: 250},
+  {name: 'Mercado', value: 850},
+];
+
+const BIZ_FIXED_DEFAULTS = [
+  {name: 'Aluguel', value: 550},
+  {name: 'Condomínio', value: 0},
+  {name: 'Água', value: 156},
+  {name: 'Luz', value: 90},
+  {name: 'Telefone / Internet', value: 157},
+  {name: 'Secretária', value: 0},
+  {name: 'Diarista', value: 0},
+  {name: 'Pró-labore', value: 9000},
+  {name: 'Cursos e Formações', value: 600},
+  {name: 'Seguro de vida', value: 0},
+  {name: 'Canva', value: 34.90},
+  {name: 'Zoom', value: 0},
+  {name: 'Vimeo', value: 0},
+  {name: 'ChatGPT', value: 107.40},
+  {name: 'Servidor Email/site', value: 0},
+  {name: 'Contador', value: 250},
+  {name: 'Nuvem (Drive)', value: 49.99},
+  {name: 'Tráfego pago', value: 1200},
+  {name: 'Morfus', value: 529},
+  {name: 'Outras assinaturas', value: 600},
+];
+
+const BIZ_VARIABLE_DEFAULTS = [
+  {name: 'Impostos', value: 87.05},
+];
+
+let rowId = 0;
+
+function createRow(type, name = '', value = 0, due = '') {
+  const id = rowId++;
+  const tbody = document.getElementById(type + '-body');
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + id;
+  tr.dataset.type = type;
+
+  const annual = value * 12;
+
+  tr.innerHTML = `
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="deleteRow('row-${id}')" title="Remover">×</button>
+        <input type="text" value="${name}" placeholder="Nome do custo" oninput="recalculate()" />
+      </div>
+    </td>
+    <td style="text-align:center">
+      <div class="due-wrap">
+        <input type="number" class="due-input" min="1" max="31" value="${due}" placeholder="dia" title="Dia de vencimento" oninput="updateDueBadge(this)" />
+        <span class="due-label-unit" style="display:${due ? 'inline' : 'none'}">°</span>
+      </div>
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" min="0" step="0.01" value="${value}" oninput="updateAnnual('row-${id}'); recalculate();" />
+      </div>
+    </td>
+    <td>
+      <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${id}">${formatBRL(annual)}</span>
+    </td>
+    <td></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function updateAnnual(rowId) {
+  const tr = document.getElementById(rowId);
+  const input = tr.querySelector('input[type="number"]:not(.due-input)');
+  const val = parseFloat(input.value) || 0;
+  const annual = val * 12;
+  const id = rowId.split('-')[1];
+  const span = document.getElementById('annual-' + id);
+  span.textContent = formatBRL(annual);
+  span.className = 'annual-val' + (annual > 0 ? ' has-value' : '');
+}
+
+function updateDueBadge(input) {
+  const unit = input.parentElement.querySelector('.due-label-unit');
+  if (unit) unit.style.display = input.value ? 'inline' : 'none';
+}
+
+let undoStack = null;
+let undoTimer = null;
+const UNDO_DURATION = 5000;
+
+function deleteRow(id) {
+  const tr = document.getElementById(id);
+  if (!tr) return;
+
+  // Snapshot everything needed to restore
+  const snapshot = {
+    id: id,
+    type: tr.dataset.type,
+    name: tr.querySelector('input[type="text"]').value,
+    value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)').value) || 0,
+    due: tr.querySelector('.due-input') ? tr.querySelector('.due-input').value : '',
+    nextSibling: tr.nextSibling,
+    parentTbody: tr.parentElement,
+  };
+
+  // Animate out
+  tr.style.opacity = '0';
+  tr.style.transform = 'translateX(-10px)';
+  tr.style.transition = 'all 0.2s';
+
+  setTimeout(() => {
+    tr.remove();
+    recalculate();
+    saveData();
+  }, 200);
+
+  // Store undo state
+  undoStack = snapshot;
+  showUndoToast(snapshot.name);
+}
+
+function showUndoToast(name) {
+  clearTimeout(undoTimer);
+  const toast = document.getElementById('undo-toast');
+  const bar = document.getElementById('undo-timer-bar');
+  document.getElementById('toast-name').textContent = name || 'sem nome';
+  toast.classList.add('visible');
+  bar.style.transition = 'none';
+  bar.style.transform = 'scaleY(1)';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      bar.style.transition = `transform ${UNDO_DURATION}ms linear`;
+      bar.style.transform = 'scaleY(0)';
+    });
+  });
+  undoTimer = setTimeout(hideUndoToast, UNDO_DURATION);
+}
+
+function hideUndoToast() {
+  document.getElementById('undo-toast').classList.remove('visible');
+  undoStack = null;
+}
+
+function undoDelete() {
+  if (!undoStack) return;
+  clearTimeout(undoTimer);
+
+  const s = undoStack;
+  const tr = document.createElement('tr');
+  tr.id = s.id;
+  tr.dataset.type = s.type;
+  const rid = s.id.split('-')[1];
+  const annual = s.value * 12;
+
+  tr.innerHTML = `
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="deleteRow('${s.id}')" title="Remover">×</button>
+        <input type="text" value="${s.name}" placeholder="Nome do custo" oninput="recalculate()" />
+      </div>
+    </td>
+    <td style="text-align:center">
+      <div class="due-wrap">
+        <input type="number" class="due-input" min="1" max="31" value="${s.due}" placeholder="dia" title="Dia de vencimento" oninput="updateDueBadge(this)" />
+        <span class="due-label-unit" style="display:${s.due ? 'inline' : 'none'}">°</span>
+      </div>
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" min="0" step="0.01" value="${s.value}" oninput="updateAnnual('${s.id}'); recalculate();" />
+      </div>
+    </td>
+    <td>
+      <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${rid}">${formatBRL(annual)}</span>
+    </td>
+    <td></td>
+  `;
+
+  if (s.nextSibling && s.nextSibling.parentElement === s.parentTbody) {
+    s.parentTbody.insertBefore(tr, s.nextSibling);
+  } else {
+    s.parentTbody.appendChild(tr);
+  }
+
+  tr.style.opacity = '0';
+  tr.style.transform = 'translateX(-10px)';
+  requestAnimationFrame(() => {
+    tr.style.transition = 'all 0.25s';
+    tr.style.opacity = '1';
+    tr.style.transform = 'translateX(0)';
+  });
+
+  undoStack = null;
+  hideUndoToast();
+  recalculate();
+}
+
+function addRow(type) {
+  createRow(type, '', 0);
+  const tbody = document.getElementById(type + '-body');
+  const lastInput = tbody.lastElementChild.querySelector('input[type="text"]');
+  if (lastInput) lastInput.focus();
+  saveData();
+}
+
+function recalculate() {
+  // Personal
+  const fixedMonthly = sumType('fixed');
+  const variableMonthly = sumType('variable');
+  const totalMonthly = fixedMonthly + variableMonthly;
+  const fixedAnnual = fixedMonthly * 12;
+  const variableAnnual = variableMonthly * 12;
+  const totalAnnual = totalMonthly * 12;
+
+  document.getElementById('fixed-monthly-total').textContent = formatBRL(fixedMonthly);
+  document.getElementById('fixed-annual-total').textContent = formatBRL(fixedAnnual);
+  document.getElementById('variable-monthly-total').textContent = formatBRL(variableMonthly);
+  document.getElementById('variable-annual-total').textContent = formatBRL(variableAnnual);
+  document.getElementById('sum-fixed-annual').textContent = formatBRL(fixedAnnual);
+  document.getElementById('sum-fixed-monthly-sub').textContent = formatBRL(fixedMonthly) + ' / mês';
+  document.getElementById('sum-variable-annual').textContent = formatBRL(variableAnnual);
+  document.getElementById('sum-variable-monthly-sub').textContent = formatBRL(variableMonthly) + ' / mês';
+  document.getElementById('sum-total-annual').textContent = formatBRL(totalAnnual);
+  document.getElementById('sum-total-monthly').textContent = formatBRL(totalMonthly);
+  document.getElementById('header-monthly').textContent = formatBRL(totalMonthly);
+  document.getElementById('header-annual').textContent = formatBRL(totalAnnual);
+
+  // Business
+  const bizFixed = sumType('biz-fixed');
+  const bizVar = sumType('biz-variable');
+  const bizTotal = bizFixed + bizVar;
+  const bizFixedAnnual = bizFixed * 12;
+  const bizVarAnnual = bizVar * 12;
+  const bizTotalAnnual = bizTotal * 12;
+
+  document.getElementById('biz-fixed-monthly-total').textContent = formatBRL(bizFixed);
+  document.getElementById('biz-fixed-annual-total').textContent = formatBRL(bizFixedAnnual);
+  document.getElementById('biz-variable-monthly-total').textContent = formatBRL(bizVar);
+  document.getElementById('biz-variable-annual-total').textContent = formatBRL(bizVarAnnual);
+  document.getElementById('biz-sum-fixed-annual').textContent = formatBRL(bizFixedAnnual);
+  document.getElementById('biz-sum-fixed-monthly-sub').textContent = formatBRL(bizFixed) + ' / mês';
+  document.getElementById('biz-sum-variable-annual').textContent = formatBRL(bizVarAnnual);
+  document.getElementById('biz-sum-variable-monthly-sub').textContent = formatBRL(bizVar) + ' / mês';
+  document.getElementById('biz-sum-total-annual').textContent = formatBRL(bizTotalAnnual);
+  document.getElementById('biz-sum-total-monthly').textContent = formatBRL(bizTotal);
+
+  calcPricing();
+  saveData();
+}
+
+function calcPricing() {
+  const totalMonthly = sumType('fixed') + sumType('variable');
+  const workDays = parseFloat(document.getElementById('work-days').value) || 22;
+  const hoursPerDay = parseFloat(document.getElementById('hours-per-day').value) || 8;
+  const marginPct = parseFloat(document.getElementById('profit-margin').value) || 0;
+  const monthlyGoal = parseFloat(document.getElementById('monthly-goal').value) || 0;
+  const sessionPrice = parseFloat(document.getElementById('session-price').value) || 0;
+  const sessionDuration = parseFloat(document.getElementById('session-duration').value) || 50;
+
+  // Update cost display
+  document.getElementById('hour-cost-display').textContent = formatBRL(totalMonthly);
+
+  // Hour value calc
+  const totalHours = workDays * hoursPerDay;
+  const minHourValue = totalHours > 0 ? totalMonthly / totalHours : 0;
+  const marginAmount = minHourValue * (marginPct / 100);
+  const finalHourValue = minHourValue + marginAmount;
+
+  document.getElementById('bd-total-hours').textContent = totalHours + 'h';
+  document.getElementById('bd-min-hour').textContent = formatBRL(minHourValue);
+  document.getElementById('bd-margin-pct').textContent = marginPct;
+  document.getElementById('bd-margin-val').textContent = '+ ' + formatBRL(marginAmount);
+  document.getElementById('bd-margin-val').style.color = marginPct > 0 ? 'var(--sage-dark)' : 'var(--text-muted)';
+  document.getElementById('result-hour-value').textContent = formatBRL(finalHourValue);
+  document.getElementById('res-margin').textContent = marginPct;
+
+  // Meta calc
+  const sessionsNeeded = sessionPrice > 0 ? Math.ceil(monthlyGoal / sessionPrice) : 0;
+  const sessionsPerDay = workDays > 0 ? (sessionsNeeded / workDays).toFixed(1) : 0;
+  const workHoursMonth = (sessionsNeeded * sessionDuration / 60).toFixed(1);
+  const profit = monthlyGoal - totalMonthly;
+
+  document.getElementById('bd-sessions').textContent = sessionsNeeded + ' sessões';
+  document.getElementById('bd-sessions-day').textContent = sessionsPerDay + ' sess/dia';
+  document.getElementById('bd-work-hours').textContent = workHoursMonth + 'h';
+  document.getElementById('bd-profit').textContent = formatBRL(profit);
+  document.getElementById('bd-profit').style.color = profit >= 0 ? 'var(--sage-dark)' : 'var(--red)';
+  document.getElementById('result-sessions').textContent = sessionsNeeded + ' sess.';
+  document.getElementById('result-sessions-sub').textContent = sessionsPerDay + ' sessões/dia nos ' + workDays + ' dias úteis';
+}
+
+function sumType(type) {
+  let total = 0;
+  document.querySelectorAll(`#${type}-body input[type="number"]:not(.due-input)`).forEach(inp => {
+    total += parseFloat(inp.value) || 0;
+  });
+  return total;
+}
+
+function formatBRL(val) {
+  return val.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+}
+
+function showClearModal() {
+  const overlay = document.getElementById('clear-modal-overlay');
+  overlay.style.display = 'flex';
+}
+
+function hideClearModal() {
+  document.getElementById('clear-modal-overlay').style.display = 'none';
+}
+
+
+let clearSnapshot = null;
+
+function doClearAll() {
+  hideClearModal();
+
+  // Save snapshot before clearing
+  clearSnapshot = [];
+  ['fixed', 'variable', 'biz-fixed', 'biz-variable'].forEach(type => {
+    document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+      const valInput = tr.querySelector('input[type="number"]:not(.due-input)');
+      const dueInput = tr.querySelector('.due-input');
+      clearSnapshot.push({
+        id: tr.id,
+        value: valInput ? valInput.value : '',
+        due: dueInput ? dueInput.value : '',
+      });
+    });
+  });
+
+  // Clear all values and dates
+  ['fixed', 'variable', 'biz-fixed', 'biz-variable'].forEach(type => {
+    document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+      const valInput = tr.querySelector('input[type="number"]:not(.due-input)');
+      const dueInput = tr.querySelector('.due-input');
+      if (valInput) valInput.value = 0;
+      if (dueInput) {
+        dueInput.value = '';
+        const unit = dueInput.parentElement.querySelector('.due-label-unit');
+        if (unit) unit.style.display = 'none';
+      }
+      const rid = tr.id ? tr.id.replace('row-', '') : '';
+      if (rid) {
+        const span = document.getElementById('annual-' + rid);
+        if (span) { span.textContent = formatBRL(0); span.className = 'annual-val'; }
+      }
+    });
+  });
+  recalculate();
+  showUndoClearToast();
+}
+
+function undoClear() {
+  if (!clearSnapshot) return;
+  clearSnapshot.forEach(({ id, value, due }) => {
+    const tr = document.getElementById(id);
+    if (!tr) return;
+    const valInput = tr.querySelector('input[type="number"]:not(.due-input)');
+    const dueInput = tr.querySelector('.due-input');
+    if (valInput) {
+      valInput.value = value;
+      updateAnnual(id);
+    }
+    if (dueInput) {
+      dueInput.value = due;
+      const unit = dueInput.parentElement.querySelector('.due-label-unit');
+      if (unit) unit.style.display = due ? 'inline' : 'none';
+    }
+  });
+  clearSnapshot = null;
+  hideUndoClearToast();
+  recalculate();
+}
+
+let undoClearTimer = null;
+const UNDO_CLEAR_DURATION = 8000;
+
+function showUndoClearToast() {
+  clearTimeout(undoClearTimer);
+  const toast = document.getElementById('undo-clear-toast');
+  const bar = document.getElementById('undo-clear-bar');
+  toast.classList.add('visible');
+  bar.style.transition = 'none';
+  bar.style.transform = 'scaleY(1)';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    bar.style.transition = `transform ${UNDO_CLEAR_DURATION}ms linear`;
+    bar.style.transform = 'scaleY(0)';
+  }));
+  undoClearTimer = setTimeout(hideUndoClearToast, UNDO_CLEAR_DURATION);
+}
+
+function hideUndoClearToast() {
+  document.getElementById('undo-clear-toast').classList.remove('visible');
+  clearSnapshot = null;
+}
+
+function clearAll() { showClearModal(); }
+
+
+async function exportWord() {
+  const btn = document.getElementById('export-btn');
+  const lbl = document.getElementById('export-label');
+  lbl.textContent = '⏳ Gerando...';
+  btn.disabled = true;
+
+  try {
+    function getRows(type) {
+      const rows = [];
+      document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+        const name = tr.querySelector('input[type="text"]')?.value || '';
+        const value = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
+        const due = tr.querySelector('.due-input')?.value || '';
+        rows.push({ name, value, due });
+      });
+      return rows;
+    }
+
+    const now2 = new Date();
+    const mes = now2.toLocaleString('pt-BR', { month: 'long' });
+    const mesC = mes.charAt(0).toUpperCase() + mes.slice(1);
+    const ano = now2.getFullYear();
+
+    const fixedRows = getRows('fixed');
+    const varRows   = getRows('variable');
+    const bizFRows  = getRows('biz-fixed');
+    const bizVRows  = getRows('biz-variable');
+
+    const fixedM   = fixedRows.reduce((s,r)=>s+r.value,0);
+    const varM     = varRows.reduce((s,r)=>s+r.value,0);
+    const bizFM    = bizFRows.reduce((s,r)=>s+r.value,0);
+    const bizVM    = bizVRows.reduce((s,r)=>s+r.value,0);
+    const pessoalM = fixedM + varM;
+    const empresaM = bizFM + bizVM;
+
+    const workDays  = parseFloat(document.getElementById('work-days').value) || 22;
+    const hpd       = parseFloat(document.getElementById('hours-per-day').value) || 8;
+    const margin    = parseFloat(document.getElementById('profit-margin').value) || 0;
+    const goal      = parseFloat(document.getElementById('monthly-goal').value) || 0;
+    const sessPrice = parseFloat(document.getElementById('session-price').value) || 0;
+    const sessDur   = parseFloat(document.getElementById('session-duration').value) || 50;
+    const totalH    = workDays * hpd;
+    const minHour   = totalH > 0 ? pessoalM / totalH : 0;
+    const finalHour = minHour * (1 + margin / 100);
+    const sessNeeded = sessPrice > 0 ? Math.ceil(goal / sessPrice) : 0;
+    const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
+    const profit     = goal - pessoalM;
+
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    function par(text, { bold=false, size=20, color='2A2A2A', spBefore=0, spAfter=120, align='left' } = {}) {
+      const jc = align==='right' ? '<w:jc w:val="right"/>' : align==='center' ? '<w:jc w:val="center"/>' : '';
+      return `<w:p><w:pPr><w:spacing w:before="${spBefore}" w:after="${spAfter}"/>${jc}</w:pPr><w:r><w:rPr>${bold?'<w:b/>':''}<w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:color w:val="${color}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p>`;
+    }
+
+    function tc(text, { w=2000, bold=false, size=18, color='2A2A2A', bg='FFFFFF', align='left' } = {}) {
+      const jc = align==='right' ? '<w:jc w:val="right"/>' : align==='center' ? '<w:jc w:val="center"/>' : '';
+      const bdr = '<w:top w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/><w:left w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/><w:bottom w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/><w:right w:val="single" w:sz="2" w:space="0" w:color="CCCCCC"/>';
+      return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/><w:tcBorders>${bdr}</w:tcBorders><w:shd w:val="clear" w:color="auto" w:fill="${bg}"/><w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr><w:p><w:pPr><w:spacing w:before="0" w:after="0"/>${jc}</w:pPr><w:r><w:rPr>${bold?'<w:b/>':''}<w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:color w:val="${color}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r></w:p></w:tc>`;
+    }
+
+    function tableSection(title, rows, totalLabel, totalM, totalA, hdrBg, totalBg) {
+      const w0=3600,w1=1100,w2=2200,w3=2460;
+      let xml = par(title, { bold:true, size:24, color:'3D5C42', spBefore:240, spAfter:80 });
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Categoria',{w:w0,bold:true,bg:hdrBg})}${tc('Vencimento',{w:w1,bold:true,bg:hdrBg,align:'center'})}${tc('Mensal',{w:w2,bold:true,bg:hdrBg,align:'right'})}${tc('Anual',{w:w3,bold:true,bg:hdrBg,align:'right'})}</w:tr>`;
+      rows.forEach(r => {
+        const due = r.due ? r.due + 'o' : '-';
+        xml += `<w:tr>${tc(r.name,{w:w0})}${tc(due,{w:w1,align:'center',color:r.due?'2A2A2A':'AAAAAA'})}${tc(fBRL(r.value),{w:w2,align:'right'})}${tc(fBRL(r.value*12),{w:w3,align:'right'})}</w:tr>`;
+      });
+      xml += `<w:tr>${tc(totalLabel,{w:w0,bold:true,bg:totalBg})}${tc('',{w:w1,bg:totalBg})}${tc(fBRL(totalM),{w:w2,bold:true,bg:totalBg,align:'right'})}${tc(fBRL(totalA),{w:w3,bold:true,bg:totalBg,align:'right'})}</w:tr>`;
+      xml += `</w:tbl>`;
+      return xml;
+    }
+
+    function summaryTable(rows) {
+      const w0=5148, w1=4212;
+      let xml = `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/></w:tblGrid>`;
+      rows.forEach(([label, value, bg='FFFFFF']) => {
+        xml += `<w:tr>${tc(label,{w:w0,bg})}${tc(value,{w:w1,bold:true,align:'right',bg})}</w:tr>`;
+      });
+      xml += `</w:tbl>`;
+      return xml;
+    }
+
+    const body =
+      par('Fluxo . Gestao Financeira', {bold:true, size:36, color:'3D5C42', spAfter:60}) +
+      par(`Relatorio - ${mesC} de ${ano}`, {size:20, color:'7A7A7A', spAfter:320}) +
+      par('ORCAMENTO PESSOAL', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160}) +
+      tableSection('Custos Fixos', fixedRows, 'Total Custos Fixos', fixedM, fixedM*12, 'F0EAD8', 'E8F0E8') +
+      tableSection('Custos Variaveis', varRows, 'Total Custos Variaveis', varM, varM*12, 'F0EAD8', 'FBF0E0') +
+      par('Resumo Pessoal', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80}) +
+      summaryTable([
+        ['Total Fixo Anual', fBRL(fixedM*12), 'E8F4EA'],
+        ['Total Variavel Anual', fBRL(varM*12), 'FBF0E0'],
+        ['Custo Total Anual', fBRL(pessoalM*12), 'E0EBE0'],
+        ['Custo Total Mensal', fBRL(pessoalM), 'D4E8D4'],
+      ]) +
+      par('ORCAMENTO EMPRESARIAL', {bold:true, size:26, color:'3A4E6C', spBefore:560, spAfter:160}) +
+      tableSection('Custos Fixos Empresa', bizFRows, 'Total Custos Fixos Empresa', bizFM, bizFM*12, 'EAF0F8', 'EAF0F8') +
+      tableSection('Custos Variaveis Empresa', bizVRows, 'Total Custos Variaveis Empresa', bizVM, bizVM*12, 'EAF0F8', 'EEE8F8') +
+      par('Resumo Empresarial', {bold:true, size:22, color:'3A4E6C', spBefore:280, spAfter:80}) +
+      summaryTable([
+        ['Total Fixo Anual', fBRL(bizFM*12), 'EAF0F8'],
+        ['Total Variavel Anual', fBRL(bizVM*12), 'EEE8F8'],
+        ['Custo Total Anual da Empresa', fBRL(empresaM*12), 'DDE6F2'],
+        ['Custo Mensal da Empresa', fBRL(empresaM), 'CCD8EE'],
+      ]) +
+      par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
+      par('Valor da Hora', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80}) +
+      summaryTable([
+        ['Custo mensal total (pessoal)', fBRL(pessoalM)],
+        ['Dias uteis de trabalho', workDays + ' dias'],
+        ['Horas de atendimento por dia', hpd + 'h/dia'],
+        ['Total de horas/mes disponiveis', totalH + 'h'],
+        ['Valor minimo por hora (sem margem)', fBRL(minHour)],
+        ['Margem de lucro (' + margin + '%)', fBRL(minHour * margin/100)],
+        ['VALOR DA HORA', fBRL(finalHour), 'D4E8D4'],
+      ]) +
+      par('Meta de Faturamento', {bold:true, size:22, color:'C17F3E', spBefore:280, spAfter:80}) +
+      summaryTable([
+        ['Meta de faturamento mensal', fBRL(goal)],
+        ['Valor cobrado por sessao', fBRL(sessPrice)],
+        ['Duracao de cada sessao', sessDur + ' min'],
+        ['Sessoes necessarias/mes', sessNeeded + ' sessoes'],
+        ['Sessoes por dia de trabalho', sessDay + ' sess/dia'],
+        ['Margem apos cobrir custos', fBRL(profit), profit >= 0 ? 'D4E8D4' : 'FDECEA'],
+      ]);
+
+    const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+    const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+    const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>`;
+    const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
+    const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+
+    function strToBytes(str) { return new TextEncoder().encode(str); }
+
+    function crc32(data) {
+      let crc = 0xFFFFFFFF;
+      const t = crc32._t || (crc32._t = (() => {
+        const arr = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+          let c = i;
+          for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+          arr[i] = c;
+        }
+        return arr;
+      })());
+      for (let i = 0; i < data.length; i++) crc = t[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+      return (crc ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function u16(n) { return [n & 0xFF, (n >> 8) & 0xFF]; }
+    function u32(n) { return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; }
+
+    function makeEntry(name, content) {
+      const nb = strToBytes(name);
+      const data = strToBytes(content);
+      const crc = crc32(data);
+      const lh = new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),0x00,0x00,...nb]);
+      return { nb, lh, data, crc, sz: data.length };
+    }
+
+    function buildZip(files) {
+      const entries = files.map(([n,c]) => makeEntry(n,c));
+      const parts = []; const cds = []; let off = 0;
+      entries.forEach((e, i) => {
+        const lo = off;
+        parts.push(e.lh, e.data);
+        off += e.lh.length + e.data.length;
+        cds.push(new Uint8Array([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.crc),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(lo),...e.nb]));
+      });
+      const cdOff = off;
+      const cdSz = cds.reduce((s,d)=>s+d.length,0);
+      const eocd = new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(entries.length),...u16(entries.length),...u32(cdSz),...u32(cdOff),0x00,0x00]);
+      const all = [...parts,...cds,eocd];
+      const tot = all.reduce((s,p)=>s+p.length,0);
+      const out = new Uint8Array(tot); let pos=0;
+      all.forEach(p=>{out.set(p,pos);pos+=p.length;});
+      return out;
+    }
+
+    const zip = buildZip([
+      ['[Content_Types].xml', contentTypesXml],
+      ['_rels/.rels', rootRelsXml],
+      ['word/document.xml', documentXml],
+      ['word/styles.xml', stylesXml],
+      ['word/_rels/document.xml.rels', relsXml],
+    ]);
+
+    const blob = new Blob([zip], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Fluxo_Financeiro_${mesC}_${ano}.docx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+
+  } catch(e) {
+    alert('Erro ao gerar documento: ' + e.message);
+    console.error(e);
+  } finally {
+    lbl.textContent = '⬇ Exportar Word';
+    btn.disabled = false;
+  }
+}
+
+function fBRL(val) {
+  return (parseFloat(val)||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
+
+// ── PERSISTÊNCIA ──────────────────────────────────────────────
+const STORAGE_KEY = 'fluxo_v1';
+const PRICING_IDS = ['work-days','hours-per-day','profit-margin','monthly-goal','session-price','session-duration'];
+
+function saveData() {
+  const data = { tables: {}, pricing: {} };
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    data.tables[type] = [];
+    document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+      const name  = tr.querySelector('input[type="text"]')?.value || '';
+      const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
+      const due   = tr.querySelector('.due-input')?.value || '';
+      data.tables[type].push({ name, value, due });
+    });
+  });
+  PRICING_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data.pricing[id] = el.value;
+  });
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    if (!data.tables) return false;
+
+    ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+      const rows = data.tables[type];
+      if (!rows || !rows.length) return;
+      rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||''));
+    });
+
+    if (data.pricing) {
+      PRICING_IDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && data.pricing[id] !== undefined) el.value = data.pricing[id];
+      });
+    }
+    return true;
+  } catch(e) { return false; }
+}
+
+// Auto-save on any input change
+document.addEventListener('input', saveData);
+
+// Load saved data or fall back to defaults
+const loaded = loadData();
+if (!loaded) {
+  FIXED_DEFAULTS.forEach(d => createRow('fixed', d.name, d.value));
+  VARIABLE_DEFAULTS.forEach(d => createRow('variable', d.name, d.value));
+  BIZ_FIXED_DEFAULTS.forEach(d => createRow('biz-fixed', d.name, d.value));
+  BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
+}
+recalculate();
+
+// Also save after row add/delete (triggered via recalculate)
+const _recalc = recalculate;
+window._saveOnRecalc = true;
+
+// Set current month
+const now = new Date();
+const monthName = now.toLocaleString('pt-BR', { month: 'long' });
+const year = now.getFullYear();
+document.getElementById('header-month-name').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+document.getElementById('header-month-year').textContent = year;
+</script>
+</body>
+</html>
