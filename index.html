@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo · Gestão Financeira para Terapeutas</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
 <style>
   :root {
     --sage: #6b8f71;
@@ -689,6 +689,80 @@
   }
   #undo-clear-btn:hover { background: #ffbcbc; }
 
+  /* History Modal */
+  #history-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45); z-index: 9999;
+    align-items: center; justify-content: center;
+  }
+  #history-modal {
+    background: #fff; border-radius: 18px; padding: 32px 36px;
+    max-width: 520px; width: 94%; max-height: 80vh;
+    overflow-y: auto; box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  }
+  #history-modal h2 {
+    font-family: 'Playfair Display', serif; font-size: 22px;
+    color: var(--text); margin-bottom: 6px;
+  }
+  #history-modal .hist-sub {
+    font-size: 13px; color: var(--text-muted); margin-bottom: 22px;
+  }
+  .hist-month-card {
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 10px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .hist-month-card.current-month {
+    border-color: var(--sage); background: #f4faf5;
+  }
+  .hist-month-title {
+    font-weight: 600; font-size: 15px; color: var(--text); margin-bottom: 4px;
+  }
+  .hist-month-totals {
+    font-size: 12px; color: var(--text-muted); line-height: 1.6;
+  }
+  .hist-badge {
+    font-size: 10px; font-weight: 700; background: var(--sage);
+    color: #fff; border-radius: 4px; padding: 2px 7px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .btn-restore {
+    flex-shrink: 0; padding: 8px 16px; border-radius: 8px;
+    border: 1.5px solid var(--sage); background: transparent;
+    color: var(--sage-dark); font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-restore:hover { background: var(--sage); color: #fff; }
+  .hist-empty {
+    text-align: center; padding: 32px 0; color: var(--text-muted); font-size: 14px;
+  }
+  .hist-close-btn {
+    width: 100%; margin-top: 18px; padding: 11px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--cream);
+    font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer;
+    color: var(--text); font-weight: 500;
+  }
+  .hist-close-btn:hover { background: var(--warm); }
+
+  /* New month banner */
+  #new-month-banner {
+    display: none; background: linear-gradient(135deg, #3d5c42, #5a7d62);
+    color: #fff; padding: 14px 24px; border-radius: 12px;
+    margin: 0 0 20px 0; align-items: center; gap: 14px;
+    box-shadow: 0 4px 16px rgba(61,92,66,0.25);
+  }
+  #new-month-banner .banner-icon { font-size: 24px; flex-shrink: 0; }
+  #new-month-banner .banner-text { flex: 1; font-size: 14px; line-height: 1.5; }
+  #new-month-banner .banner-text strong { display: block; font-size: 15px; margin-bottom: 2px; }
+  #new-month-banner .banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  #new-month-banner .btn-banner {
+    padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; border: none;
+  }
+  #new-month-banner .btn-banner.primary { background: #fff; color: var(--sage-dark); }
+  #new-month-banner .btn-banner.secondary { background: rgba(255,255,255,0.2); color: #fff; }
+  #new-month-banner .btn-banner.secondary:hover { background: rgba(255,255,255,0.3); }
+
   /* Print */
   @media print {
     header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
@@ -696,13 +770,74 @@
   }
 
   /* Responsive */
+  @media (max-width: 900px) {
+    .pricing-grid { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 768px) {
-    header { flex-direction: column; gap: 20px; padding: 24px; }
-    .header-summary { width: 100%; justify-content: center; }
-    main { padding: 24px 16px; }
-    .summary-grid { grid-template-columns: 1fr 1fr; }
-    input[type="number"] { width: 80px; }
-    .td-label input[type="text"] { width: 120px; }
+    header { flex-direction: column; gap: 16px; padding: 20px 16px; }
+    .header-summary { width: 100%; justify-content: center; flex-wrap: wrap; gap: 12px; }
+    .hsum-item { text-align: center; }
+    .hsum-value { font-size: 18px; }
+    .hsum-divider { display: none; }
+    .logo { font-size: 24px; }
+
+    main { padding: 20px 12px; }
+
+    .section-header { gap: 10px; margin-bottom: 16px; margin-top: 36px; }
+    .section-title { font-size: 20px; }
+
+    /* Tabelas com scroll horizontal */
+    .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 480px; }
+    thead th { padding: 12px 12px; font-size: 10px; }
+    td { padding: 10px 12px; font-size: 13px; }
+    .total-row td { padding: 12px 12px; }
+
+    input[type="number"] { width: 75px; font-size: 13px; }
+    .td-label input[type="text"] { width: 110px; font-size: 13px; }
+    .due-input { width: 40px; font-size: 12px; }
+
+    .summary-grid { grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .sum-card { padding: 20px 16px; }
+    .sum-value { font-size: 22px; }
+    .summary-section { margin-top: 36px; }
+
+    .pricing-grid { grid-template-columns: 1fr; gap: 16px; margin-top: 16px; }
+    .pricing-section { margin-top: 36px; }
+    .pricing-body { padding: 16px; }
+    .pricing-result { flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; }
+    .pricing-result-value { font-size: 24px; }
+
+    .actions { flex-direction: column; gap: 8px; }
+    .btn-action { width: 100%; text-align: center; justify-content: center; }
+
+    .section-divider { margin: 40px 0 0; }
+  }
+
+  @media (max-width: 480px) {
+    header { padding: 16px 12px; }
+    .header-summary { gap: 8px; }
+    .hsum-value { font-size: 16px; }
+
+    main { padding: 16px 10px; }
+
+    table { min-width: 420px; }
+    td { padding: 8px 10px; }
+    thead th { padding: 10px 10px; }
+
+    input[type="number"] { width: 65px; }
+    .td-label input[type="text"] { width: 90px; }
+
+    .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .sum-card { padding: 16px 12px; }
+    .sum-value { font-size: 18px; }
+    .sum-label { font-size: 10px; }
+    .sum-sub { font-size: 11px; }
+
+    .section-title { font-size: 18px; }
+    .pricing-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .pricing-row-input input[type="number"] { width: 100%; }
   }
 </style>
 </head>
@@ -734,6 +869,17 @@
 </header>
 
 <main>
+<div id="new-month-banner" style="display:none">
+  <div class="banner-icon">📅</div>
+  <div class="banner-text">
+    <strong>Bem-vinda ao novo mês!</strong>
+    Os dados de <span id="banner-prev-month"></span> foram salvos no histórico automaticamente.
+  </div>
+  <div class="banner-actions">
+    <button class="btn-banner primary" onclick="showHistoryModal()">Ver histórico</button>
+    <button class="btn-banner secondary" onclick="this.closest('#new-month-banner').style.display='none'">Ok</button>
+  </div>
+</div>
 
   <!-- FIXED COSTS -->
   <div class="section-header">
@@ -989,8 +1135,17 @@
             </div>
           </div>
 
+          <div class="pricing-row">
+            <div class="pricing-row-label">Duração de cada sessão</div>
+            <div class="pricing-row-input">
+              <input type="number" id="hour-session-duration" min="10" max="180" step="5" value="50" oninput="calcPricing()">
+              <span class="unit">min</span>
+            </div>
+          </div>
+
           <div class="pricing-breakdown" id="hour-breakdown">
             <div class="breakdown-row"><span>Total horas/mês disponíveis</span><strong id="bd-total-hours">—</strong></div>
+            <div class="breakdown-row"><span>Sessões possíveis no mês</span><strong id="bd-possible-sessions">—</strong></div>
             <div class="breakdown-row"><span>Valor mínimo por hora (sem margem)</span><strong id="bd-min-hour">—</strong></div>
             <hr class="breakdown-divider">
             <div class="breakdown-row"><span>Margem de lucro (<span id="bd-margin-pct">30</span>%)</span><strong id="bd-margin-val">—</strong></div>
@@ -1065,12 +1220,23 @@
 
   <div class="actions">
     <button class="btn-action" onclick="showClearModal()">Limpar tudo</button>
+    <button class="btn-action" onclick="showHistoryModal()">📅 Histórico</button>
     <button class="btn-action primary" id="export-btn" onclick="exportWord()">
       <span id="export-label">⬇ Exportar Word</span>
     </button>
   </div>
 
 </main>
+
+<!-- HISTORY MODAL -->
+<div id="history-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)hideHistoryModal()">
+  <div id="history-modal">
+    <h2>📅 Histórico de Meses</h2>
+    <div class="hist-sub">Últimos 6 meses salvos automaticamente. Clique em restaurar para carregar os dados de um mês anterior.</div>
+    <div id="history-list"></div>
+    <button class="hist-close-btn" onclick="hideHistoryModal()">Fechar</button>
+  </div>
+</div>
 
 <!-- CLEAR CONFIRM MODAL -->
 <div id="clear-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9998;align-items:center;justify-content:center;">
@@ -1372,10 +1538,11 @@ function recalculate() {
 }
 
 function calcPricing() {
-  const totalMonthly = sumType('fixed') + sumType('variable');
+  const totalMonthly = sumType('biz-fixed') + sumType('biz-variable');
   const workDays = parseFloat(document.getElementById('work-days').value) || 22;
   const hoursPerDay = parseFloat(document.getElementById('hours-per-day').value) || 8;
   const marginPct = parseFloat(document.getElementById('profit-margin').value) || 0;
+  const hourSessionDuration = parseFloat(document.getElementById('hour-session-duration').value) || 50;
   const monthlyGoal = parseFloat(document.getElementById('monthly-goal').value) || 0;
   const sessionPrice = parseFloat(document.getElementById('session-price').value) || 0;
   const sessionDuration = parseFloat(document.getElementById('session-duration').value) || 50;
@@ -1385,11 +1552,13 @@ function calcPricing() {
 
   // Hour value calc
   const totalHours = workDays * hoursPerDay;
+  const possibleSessions = hourSessionDuration > 0 ? Math.floor((totalHours * 60) / hourSessionDuration) : 0;
   const minHourValue = totalHours > 0 ? totalMonthly / totalHours : 0;
   const marginAmount = minHourValue * (marginPct / 100);
   const finalHourValue = minHourValue + marginAmount;
 
   document.getElementById('bd-total-hours').textContent = totalHours + 'h';
+  document.getElementById('bd-possible-sessions').textContent = possibleSessions + ' sessões';
   document.getElementById('bd-min-hour').textContent = formatBRL(minHourValue);
   document.getElementById('bd-margin-pct').textContent = marginPct;
   document.getElementById('bd-margin-val').textContent = '+ ' + formatBRL(marginAmount);
@@ -1564,11 +1733,11 @@ async function exportWord() {
     const sessPrice = parseFloat(document.getElementById('session-price').value) || 0;
     const sessDur   = parseFloat(document.getElementById('session-duration').value) || 50;
     const totalH    = workDays * hpd;
-    const minHour   = totalH > 0 ? pessoalM / totalH : 0;
+    const minHour   = totalH > 0 ? empresaM / totalH : 0;
     const finalHour = minHour * (1 + margin / 100);
     const sessNeeded = sessPrice > 0 ? Math.ceil(goal / sessPrice) : 0;
     const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
-    const profit     = goal - pessoalM;
+    const profit     = goal - empresaM;
 
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -1633,7 +1802,7 @@ async function exportWord() {
       par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
       par('Valor da Hora', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80}) +
       summaryTable([
-        ['Custo mensal total (pessoal)', fBRL(pessoalM)],
+        ['Custo mensal total (empresa)', fBRL(empresaM)],
         ['Dias uteis de trabalho', workDays + ' dias'],
         ['Horas de atendimento por dia', hpd + 'h/dia'],
         ['Total de horas/mes disponiveis', totalH + 'h'],
@@ -1734,10 +1903,28 @@ function fBRL(val) {
 
 // ── PERSISTÊNCIA ──────────────────────────────────────────────
 const STORAGE_KEY = 'fluxo_v1';
-const PRICING_IDS = ['work-days','hours-per-day','profit-margin','monthly-goal','session-price','session-duration'];
+const HISTORY_KEY = 'fluxo_history_v1';
+const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration'];
+
+function monthKey(date) {
+  const d = date || new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function archiveToHistory(data) {
+  if (!data || !data.savedAt) return;
+  const key = monthKey(new Date(data.savedAt));
+  try {
+    const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+    history[key] = data;
+    const keys = Object.keys(history).sort().reverse();
+    keys.slice(6).forEach(k => delete history[k]);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch(e) {}
+}
 
 function saveData() {
-  const data = { tables: {}, pricing: {} };
+  const data = { tables: {}, pricing: {}, savedAt: new Date().toISOString() };
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     data.tables[type] = [];
     document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
@@ -1752,6 +1939,7 @@ function saveData() {
     if (el) data.pricing[id] = el.value;
   });
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+  archiveToHistory(data);
 }
 
 function loadData() {
@@ -1760,6 +1948,16 @@ function loadData() {
     if (!raw) return false;
     const data = JSON.parse(raw);
     if (!data.tables) return false;
+
+    // Detect month change and archive previous month
+    if (data.savedAt) {
+      const savedMonthKey = monthKey(new Date(data.savedAt));
+      const nowKey = monthKey();
+      if (savedMonthKey !== nowKey) {
+        archiveToHistory(data);
+        setTimeout(() => showNewMonthBanner(savedMonthKey), 400);
+      }
+    }
 
     ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
       const rows = data.tables[type];
@@ -1775,6 +1973,103 @@ function loadData() {
     }
     return true;
   } catch(e) { return false; }
+}
+
+// ── HISTÓRICO ────────────────────────────────────────────────
+
+function ptMonthName(key) {
+  const [y, m] = key.split('-');
+  const d = new Date(parseInt(y), parseInt(m)-1, 1);
+  const name = d.toLocaleString('pt-BR', { month: 'long' });
+  return name.charAt(0).toUpperCase() + name.slice(1) + ' ' + y;
+}
+
+function calcDataTotals(data) {
+  let pessoal = 0, empresa = 0;
+  ['fixed','variable'].forEach(t => (data.tables[t]||[]).forEach(r => pessoal += parseFloat(r.value)||0));
+  ['biz-fixed','biz-variable'].forEach(t => (data.tables[t]||[]).forEach(r => empresa += parseFloat(r.value)||0));
+  return { pessoal, empresa };
+}
+
+function showNewMonthBanner(prevKey) {
+  const banner = document.getElementById('new-month-banner');
+  document.getElementById('banner-prev-month').textContent = ptMonthName(prevKey);
+  banner.style.display = 'flex';
+}
+
+function showHistoryModal() {
+  const list = document.getElementById('history-list');
+  let history = {};
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}'); } catch(e) {}
+
+  const keys = Object.keys(history).sort().reverse();
+  const nowKey = monthKey();
+
+  if (!keys.length) {
+    list.innerHTML = '<div class="hist-empty">Nenhum histórico salvo ainda.<br>Os dados serão arquivados automaticamente a cada mês.</div>';
+  } else {
+    list.innerHTML = keys.map(key => {
+      const data = history[key];
+      const totals = calcDataTotals(data);
+      const isCurrent = key === nowKey;
+      const savedDate = data.savedAt ? new Date(data.savedAt).toLocaleDateString('pt-BR') : '';
+      return `
+        <div class="hist-month-card${isCurrent ? ' current-month' : ''}">
+          <div>
+            <div class="hist-month-title">
+              ${ptMonthName(key)}
+              ${isCurrent ? '<span class="hist-badge">atual</span>' : ''}
+            </div>
+            <div class="hist-month-totals">
+              Pessoal: ${totals.pessoal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})} &nbsp;·&nbsp;
+              Empresa: ${totals.empresa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}
+              ${savedDate ? `<br>Último save: ${savedDate}` : ''}
+            </div>
+          </div>
+          ${!isCurrent ? `<button class="btn-restore" onclick="restoreMonth('${key}')">Restaurar</button>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('history-modal-overlay').style.display = 'flex';
+}
+
+function hideHistoryModal() {
+  document.getElementById('history-modal-overlay').style.display = 'none';
+}
+
+function restoreMonth(key) {
+  let history = {};
+  try { history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}'); } catch(e) {}
+  const data = history[key];
+  if (!data || !data.tables) return;
+
+  if (!confirm(`Restaurar os dados de ${ptMonthName(key)}?\nOs dados atuais serão substituídos (mas continuam salvos no histórico do mês atual).`)) return;
+
+  // Archive current before restoring
+  const currentRaw = localStorage.getItem(STORAGE_KEY);
+  if (currentRaw) {
+    try { archiveToHistory(JSON.parse(currentRaw)); } catch(e) {}
+  }
+
+  // Clear existing rows
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    document.querySelectorAll(`#${type}-body tr`).forEach(tr => tr.remove());
+  });
+
+  // Load restored data
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    (data.tables[type]||[]).forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||''));
+  });
+  if (data.pricing) {
+    PRICING_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data.pricing[id] !== undefined) el.value = data.pricing[id];
+    });
+  }
+
+  recalculate();
+  hideHistoryModal();
 }
 
 // Auto-save on any input change
