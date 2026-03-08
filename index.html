@@ -1465,7 +1465,12 @@ async function doLogout() {
   location.reload();
 }
 
+let _appLoaded = false;
+
 async function initAuth() {
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+  const isRecovery = hashParams.get('type') === 'recovery';
+
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       document.getElementById('setpass-tagline').textContent = 'Redefina sua senha';
@@ -1474,7 +1479,7 @@ async function initAuth() {
     }
     if (event === 'SIGNED_IN' && session?.user) {
       const setPassVisible = document.getElementById('av-set-password').style.display === 'flex';
-      if (!setPassVisible) {
+      if (!setPassVisible && !_appLoaded) {
         if (session.user.user_metadata?.must_change_password) {
           document.getElementById('setpass-tagline').textContent = 'Primeiro acesso — defina sua senha';
           showAuthView('set-password');
@@ -1484,9 +1489,6 @@ async function initAuth() {
       }
     }
   });
-
-  const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
-  const isRecovery = hashParams.get('type') === 'recovery';
 
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user) {
@@ -2350,6 +2352,8 @@ function restoreMonth(key) {
 document.addEventListener('input', saveData);
 
 function onAuthLogin(user) {
+  if (_appLoaded) return;
+  _appLoaded = true;
   document.getElementById('auth-overlay').style.display = 'none';
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('header-user').style.display = 'flex';
