@@ -2363,7 +2363,11 @@ function restoreMonth(key) {
 // Auto-save on any input change
 document.addEventListener('input', saveData);
 
+let _appLoaded = false;
+
 function onAuthLogin(user) {
+  if (_appLoaded) return;
+  _appLoaded = true;
   document.getElementById('auth-overlay').style.display = 'none';
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('header-user').style.display = 'flex';
