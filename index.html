@@ -2203,6 +2203,20 @@ function loadData() {
     const data = JSON.parse(raw);
     if (!data.tables) return false;
 
+    // Sanitize: remove duplicate rows (keep only first occurrence per name)
+    const LIMITS = {'fixed':50,'variable':50,'biz-fixed':50,'biz-variable':50};
+    ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+      if (!data.tables[type]) return;
+      const arr = data.tables[type];
+      const firstName = arr[0]?.name;
+      if (firstName) {
+        const repeatIdx = arr.findIndex((r,i) => i > 0 && r.name === firstName);
+        if (repeatIdx > 0) data.tables[type] = arr.slice(0, repeatIdx);
+      }
+      data.tables[type] = data.tables[type].slice(0, LIMITS[type]);
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+
     // Detect month change and archive previous month
     if (data.savedAt) {
       const savedMonthKey = monthKey(new Date(data.savedAt));
