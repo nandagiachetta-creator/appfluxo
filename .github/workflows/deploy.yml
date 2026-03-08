@@ -1,4 +1,4 @@
-name: Deploy para IONOS
+name: Deploy para Vercel
 
 on:
   push:
@@ -11,15 +11,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy via FTP para IONOS
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASS }}
-          local-dir: ./
-          server-dir: ${{ secrets.FTP_PATH }}
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
+      - name: Deploy via Vercel
+        run: npx vercel --token ${{ secrets.VERCEL_TOKEN }} --prod --yes
