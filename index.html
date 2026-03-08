@@ -1876,25 +1876,14 @@ function doClearAll() {
     });
   });
 
-  // Clear all values and dates
+  // Remove all rows and leave one blank row per block
   ['fixed', 'variable', 'biz-fixed', 'biz-variable'].forEach(type => {
-    document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
-      const valInput = tr.querySelector('input[type="number"]:not(.due-input)');
-      const dueInput = tr.querySelector('.due-input');
-      if (valInput) valInput.value = 0;
-      if (dueInput) {
-        dueInput.value = '';
-        const unit = dueInput.parentElement.querySelector('.due-label-unit');
-        if (unit) unit.style.display = 'none';
-      }
-      const rid = tr.id ? tr.id.replace('row-', '') : '';
-      if (rid) {
-        const span = document.getElementById('annual-' + rid);
-        if (span) { span.textContent = formatBRL(0); span.className = 'annual-val'; }
-      }
-    });
+    const tbody = document.getElementById(`${type}-body`);
+    if (tbody) tbody.innerHTML = '';
+    createRow(type, '', 0, '');
   });
   recalculate();
+  saveData();
   showUndoClearToast();
 }
 
