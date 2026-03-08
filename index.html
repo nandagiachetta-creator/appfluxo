@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo · Gestão Financeira para Terapeutas</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root {
     --sage: #6b8f71;
@@ -736,6 +737,20 @@
   .hist-empty {
     text-align: center; padding: 32px 0; color: var(--text-muted); font-size: 14px;
   }
+  .hist-total-block {
+    background: var(--sage-dark); border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 16px; color: var(--cream);
+  }
+  .hist-total-title {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px;
+    color: var(--sage-light); margin-bottom: 12px;
+  }
+  .hist-total-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  }
+  .hist-total-grid > div { display: flex; flex-direction: column; gap: 3px; }
+  .hist-total-label { font-size: 11px; color: var(--sage-light); }
+  .hist-total-val { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--cream); }
   .hist-close-btn {
     width: 100%; margin-top: 18px; padding: 11px; border-radius: 10px;
     border: 1px solid var(--border); background: var(--cream);
@@ -762,6 +777,61 @@
   #new-month-banner .btn-banner.primary { background: #fff; color: var(--sage-dark); }
   #new-month-banner .btn-banner.secondary { background: rgba(255,255,255,0.2); color: #fff; }
   #new-month-banner .btn-banner.secondary:hover { background: rgba(255,255,255,0.3); }
+
+  /* AUTH OVERLAY */
+  #auth-overlay {
+    position: fixed; inset: 0; z-index: 99999;
+    background: var(--cream);
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .av-card {
+    display: flex; flex-direction: column; gap: 16px;
+    width: 100%; max-width: 400px;
+    padding: 40px 32px;
+    background: var(--surface);
+    border-radius: 20px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.10);
+    border: 1px solid var(--border);
+  }
+  .av-card.center { align-items: center; text-align: center; }
+  .av-logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; color: var(--sage-dark);
+  }
+  .av-logo span { color: var(--accent); font-style: italic; }
+  .av-sub {
+    font-size: 12px; color: var(--text-muted);
+    letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;
+  }
+  .av-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px; color: var(--text);
+  }
+  .av-desc { font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+  .av-err { color: var(--red); font-size: 13px; min-height: 18px; }
+  .av-input {
+    padding: 12px 16px;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--text);
+    outline: none; background: var(--cream); width: 100%;
+    transition: border-color 0.2s;
+  }
+  .av-input:focus { border-color: var(--sage); }
+  .av-btn {
+    padding: 13px; background: var(--sage-dark); color: #fff;
+    border: none; border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s; width: 100%;
+  }
+  .av-btn:hover { background: var(--sage); }
+  .av-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .av-link {
+    background: none; border: none; color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif; font-size: 13px;
+    cursor: pointer; text-decoration: underline; text-align: center;
+  }
+  .av-icon { font-size: 64px; }
 
   /* Print */
   @media print {
@@ -843,6 +913,56 @@
 </head>
 <body>
 
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+
+  <!-- VIEW: Login -->
+  <div id="av-login" class="av-card">
+    <div>
+      <div class="av-logo">Fluxo<span>.</span></div>
+      <div class="av-sub">Gestão Financeira · Terapeutas</div>
+    </div>
+    <div id="login-err" class="av-err"></div>
+    <input id="login-email" class="av-input" type="email" placeholder="E-mail" onkeydown="if(event.key==='Enter')doLogin()">
+    <input id="login-pass" class="av-input" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')doLogin()">
+    <button id="login-btn" class="av-btn" onclick="doLogin()">Entrar</button>
+    <button class="av-link" onclick="showAuthView('reset')">Esqueci minha senha</button>
+  </div>
+
+  <!-- VIEW: Redefinir senha — solicitar link -->
+  <div id="av-reset" class="av-card" style="display:none">
+    <div>
+      <div class="av-title">Redefinir senha</div>
+      <div class="av-desc">Informe seu e-mail e enviaremos um link para redefinir sua senha.</div>
+    </div>
+    <div id="reset-err" class="av-err"></div>
+    <input id="reset-email" class="av-input" type="email" placeholder="E-mail" onkeydown="if(event.key==='Enter')doRequestReset()">
+    <button id="reset-btn" class="av-btn" onclick="doRequestReset()">Enviar link de reset</button>
+    <button class="av-link" onclick="showAuthView('login')">← Voltar</button>
+  </div>
+
+  <!-- VIEW: Confirmação de envio -->
+  <div id="av-reset-sent" class="av-card center" style="display:none">
+    <div class="av-icon">📬</div>
+    <div class="av-title">Link enviado!</div>
+    <div class="av-desc">Verifique seu e-mail e clique no link para redefinir sua senha.</div>
+    <button class="av-btn" onclick="showAuthView('login')">Voltar ao login</button>
+  </div>
+
+  <!-- VIEW: Definir nova senha -->
+  <div id="av-set-password" class="av-card" style="display:none">
+    <div>
+      <div id="setpass-tagline" class="av-title">Redefina sua senha</div>
+      <div class="av-desc">Escolha uma senha com pelo menos 6 caracteres.</div>
+    </div>
+    <div id="setpass-err" class="av-err"></div>
+    <input id="new-pass" class="av-input" type="password" placeholder="Nova senha">
+    <input id="new-pass2" class="av-input" type="password" placeholder="Confirmar senha" onkeydown="if(event.key==='Enter')doSetPassword()">
+    <button id="setpass-btn" class="av-btn" onclick="doSetPassword()">Confirmar e entrar</button>
+  </div>
+
+</div>
+
 <header>
   <div>
     <div class="logo">Fluxo<span>.</span></div>
@@ -865,6 +985,10 @@
       <div class="hsum-label">Custo Anual</div>
       <div class="hsum-value" id="header-annual">R$ 0,00</div>
     </div>
+  </div>
+  <div id="header-user" style="display:none;align-items:center;gap:12px;">
+    <span id="user-email-display" style="font-size:12px;color:var(--sage-light);"></span>
+    <button onclick="doLogout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 14px;border-radius:8px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Sair</button>
   </div>
 </header>
 
@@ -1195,12 +1319,22 @@
             </div>
           </div>
 
+          <div class="pricing-row">
+            <div class="pricing-row-label">Sessões realizadas no mês <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></div>
+            <div class="pricing-row-input">
+              <input type="number" id="actual-sessions" min="0" step="1" placeholder="—" oninput="calcPricing()">
+              <span class="unit">sess.</span>
+            </div>
+          </div>
+
           <div class="pricing-breakdown">
             <div class="breakdown-row"><span>Sessões necessárias/mês</span><strong id="bd-sessions">—</strong></div>
             <div class="breakdown-row"><span>Sessões por dia de trabalho</span><strong id="bd-sessions-day">—</strong></div>
             <div class="breakdown-row"><span>Horas de trabalho/mês</span><strong id="bd-work-hours">—</strong></div>
             <hr class="breakdown-divider">
             <div class="breakdown-row"><span>Margem após cobrir custos</span><strong id="bd-profit" style="color:var(--sage-dark)">—</strong></div>
+            <div class="breakdown-row" id="bd-actual-row" style="display:none"><span>Faturamento com sessões inseridas</span><strong id="bd-actual-revenue">—</strong></div>
+            <div class="breakdown-row" id="bd-diff-row" style="display:none"><span>Diferença para a meta</span><strong id="bd-diff">—</strong></div>
           </div>
 
           <div class="pricing-result accent">
@@ -1232,7 +1366,7 @@
 <div id="history-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)hideHistoryModal()">
   <div id="history-modal">
     <h2>📅 Histórico de Meses</h2>
-    <div class="hist-sub">Últimos 6 meses salvos automaticamente. Clique em restaurar para carregar os dados de um mês anterior.</div>
+    <div class="hist-sub">Últimos 3 meses salvos automaticamente. Clique em restaurar para carregar os dados de um mês anterior.</div>
     <div id="history-list"></div>
     <button class="hist-close-btn" onclick="hideHistoryModal()">Fechar</button>
   </div>
@@ -1264,6 +1398,111 @@
 </div>
 
 <script>
+// ── SUPABASE AUTH ─────────────────────────────────────────────
+const sb = supabase.createClient(
+  'https://vzuwlbhntbgvpyzvtqka.supabase.co',
+  'sb_publishable_6FkW_GQ7Dl6Uw7RArOBgWg_GKFF5DEE'
+);
+
+function showAuthView(v) {
+  ['login','reset','reset-sent','set-password'].forEach(n =>
+    document.getElementById('av-'+n).style.display = v === n ? 'flex' : 'none'
+  );
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  const btn   = document.getElementById('login-btn');
+  errEl.textContent = '';
+  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Entrar';
+  if (error) { errEl.textContent = 'E-mail ou senha incorretos.'; return; }
+  if (data.user.user_metadata?.must_change_password) {
+    document.getElementById('setpass-tagline').textContent = 'Primeiro acesso — defina sua senha';
+    showAuthView('set-password');
+    return;
+  }
+  onAuthLogin(data.user);
+}
+
+async function doRequestReset() {
+  const email = document.getElementById('reset-email').value.trim();
+  const errEl = document.getElementById('reset-err');
+  const btn   = document.getElementById('reset-btn');
+  errEl.textContent = '';
+  if (!email) { errEl.textContent = 'Digite seu e-mail.'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  btn.disabled = false; btn.textContent = 'Enviar link de reset';
+  if (error) { errEl.textContent = error.message; return; }
+  showAuthView('reset-sent');
+}
+
+async function doSetPassword() {
+  const pass  = document.getElementById('new-pass').value;
+  const pass2 = document.getElementById('new-pass2').value;
+  const errEl = document.getElementById('setpass-err');
+  const btn   = document.getElementById('setpass-btn');
+  errEl.textContent = '';
+  if (!pass || pass.length < 6) { errEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  if (pass !== pass2) { errEl.textContent = 'As senhas não coincidem.'; return; }
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const { error } = await sb.auth.updateUser({ password: pass, data: { must_change_password: false } });
+  btn.disabled = false; btn.textContent = 'Confirmar e entrar';
+  if (error) { errEl.textContent = error.message; return; }
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) onAuthLogin(session.user);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+async function initAuth() {
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('setpass-tagline').textContent = 'Redefina sua senha';
+      showAuthView('set-password');
+      return;
+    }
+    if (event === 'SIGNED_IN' && session?.user) {
+      const setPassVisible = document.getElementById('av-set-password').style.display === 'flex';
+      if (!setPassVisible) {
+        if (session.user.user_metadata?.must_change_password) {
+          document.getElementById('setpass-tagline').textContent = 'Primeiro acesso — defina sua senha';
+          showAuthView('set-password');
+        } else {
+          onAuthLogin(session.user);
+        }
+      }
+    }
+  });
+
+  const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+  const isRecovery = hashParams.get('type') === 'recovery';
+
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) {
+    if (isRecovery) {
+      document.getElementById('setpass-tagline').textContent = 'Redefina sua senha';
+      showAuthView('set-password');
+    } else if (session.user.user_metadata?.must_change_password) {
+      document.getElementById('setpass-tagline').textContent = 'Primeiro acesso — defina sua senha';
+      showAuthView('set-password');
+    } else {
+      onAuthLogin(session.user);
+    }
+  }
+}
+// ─────────────────────────────────────────────────────────────
+
 const FIXED_DEFAULTS = [
   {name: 'Imposto', value: 195},
   {name: 'Condomínio', value: 0},
@@ -1579,6 +1818,21 @@ function calcPricing() {
   document.getElementById('bd-profit').style.color = profit >= 0 ? 'var(--sage-dark)' : 'var(--red)';
   document.getElementById('result-sessions').textContent = sessionsNeeded + ' sess.';
   document.getElementById('result-sessions-sub').textContent = sessionsPerDay + ' sessões/dia nos ' + workDays + ' dias úteis';
+
+  // Sessões realizadas (campo opcional)
+  const actualSessions = parseFloat(document.getElementById('actual-sessions').value);
+  if (!isNaN(actualSessions) && actualSessions > 0 && sessionPrice > 0) {
+    const actualRevenue = actualSessions * sessionPrice;
+    const diff = actualRevenue - monthlyGoal;
+    document.getElementById('bd-actual-revenue').textContent = formatBRL(actualRevenue) + ' (' + actualSessions + ' sess.)';
+    document.getElementById('bd-actual-row').style.display = 'flex';
+    document.getElementById('bd-diff').textContent = (diff >= 0 ? '+' : '') + formatBRL(diff);
+    document.getElementById('bd-diff').style.color = diff >= 0 ? 'var(--sage-dark)' : 'var(--red)';
+    document.getElementById('bd-diff-row').style.display = 'flex';
+  } else {
+    document.getElementById('bd-actual-row').style.display = 'none';
+    document.getElementById('bd-diff-row').style.display = 'none';
+  }
 }
 
 function sumType(type) {
@@ -1904,7 +2158,7 @@ function fBRL(val) {
 // ── PERSISTÊNCIA ──────────────────────────────────────────────
 const STORAGE_KEY = 'fluxo_v1';
 const HISTORY_KEY = 'fluxo_history_v1';
-const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration'];
+const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration','actual-sessions'];
 
 function monthKey(date) {
   const d = date || new Date();
@@ -1918,7 +2172,7 @@ function archiveToHistory(data) {
     const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
     history[key] = data;
     const keys = Object.keys(history).sort().reverse();
-    keys.slice(6).forEach(k => delete history[k]);
+    keys.slice(3).forEach(k => delete history[k]);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch(e) {}
 }
@@ -2008,7 +2262,26 @@ function showHistoryModal() {
   if (!keys.length) {
     list.innerHTML = '<div class="hist-empty">Nenhum histórico salvo ainda.<br>Os dados serão arquivados automaticamente a cada mês.</div>';
   } else {
-    list.innerHTML = keys.map(key => {
+    // Total acumulado dos últimos 3 meses
+    let totalPessoal = 0, totalEmpresa = 0;
+    keys.forEach(k => {
+      const t = calcDataTotals(history[k]);
+      totalPessoal += t.pessoal;
+      totalEmpresa += t.empresa;
+    });
+    const nMeses = keys.length;
+    const totalGeral = totalPessoal + totalEmpresa;
+    const totalBlock = `
+      <div class="hist-total-block">
+        <div class="hist-total-title">📊 Total acumulado · últimos ${nMeses} ${nMeses === 1 ? 'mês' : 'meses'}</div>
+        <div class="hist-total-grid">
+          <div><span class="hist-total-label">Pessoal</span><span class="hist-total-val">${totalPessoal.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span></div>
+          <div><span class="hist-total-label">Empresa</span><span class="hist-total-val">${totalEmpresa.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span></div>
+          <div><span class="hist-total-label">Total geral</span><span class="hist-total-val" style="color:var(--sage-dark);font-weight:700">${totalGeral.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</span></div>
+        </div>
+      </div>`;
+
+    list.innerHTML = totalBlock + keys.map(key => {
       const data = history[key];
       const totals = calcDataTotals(data);
       const isCurrent = key === nowKey;
@@ -2037,6 +2310,7 @@ function showHistoryModal() {
 function hideHistoryModal() {
   document.getElementById('history-modal-overlay').style.display = 'none';
 }
+
 
 function restoreMonth(key) {
   let history = {};
@@ -2075,26 +2349,39 @@ function restoreMonth(key) {
 // Auto-save on any input change
 document.addEventListener('input', saveData);
 
-// Load saved data or fall back to defaults
-const loaded = loadData();
-if (!loaded) {
-  FIXED_DEFAULTS.forEach(d => createRow('fixed', d.name, d.value));
-  VARIABLE_DEFAULTS.forEach(d => createRow('variable', d.name, d.value));
-  BIZ_FIXED_DEFAULTS.forEach(d => createRow('biz-fixed', d.name, d.value));
-  BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
+function onAuthLogin(user) {
+  document.getElementById('auth-overlay').style.display = 'none';
+  document.getElementById('user-email-display').textContent = user.email;
+  document.getElementById('header-user').style.display = 'flex';
+
+  // Load saved data or fall back to defaults
+  const loaded = loadData();
+  if (!loaded) {
+    FIXED_DEFAULTS.forEach(d => createRow('fixed', d.name, d.value));
+    VARIABLE_DEFAULTS.forEach(d => createRow('variable', d.name, d.value));
+    BIZ_FIXED_DEFAULTS.forEach(d => createRow('biz-fixed', d.name, d.value));
+    BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
+  }
+  recalculate();
+
+  // Set current month
+  const now = new Date();
+  const monthName = now.toLocaleString('pt-BR', { month: 'long' });
+  const year = now.getFullYear();
+  document.getElementById('header-month-name').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  document.getElementById('header-month-year').textContent = year;
 }
-recalculate();
 
-// Also save after row add/delete (triggered via recalculate)
-const _recalc = recalculate;
-window._saveOnRecalc = true;
+initAuth();
 
-// Set current month
-const now = new Date();
-const monthName = now.toLocaleString('pt-BR', { month: 'long' });
-const year = now.getFullYear();
-document.getElementById('header-month-name').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-document.getElementById('header-month-year').textContent = year;
+// Atalho de teclado para sair: Ctrl + Shift + L
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.shiftKey && e.key === 'L') {
+    if (document.getElementById('auth-overlay').style.display === 'none') {
+      if (confirm('Deseja sair do Fluxo?')) doLogout();
+    }
+  }
+});
 </script>
 </body>
 </html>
