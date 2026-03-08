@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AppFluxo — Admin</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --bg:#faf7f2;--s1:#ffffff;--s2:#f0ead8;--s3:#e2ddd4;
+  --bd:#e2ddd4;--bd2:#c8c2b6;
+  --a:#6b8f71;--a2:#c17f3e;--a3:#3d5c42;--w:#e8c99a;
+  --tx:#2a2a2a;--mu:#7a7a7a;--mu2:#9a9a9a;
+  --green:#5a8f5e;--red:#c0392b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:'DM Sans','Segoe UI',system-ui,sans-serif;min-height:100vh}
+
+/* LOGIN */
+#login-overlay{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:var(--s1);border:1px solid var(--bd2);border-radius:20px;padding:40px;width:100%;max-width:400px;display:flex;flex-direction:column;gap:18px}
+.login-logo{font-size:26px;font-weight:600;color:var(--a3);letter-spacing:-0.5px;text-align:center;font-family:'Playfair Display',serif}
+.login-logo span{color:var(--a2);font-style:italic}
+.login-sub{text-align:center;color:var(--mu);font-size:14px}
+.field label{display:block;font-size:12px;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.field input{width:100%;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:15px;outline:none;transition:border-color .2s}
+.field input:focus{border-color:var(--a)}
+.err{color:var(--red);font-size:13px;min-height:18px;text-align:center}
+.btn{border:none;border-radius:12px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s;width:100%}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--a3);color:#fff}
+.btn-sm{width:auto;padding:7px 16px;font-size:13px;border-radius:9px}
+.btn-danger{background:rgba(192,57,43,.12);color:var(--red);border:1px solid rgba(192,57,43,.25)}
+.btn-ghost{background:var(--s3);color:var(--tx);border:1px solid var(--bd)}
+.btn-success{background:rgba(90,143,94,.12);color:var(--green);border:1px solid rgba(90,143,94,.25)}
+
+/* APP */
+#adm-app{display:none;min-height:100vh;flex-direction:column}
+#adm-app.visible{display:flex}
+
+.adm-hdr{background:#3d5c42;border-bottom:1px solid rgba(0,0,0,.1);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.adm-hdr-logo{font-size:22px;font-weight:600;color:#faf7f2;font-family:'Playfair Display',serif}
+.adm-hdr-logo span{color:rgba(255,255,255,.45);font-size:13px;font-weight:400;margin-left:8px;font-style:normal}
+.adm-hdr-user{display:flex;align-items:center;gap:12px;font-size:14px;color:#a8c5ae}
+
+.adm-content{padding:28px;max-width:1000px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px}
+
+/* stats */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.stat-card{background:var(--s1);border:1px solid var(--bd);border-radius:14px;padding:18px 20px;display:flex;flex-direction:column;gap:4px}
+.stat-num{font-size:32px;font-weight:800;line-height:1;color:var(--a3)}
+.stat-label{font-size:12px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em}
+
+/* actions bar */
+.actions-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.section-title{font-size:18px;font-weight:700;flex:1}
+
+/* users list */
+.users-container{background:var(--s1);border:1px solid var(--bd);border-radius:16px;overflow:hidden}
+.users-table-header{display:grid;grid-template-columns:1fr 160px 100px;gap:12px;padding:12px 20px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--mu);text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+.user-row{display:grid;grid-template-columns:1fr 160px 100px;gap:12px;padding:14px 20px;border-bottom:1px solid var(--bd);align-items:center;transition:background .15s}
+.user-row:last-child{border-bottom:none}
+.user-row:hover{background:var(--s2)}
+.user-name{font-weight:600;font-size:14px;color:var(--tx)}
+.user-email{font-size:12px;color:var(--mu);margin-top:2px;word-break:break-all}
+.row-actions{display:flex;gap:6px}
+.empty-state{padding:48px;text-align:center;color:var(--mu)}
+.empty-state-icon{font-size:40px;margin-bottom:12px}
+.loading{padding:40px;text-align:center;color:var(--mu);font-size:14px}
+
+/* modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:var(--s1);border:1px solid var(--bd2);border-radius:20px;padding:32px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:18px}
+.modal-title{font-size:20px;font-weight:800}
+.modal-sub{font-size:14px;color:var(--mu);margin-top:-10px;line-height:1.5}
+.modal-actions{display:flex;gap:10px;margin-top:4px}
+.modal-actions .btn{flex:1}
+
+/* toast */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--s3);border:1px solid var(--bd2);border-radius:12px;padding:12px 20px;font-size:14px;z-index:9999;transform:translateY(20px);opacity:0;transition:all .3s;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+
+/* not-admin */
+#not-admin{display:none;position:fixed;inset:0;background:var(--bg);z-index:9998;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;gap:16px}
+
+@media(max-width:768px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .users-table-header{display:none}
+  .user-row{grid-template-columns:1fr auto}
+  .user-row > *:not(.user-info):not(.row-actions){display:none}
+  .adm-content{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">Fluxo<span>.</span></div>
+    <div class="login-sub">Painel Administrativo · Acesso restrito</div>
+    <div class="field"><label>E-mail</label><input type="email" id="adm-email" placeholder="seu@email.com" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
+    <div class="field"><label>Senha</label><input type="password" id="adm-pass" placeholder="Sua senha" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
+    <div id="login-err" class="err"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="doAdmLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- NOT ADMIN -->
+<div id="not-admin">
+  <div style="font-size:48px">🚫</div>
+  <h2>Acesso negado</h2>
+  <p style="color:var(--mu);font-size:14px">Sua conta não tem permissão de administrador.</p>
+  <button class="btn btn-ghost btn-sm" style="width:auto" onclick="doAdmLogout()">Sair</button>
+</div>
+
+<!-- APP -->
+<div id="adm-app">
+  <header class="adm-hdr">
+    <div class="adm-hdr-logo">Fluxo<span style="font-style:italic;color:var(--w)">.</span> <span>Admin</span></div>
+    <div class="adm-hdr-user">
+      <span id="adm-user-email"></span>
+      <button class="btn btn-ghost btn-sm" onclick="doAdmLogout()">Sair ↪</button>
+    </div>
+  </header>
+
+  <div class="adm-content">
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-num" id="stat-total">–</div><div class="stat-label">Total de usuários</div></div>
+      <div class="stat-card"><div class="stat-num" id="stat-confirmed" style="color:var(--green)">–</div><div class="stat-label">E-mails confirmados</div></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="actions-bar">
+      <div class="section-title">Usuários</div>
+      <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↻ Atualizar</button>
+      <button class="btn btn-success btn-sm" onclick="openCreateModal()">＋ Cadastrar usuário</button>
+      <button class="btn btn-primary btn-sm" onclick="openInviteModal()">✉ Convidar por e-mail</button>
+    </div>
+
+    <!-- Users list -->
+    <div class="users-container">
+      <div class="users-table-header">
+        <div>Usuário</div>
+        <div>Cadastrado em</div>
+        <div>Ações</div>
+      </div>
+      <div id="users-list"><div class="loading">Carregando usuários...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE USER MODAL -->
+<div id="create-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">👤 Cadastrar usuário</div>
+    <div class="modal-sub">Crie uma conta com senha temporária. O usuário deverá alterar a senha no primeiro acesso.</div>
+    <div class="field"><label>Nome completo</label><input type="text" id="cr-name" placeholder="Ex: João Silva" onkeydown="if(event.key==='Enter')doCreate()"/></div>
+    <div class="field"><label>E-mail</label><input type="email" id="cr-email" placeholder="joao@email.com" onkeydown="if(event.key==='Enter')doCreate()"/></div>
+    <div class="field">
+      <label>Senha temporária</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="cr-pass" placeholder="Mínimo 6 caracteres" style="flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:15px;outline:none" onkeydown="if(event.key==='Enter')doCreate()"/>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="genPass()">🎲 Gerar</button>
+      </div>
+    </div>
+    <div id="cr-copy" style="display:none;background:rgba(90,143,94,.08);border:1px solid rgba(90,143,94,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--a3);align-items:center;gap:10px;cursor:pointer" onclick="copySenha()">
+      📋 <span id="cr-copy-text"></span> <span style="color:var(--mu);font-size:11px">(clique para copiar)</span>
+    </div>
+    <div id="cr-err" class="err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCreateModal()">Cancelar</button>
+      <button class="btn btn-primary" id="cr-btn" onclick="doCreate()">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVITE MODAL -->
+<div id="invite-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">✉ Convidar usuário</div>
+    <div class="modal-sub">Um e-mail será enviado com link para o usuário definir a senha e acessar o AppFluxo.</div>
+    <div class="field"><label>Nome completo</label><input type="text" id="inv-name" placeholder="Ex: Maria Silva" onkeydown="if(event.key==='Enter')doInvite()"/></div>
+    <div class="field"><label>E-mail</label><input type="email" id="inv-email" placeholder="maria@email.com" onkeydown="if(event.key==='Enter')doInvite()"/></div>
+    <div id="inv-err" class="err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeInviteModal()">Cancelar</button>
+      <button class="btn btn-primary" id="inv-btn" onclick="doInvite()">Enviar convite</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div id="del-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">🗑 Remover usuário</div>
+    <div class="modal-sub">Tem certeza? Isso vai apagar a conta permanentemente. Esta ação não pode ser desfeita.</div>
+    <div id="del-name" style="font-weight:700;color:var(--red);text-align:center;padding:8px;background:rgba(192,57,43,.08);border-radius:10px;border:1px solid rgba(192,57,43,.2)"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDelModal()">Cancelar</button>
+      <button class="btn btn-danger" id="del-confirm-btn">Remover</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const SUPABASE_URL  = 'https://zfltrzesvhvfmdqaqelk.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpmbHRyemVzdmh2Zm1kcWFxZWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MzY3OTcsImV4cCI6MjA4ODUxMjc5N30.4vwmYNbnBOF6mbQbT9UQM3EyJZipUhvU8DjhX1Kt1lQ';
+const EDGE_FN       = `${SUPABASE_URL}/functions/v1/admin-ops`;
+const ADMIN_EMAIL   = 'nandagiachetta@gmail.com';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentToken = null;
+
+// TOAST
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// AUTH
+async function doAdmLogin() {
+  const email = document.getElementById('adm-email').value.trim();
+  const pass  = document.getElementById('adm-pass').value;
+  const err   = document.getElementById('login-err');
+  const btn   = document.getElementById('login-btn');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Preencha e-mail e senha.'; return; }
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  btn.disabled = false; btn.textContent = 'Entrar';
+  if (error) { err.textContent = 'E-mail ou senha incorretos.'; return; }
+  onAdmLogin(data.session);
+}
+
+async function onAdmLogin(session) {
+  currentToken = session.access_token;
+  const user = session.user;
+  if (user.email !== ADMIN_EMAIL) {
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('not-admin').style.display = 'flex';
+    return;
+  }
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('adm-app').classList.add('visible');
+  document.getElementById('adm-user-email').textContent = user.email;
+  await loadUsers();
+}
+
+async function doAdmLogout() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+// EDGE FUNCTION
+async function callAdmin(action, params = {}) {
+  const resp = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${currentToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...params })
+  });
+  const json = await resp.json();
+  if (!resp.ok) throw new Error(json.error || 'Erro desconhecido');
+  return json;
+}
+
+// USERS
+let allUsers = [];
+
+function fmt(dateStr) {
+  if (!dateStr) return '–';
+  return new Date(dateStr).toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function loadUsers() {
+  document.getElementById('users-list').innerHTML = '<div class="loading">Carregando...</div>';
+  try {
+    const data = await callAdmin('list_users');
+    allUsers = (data.users || []).filter(u => u.email !== ADMIN_EMAIL);
+    renderUsers();
+  } catch(e) {
+    document.getElementById('users-list').innerHTML = `<div class="loading" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function renderUsers() {
+  const list = document.getElementById('users-list');
+  const confirmed = allUsers.filter(u => u.email_confirmed_at).length;
+  document.getElementById('stat-total').textContent     = allUsers.length;
+  document.getElementById('stat-confirmed').textContent = confirmed;
+
+  if (!allUsers.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">👥</div><div>Nenhum usuário cadastrado ainda.<br>Use <b>+ Cadastrar usuário</b> para começar.</div></div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  allUsers.forEach(u => {
+    const name = u.user_metadata?.full_name || u.email.split('@')[0];
+    const row = document.createElement('div');
+    row.className = 'user-row';
+    row.innerHTML = `
+      <div class="user-info">
+        <div class="user-name">${esc(name)}</div>
+        <div class="user-email">${esc(u.email)}</div>
+      </div>
+      <div style="font-size:13px;color:var(--mu)">${fmt(u.created_at)}</div>
+      <div class="row-actions">
+        <button class="btn btn-sm btn-danger" onclick="openDelModal('${u.id}','${esc(name)}')">🗑</button>
+      </div>`;
+    list.appendChild(row);
+  });
+}
+
+// CREATE
+function openCreateModal() {
+  document.getElementById('cr-name').value = '';
+  document.getElementById('cr-email').value = '';
+  document.getElementById('cr-pass').value = '';
+  document.getElementById('cr-err').textContent = '';
+  document.getElementById('cr-copy').style.display = 'none';
+  document.getElementById('create-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('cr-name').focus(), 50);
+}
+function closeCreateModal() { document.getElementById('create-modal').style.display = 'none'; }
+
+function genPass() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+  let p = '';
+  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('cr-pass').value = p;
+  const box = document.getElementById('cr-copy');
+  document.getElementById('cr-copy-text').textContent = p;
+  box.style.display = 'flex';
+}
+
+function copySenha() {
+  const senha = document.getElementById('cr-copy-text').textContent;
+  navigator.clipboard.writeText(senha).then(() => showToast('📋 Senha copiada!'));
+}
+
+async function doCreate() {
+  const name  = document.getElementById('cr-name').value.trim();
+  const email = document.getElementById('cr-email').value.trim();
+  const pass  = document.getElementById('cr-pass').value.trim();
+  const err   = document.getElementById('cr-err');
+  const btn   = document.getElementById('cr-btn');
+  err.textContent = '';
+  if (!name)           { err.textContent = 'Digite o nome do usuário.'; return; }
+  if (!email)          { err.textContent = 'Digite o e-mail.'; return; }
+  if (pass.length < 6) { err.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  btn.disabled = true; btn.textContent = 'Cadastrando...';
+  try {
+    await callAdmin('create_user', { name, email, temp_password: pass });
+    closeCreateModal();
+    showToast(`✅ ${email} cadastrado! Senha: ${pass}`);
+    await loadUsers();
+  } catch(e) {
+    err.textContent = e.message.includes('already') ? 'Este e-mail já está cadastrado.' : e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Cadastrar';
+}
+
+// INVITE
+function openInviteModal() {
+  document.getElementById('inv-name').value = '';
+  document.getElementById('inv-email').value = '';
+  document.getElementById('inv-err').textContent = '';
+  document.getElementById('invite-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('inv-name').focus(), 50);
+}
+function closeInviteModal() { document.getElementById('invite-modal').style.display = 'none'; }
+
+async function doInvite() {
+  const name  = document.getElementById('inv-name').value.trim();
+  const email = document.getElementById('inv-email').value.trim();
+  const err   = document.getElementById('inv-err');
+  const btn   = document.getElementById('inv-btn');
+  err.textContent = '';
+  if (!name)  { err.textContent = 'Digite o nome do usuário.'; return; }
+  if (!email) { err.textContent = 'Digite o e-mail.'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    await callAdmin('invite_user', { name, email, redirect_to: 'https://appfluxo.nandacarvalhodesenvolvimento.com' });
+    closeInviteModal();
+    showToast(`✉ Convite enviado para ${email}!`);
+    await loadUsers();
+  } catch(e) {
+    err.textContent = e.message.includes('already') ? 'Este e-mail já está cadastrado.' : e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Enviar convite';
+}
+
+// DELETE
+let pendingDelId = null;
+function openDelModal(userId, name) {
+  pendingDelId = userId;
+  document.getElementById('del-name').textContent = name;
+  document.getElementById('del-modal').style.display = 'flex';
+  document.getElementById('del-confirm-btn').onclick = confirmDelete;
+}
+function closeDelModal() { document.getElementById('del-modal').style.display = 'none'; pendingDelId = null; }
+
+async function confirmDelete() {
+  if (!pendingDelId) return;
+  const btn = document.getElementById('del-confirm-btn');
+  btn.disabled = true; btn.textContent = 'Removendo...';
+  try {
+    await callAdmin('delete_user', { user_id: pendingDelId });
+    closeDelModal();
+    showToast('🗑 Usuário removido.');
+    await loadUsers();
+  } catch(e) { showToast('Erro: ' + e.message); }
+  btn.disabled = false; btn.textContent = 'Remover';
+}
+
+// INIT
+async function initAdm() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) onAdmLogin(session);
+}
+initAdm();
+</script>
+</body>
+</html>
