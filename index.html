@@ -1360,6 +1360,12 @@
     </button>
   </div>
 
+  <div style="display:flex;justify-content:center;padding:24px 48px 48px;">
+    <button id="save-btn" onclick="manualSave()" style="background:var(--sage-dark);color:var(--cream);border:none;border-radius:10px;padding:14px 48px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
+      Salvar
+    </button>
+  </div>
+
 </main>
 
 <!-- HISTORY MODAL -->
@@ -2188,6 +2194,17 @@ function saveData() {
   // Debounce: sincroniza com Supabase 2s após última alteração
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => syncToSupabase(data), 2000);
+}
+
+async function manualSave() {
+  const btn = document.getElementById('save-btn');
+  btn.textContent = 'Salvando...';
+  btn.disabled = true;
+  saveData();
+  clearTimeout(_syncTimer);
+  await syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
+  btn.textContent = 'Salvo!';
+  setTimeout(() => { btn.textContent = 'Salvar'; btn.disabled = false; }, 2000);
 }
 
 async function syncToSupabase(data) {
