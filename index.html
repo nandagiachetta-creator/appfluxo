@@ -1360,10 +1360,11 @@
     </button>
   </div>
 
-  <div style="display:flex;justify-content:center;padding:24px 48px 48px;">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 48px 48px;">
     <button id="save-btn" onclick="manualSave()" style="background:var(--sage-dark);color:var(--cream);border:none;border-radius:10px;padding:14px 48px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
       Salvar
     </button>
+    <span id="save-status" style="font-size:12px;color:var(--text-muted);"></span>
   </div>
 
 </main>
@@ -2198,25 +2199,41 @@ function saveData() {
 
 async function manualSave() {
   const btn = document.getElementById('save-btn');
+  const status = document.getElementById('save-status');
   btn.textContent = 'Salvando...';
   btn.disabled = true;
   saveData();
   clearTimeout(_syncTimer);
-  await syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
-  btn.textContent = 'Salvo!';
-  setTimeout(() => { btn.textContent = 'Salvar'; btn.disabled = false; }, 2000);
+  const ok = await syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
+  if (ok) {
+    btn.style.background = 'var(--sage-dark)';
+    btn.textContent = 'Salvo!';
+    const h = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    if (status) status.textContent = 'Último salvamento: ' + h;
+  } else {
+    btn.style.background = '#c0392b';
+    btn.textContent = 'Erro! Tente novamente';
+    if (status) status.textContent = 'Falha na sincronização. Verifique o console (F12).';
+  }
+  setTimeout(() => {
+    btn.textContent = 'Salvar';
+    btn.style.background = '';
+    btn.disabled = false;
+  }, 3000);
 }
 
 async function syncToSupabase(data) {
+  if (!data) return false;
   try {
     const { data: { session } } = await sb.auth.getSession();
-    if (!session?.user) return;
+    if (!session?.user) return false;
     const { error } = await sb.from('user_data').upsert(
       { user_id: session.user.id, data: data, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
-    if (error) console.warn('Supabase sync error:', error.message);
-  } catch(e) { console.warn('Supabase sync error:', e); }
+    if (error) { console.error('Supabase sync error:', error); return false; }
+    return true;
+  } catch(e) { console.error('Supabase sync error:', e); return false; }
 }
 
 async function loadData() {
