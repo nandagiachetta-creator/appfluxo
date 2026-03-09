@@ -2228,8 +2228,7 @@ async function syncToSupabase(data) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.user) return false;
     const { error } = await sb.from('user_data').upsert(
-      { user_id: session.user.id, data: data, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
+      { user_id: session.user.id, data: data, updated_at: new Date().toISOString() }
     );
     if (error) { console.error('Supabase sync error:', error); return false; }
     return true;
@@ -2240,20 +2239,27 @@ async function loadData() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session?.user) {
-      const { data: remote } = await sb.from('user_data')
+      const { data: remote, error: remoteErr } = await sb.from('user_data')
         .select('data')
         .eq('user_id', session.user.id)
         .single();
+      console.log('[LOAD] Supabase response:', { remote, remoteErr });
+      if (remoteErr) console.error('[LOAD] Supabase error:', remoteErr.message, remoteErr.code);
       if (remote?.data) {
         const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
         const remoteDate = new Date(remote.data.savedAt || 0);
         const localDate  = new Date(local?.savedAt || 0);
+        console.log('[LOAD] remoteDate:', remoteDate, '| localDate:', localDate, '| usando remote?', remoteDate >= localDate);
         if (remoteDate >= localDate) {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
         }
+      } else {
+        console.warn('[LOAD] Nenhum dado no Supabase para este usuário');
       }
+    } else {
+      console.warn('[LOAD] Sessão não encontrada');
     }
-  } catch(e) { console.warn('Supabase load error:', e); }
+  } catch(e) { console.error('[LOAD] Erro inesperado:', e); }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
