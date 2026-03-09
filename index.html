@@ -2370,6 +2370,7 @@ function onAuthLogin(user) {
     BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
   }
   recalculate();
+  saveData();
 
   // Set current month
   const now = new Date();
@@ -2378,6 +2379,11 @@ function onAuthLogin(user) {
   document.getElementById('header-month-name').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
   document.getElementById('header-month-year').textContent = year;
 }
+
+// Salva o estado ao sair da página (fechar aba, navegar para outro site, etc.)
+window.addEventListener('beforeunload', () => {
+  if (_appLoaded) saveData();
+});
 
 initAuth();
 
