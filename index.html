@@ -2166,7 +2166,9 @@ function archiveToHistory(data) {
   } catch(e) {}
 }
 
-async function saveData() {
+let _syncTimer = null;
+
+function saveData() {
   const data = { tables: {}, pricing: {}, savedAt: new Date().toISOString() };
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     data.tables[type] = [];
@@ -2183,24 +2185,30 @@ async function saveData() {
   });
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   archiveToHistory(data);
+  // Debounce: sincroniza com Supabase 2s após última alteração
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => syncToSupabase(data), 2000);
+}
+
+async function syncToSupabase(data) {
   try {
-    const { data: { user } } = await sb.auth.getUser();
-    if (user) {
-      await sb.from('user_data').upsert(
-        { user_id: user.id, data: data },
-        { onConflict: 'user_id' }
-      );
-    }
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session?.user) return;
+    const { error } = await sb.from('user_data').upsert(
+      { user_id: session.user.id, data: data, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    if (error) console.warn('Supabase sync error:', error.message);
   } catch(e) { console.warn('Supabase sync error:', e); }
 }
 
 async function loadData() {
   try {
-    const { data: { user } } = await sb.auth.getUser();
-    if (user) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session?.user) {
       const { data: remote } = await sb.from('user_data')
         .select('data')
-        .eq('user_id', user.id)
+        .eq('user_id', session.user.id)
         .single();
       if (remote?.data) {
         const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
@@ -2407,7 +2415,11 @@ async function onAuthLogin(user) {
 
 // Salva o estado ao sair da página (fechar aba, navegar para outro site, etc.)
 window.addEventListener('beforeunload', () => {
-  if (_appLoaded) saveData();
+  if (_appLoaded) {
+    clearTimeout(_syncTimer);
+    saveData();
+    syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
+  }
 });
 
 initAuth();
