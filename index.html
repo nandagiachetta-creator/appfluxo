@@ -2166,7 +2166,7 @@ function archiveToHistory(data) {
   } catch(e) {}
 }
 
-function saveData() {
+async function saveData() {
   const data = { tables: {}, pricing: {}, savedAt: new Date().toISOString() };
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     data.tables[type] = [];
@@ -2183,9 +2183,35 @@ function saveData() {
   });
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   archiveToHistory(data);
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      await sb.from('user_data').upsert(
+        { user_id: user.id, data: data },
+        { onConflict: 'user_id' }
+      );
+    }
+  } catch(e) { console.warn('Supabase sync error:', e); }
 }
 
-function loadData() {
+async function loadData() {
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (user) {
+      const { data: remote } = await sb.from('user_data')
+        .select('data')
+        .eq('user_id', user.id)
+        .single();
+      if (remote?.data) {
+        const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        const remoteDate = new Date(remote.data.savedAt || 0);
+        const localDate  = new Date(local?.savedAt || 0);
+        if (remoteDate >= localDate) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
+        }
+      }
+    }
+  } catch(e) { console.warn('Supabase load error:', e); }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
@@ -2354,7 +2380,7 @@ document.addEventListener('input', saveData);
 
 let _appLoaded = false;
 
-function onAuthLogin(user) {
+async function onAuthLogin(user) {
   if (_appLoaded) return;
   _appLoaded = true;
   document.getElementById('auth-overlay').style.display = 'none';
@@ -2362,7 +2388,7 @@ function onAuthLogin(user) {
   document.getElementById('header-user').style.display = 'flex';
 
   // Load saved data or fall back to defaults
-  const loaded = loadData();
+  const loaded = await loadData();
   if (!loaded) {
     FIXED_DEFAULTS.forEach(d => createRow('fixed', d.name, d.value));
     VARIABLE_DEFAULTS.forEach(d => createRow('variable', d.name, d.value));
@@ -2370,7 +2396,6 @@ function onAuthLogin(user) {
     BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
   }
   recalculate();
-  saveData();
 
   // Set current month
   const now = new Date();
