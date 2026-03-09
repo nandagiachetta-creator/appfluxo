@@ -2246,13 +2246,8 @@ async function loadData() {
       console.log('[LOAD] Supabase response:', { remote, remoteErr });
       if (remoteErr) console.error('[LOAD] Supabase error:', remoteErr.message, remoteErr.code);
       if (remote?.data) {
-        const local = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
-        const remoteDate = new Date(remote.data.savedAt || 0);
-        const localDate  = new Date(local?.savedAt || 0);
-        console.log('[LOAD] remoteDate:', remoteDate, '| localDate:', localDate, '| usando remote?', remoteDate >= localDate);
-        if (remoteDate >= localDate) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
-        }
+        // Supabase é a fonte de verdade — sempre usa o dado remoto
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
       } else {
         console.warn('[LOAD] Nenhum dado no Supabase para este usuário');
       }
@@ -2455,11 +2450,7 @@ async function onAuthLogin(user) {
 
 // Salva o estado ao sair da página (fechar aba, navegar para outro site, etc.)
 window.addEventListener('beforeunload', () => {
-  if (_appLoaded) {
-    clearTimeout(_syncTimer);
-    saveData();
-    syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'));
-  }
+  if (_appLoaded) clearTimeout(_syncTimer);
 });
 
 initAuth();
