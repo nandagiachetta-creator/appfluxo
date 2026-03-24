@@ -2455,6 +2455,9 @@ window.addEventListener('beforeunload', () => {
 
 initAuth();
 
+// Ping a cada 30min para manter o projeto Supabase ativo (evita pausar no plano gratuito)
+setInterval(() => { sb.auth.getSession(); }, 30 * 60 * 1000);
+
 // Atalho de teclado para sair: Ctrl + Shift + L
 document.addEventListener('keydown', function(e) {
   if (e.ctrlKey && e.shiftKey && e.key === 'L') {
