@@ -1138,7 +1138,8 @@
   </div>
   <div class="preview-banner" id="preview-banner">
     <span style="font-size:18px">📋</span>
-    <div><strong>Modo Previsão</strong> — Você está planejando os pagamentos e receitas do próximo mês. Os dados do mês atual estão preservados.</div>
+    <div style="flex:1"><strong>Modo Previsão</strong> — Você está planejando os pagamentos e receitas do próximo mês. Os dados do mês atual estão preservados.</div>
+    <button onclick="copyCurrentMonthToNext()" style="flex-shrink:0;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;background:#5a6e8c;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;white-space:nowrap;">Copiar mês atual como base</button>
   </div>
 
   <!-- FIXED COSTS -->
@@ -2242,6 +2243,22 @@ function switchMonth(view) {
   loadMonthIntoDOM(monthData);
   recalculate();
   updateMonthTabs();
+}
+
+function copyCurrentMonthToNext() {
+  const nextLabel = getMonthLabel(1);
+  if (!confirm(`Copiar todos os dados do mês atual como base para ${nextLabel}?\n\nSe você já tiver dados no modo previsão, eles serão substituídos.`)) return;
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
+  // Copy current month data (reset paid status and receita, keep costs structure)
+  const currentTables = data.tables || {};
+  const copiedTables = {};
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    copiedTables[type] = (currentTables[type] || []).map(r => ({ name: r.name, value: r.value, due: r.due || '', paid: false }));
+  });
+  clearAllTables();
+  loadMonthIntoDOM({ tables: copiedTables, receita: [] });
+  recalculate(); // this saves to nextMonth slot since activeMonth === 'next'
 }
 
 function sumType(type) {
