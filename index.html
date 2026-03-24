@@ -988,6 +988,53 @@
     .pricing-row { flex-direction: column; align-items: flex-start; gap: 8px; }
     .pricing-row-input input[type="number"] { width: 100%; }
   }
+
+  /* MONTH NAVIGATION TABS */
+  .month-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    width: fit-content;
+  }
+  .month-tab {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    letter-spacing: 0.2px;
+  }
+  .month-tab:hover { background: var(--warm); color: var(--text); }
+  .month-tab.active {
+    background: var(--sage-dark);
+    color: var(--cream);
+  }
+  .month-tab.active.next-tab {
+    background: #5a6e8c;
+  }
+  .preview-banner {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: #eef2f8;
+    border: 1px solid #c5d0e0;
+    border-radius: 12px;
+    padding: 12px 20px;
+    margin-bottom: 32px;
+    font-size: 13px;
+    color: #3a4e6c;
+  }
+  .preview-banner.visible { display: flex; }
+  .preview-banner strong { font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1083,6 +1130,16 @@
     <button class="btn-banner secondary" onclick="this.closest('#new-month-banner').style.display='none'">Ok</button>
   </div>
 </div>
+
+  <!-- MONTH NAVIGATION -->
+  <div class="month-nav">
+    <button class="month-tab active" id="tab-current" onclick="switchMonth('current')"></button>
+    <button class="month-tab next-tab" id="tab-next" onclick="switchMonth('next')"></button>
+  </div>
+  <div class="preview-banner" id="preview-banner">
+    <span style="font-size:18px">📋</span>
+    <div><strong>Modo Previsão</strong> — Você está planejando os pagamentos e receitas do próximo mês. Os dados do mês atual estão preservados.</div>
+  </div>
 
   <!-- FIXED COSTS -->
   <div class="section-header">
@@ -2121,6 +2178,72 @@ function recalculateReceita() {
   document.getElementById('receita-sum-sem-nf-sub').textContent = semNfCount + (semNfCount === 1 ? ' pendente de NF' : ' pendentes de NF');
 }
 
+// ── NAVEGAÇÃO POR MÊS ────────────────────────────────────────
+
+let activeMonth = 'current'; // 'current' | 'next'
+
+function getMonthLabel(offset) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + offset);
+  const name = d.toLocaleString('pt-BR', { month: 'long' });
+  return name.charAt(0).toUpperCase() + name.slice(1) + ' ' + d.getFullYear();
+}
+
+function initMonthTabs() {
+  const tabCurrent = document.getElementById('tab-current');
+  const tabNext = document.getElementById('tab-next');
+  if (tabCurrent) tabCurrent.textContent = getMonthLabel(0) + ' (atual)';
+  if (tabNext) tabNext.textContent = getMonthLabel(1) + ' (previsão)';
+}
+
+function updateMonthTabs() {
+  const tabCurrent = document.getElementById('tab-current');
+  const tabNext = document.getElementById('tab-next');
+  const banner = document.getElementById('preview-banner');
+  if (activeMonth === 'current') {
+    tabCurrent?.classList.add('active');
+    tabNext?.classList.remove('active');
+    if (banner) banner.classList.remove('visible');
+  } else {
+    tabCurrent?.classList.remove('active');
+    tabNext?.classList.add('active');
+    if (banner) banner.classList.add('visible');
+  }
+}
+
+function clearAllTables() {
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    const tbody = document.getElementById(type + '-body');
+    if (tbody) tbody.innerHTML = '';
+  });
+  const receitaTbody = document.getElementById('receita-body');
+  if (receitaTbody) receitaTbody.innerHTML = '';
+}
+
+function loadMonthIntoDOM(monthData) {
+  const tables = monthData.tables || {};
+  ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
+    const rows = tables[type] || [];
+    rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+  });
+  const receita = monthData.receita || [];
+  receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
+  recalculateReceita();
+}
+
+function switchMonth(view) {
+  if (activeMonth === view) return;
+  saveData(); // save current DOM state to old slot
+  activeMonth = view;
+  clearAllTables();
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
+  const monthData = view === 'current' ? data : (data.nextMonth || { tables: {}, receita: [] });
+  loadMonthIntoDOM(monthData);
+  recalculate();
+  updateMonthTabs();
+}
+
 function sumType(type) {
   let total = 0;
   document.querySelectorAll(`#${type}-body input[type="number"]:not(.due-input)`).forEach(inp => {
@@ -2455,32 +2578,52 @@ function archiveToHistory(data) {
 let _syncTimer = null;
 
 function saveData() {
-  const data = { tables: {}, pricing: {}, savedAt: new Date().toISOString() };
+  // Read existing data to preserve the other month's slot
+  let data = {};
+  try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
+  if (!data.pricing) data.pricing = {};
+
+  // Collect DOM state
+  const monthTables = {};
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
-    data.tables[type] = [];
+    monthTables[type] = [];
     document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
       const name  = tr.querySelector('input[type="text"]')?.value || '';
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      data.tables[type].push({ name, value, due, paid });
+      monthTables[type].push({ name, value, due, paid });
     });
   });
-  PRICING_IDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) data.pricing[id] = el.value;
-  });
-  data.receita = [];
+  const monthReceita = [];
   document.querySelectorAll('#receita-body tr').forEach(tr => {
     const cliente  = tr.querySelector('.receita-cliente')?.value || '';
     const valor    = tr.querySelector('.receita-valor')?.value || '0';
     const dataPgto = tr.querySelector('.receita-data')?.value || '';
     const nf       = tr.querySelector('.receita-nf-check')?.checked || false;
     const emitida  = tr.querySelector('.receita-emitida-check')?.checked || false;
-    data.receita.push({ cliente, valor, dataPgto, nf, emitida });
+    monthReceita.push({ cliente, valor, dataPgto, nf, emitida });
   });
+
+  // Always update pricing (global, not month-specific)
+  PRICING_IDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data.pricing[id] = el.value;
+  });
+
+  // Save to correct slot
+  if (activeMonth === 'current') {
+    data.tables = monthTables;
+    data.receita = monthReceita;
+    data.savedAt = new Date().toISOString();
+    archiveToHistory(data);
+  } else {
+    if (!data.nextMonth) data.nextMonth = {};
+    data.nextMonth.tables = monthTables;
+    data.nextMonth.receita = monthReceita;
+  }
+
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
-  archiveToHistory(data);
   // Debounce: sincroniza com Supabase 2s após última alteração
   clearTimeout(_syncTimer);
   _syncTimer = setTimeout(() => syncToSupabase(data), 2000);
@@ -2570,6 +2713,14 @@ async function loadData() {
       const nowKey = monthKey();
       if (savedMonthKey !== nowKey) {
         archiveToHistory(data);
+        // Promote nextMonth to current if it exists
+        if (data.nextMonth && data.nextMonth.tables) {
+          data.tables = data.nextMonth.tables;
+          data.receita = data.nextMonth.receita || [];
+          delete data.nextMonth;
+          data.savedAt = new Date().toISOString();
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+        }
         setTimeout(() => showNewMonthBanner(savedMonthKey), 400);
       }
     }
@@ -2720,6 +2871,7 @@ async function onAuthLogin(user) {
   if (_appLoaded) return;
   _appLoaded = true;
   document.getElementById('auth-overlay').style.display = 'none';
+  initMonthTabs();
   document.getElementById('user-email-display').textContent = user.email;
   document.getElementById('header-user').style.display = 'flex';
 
