@@ -597,6 +597,24 @@
   .total-row.biz .total-amount { color: #3a4e6c; }
   .total-row.biz-var .total-amount { color: #6c4e3a; }
 
+  /* RECEITA */
+  .section-pill.receita { background: #2e7d5e; }
+  .total-row.receita td { background: #eaf5f0; }
+  .total-row.receita .total-amount { color: #1a5c40; }
+  .sum-card.receita-total .sum-value { color: #1a5c40; }
+  .sum-card.receita-nf .sum-value { color: #2e7d5e; }
+  .sum-card.receita-sem-nf .sum-value { color: #e8a020; }
+  .receita-data-input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    background: var(--cream);
+    color: var(--text);
+    width: 130px;
+  }
+
   /* UNDO TOAST */
   #undo-toast {
     position: fixed;
@@ -1445,6 +1463,70 @@
     </div>
   </div>
 
+  <!-- DIVIDER RECEITA -->
+  <hr class="section-divider">
+
+  <!-- RECEITA -->
+  <div class="section-header" style="margin-top:72px">
+    <span class="section-pill receita">Receita</span>
+    <h2 class="section-title">Receitas do Mês</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Data do Pagamento</th>
+          <th>Valor</th>
+          <th class="th-pago">Nota Fiscal</th>
+          <th class="th-pago">Emitida</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="receita-body"></tbody>
+      <tfoot>
+        <tr class="total-row receita">
+          <td>Total Recebido</td>
+          <td></td>
+          <td><span class="total-amount" id="receita-monthly-total">R$ 0,00</span></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addReceitaRow()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar cliente
+    </button>
+  </div>
+
+  <!-- RECEITA SUMMARY -->
+  <div class="summary-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill receita">Resumo</span>
+      <h2 class="section-title">Resumo de Receitas</h2>
+    </div>
+    <div class="summary-grid">
+      <div class="sum-card receita-total">
+        <div class="sum-label">Total Recebido</div>
+        <div class="sum-value" id="receita-sum-total">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-count">0 clientes</div>
+      </div>
+      <div class="sum-card receita-nf">
+        <div class="sum-label">Com Nota Fiscal</div>
+        <div class="sum-value" id="receita-sum-nf">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-nf-sub">0 emitidas</div>
+      </div>
+      <div class="sum-card receita-sem-nf">
+        <div class="sum-label">Sem Nota Fiscal</div>
+        <div class="sum-value" id="receita-sum-sem-nf">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-sem-nf-sub">0 pendentes de NF</div>
+      </div>
+    </div>
+  </div>
+
   <div class="actions">
     <button class="btn-action" onclick="showClearModal()">Limpar tudo</button>
     <button class="btn-action" onclick="showHistoryModal()">📅 Histórico</button>
@@ -1964,6 +2046,81 @@ function calcPricing() {
   }
 }
 
+// ── RECEITA ───────────────────────────────────────────────────
+
+let receitaRowId = 0;
+
+function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, emitida = false) {
+  const id = receitaRowId++;
+  const tbody = document.getElementById('receita-body');
+  const tr = document.createElement('tr');
+  tr.id = 'receita-' + id;
+
+  tr.innerHTML = `
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="deleteReceitaRow('receita-${id}')" title="Remover">×</button>
+        <input type="text" class="receita-cliente" value="${cliente}" placeholder="Nome do cliente" oninput="recalculateReceita()" />
+      </div>
+    </td>
+    <td style="text-align:center">
+      <input type="date" class="receita-data receita-data-input" value="${dataPgto}" oninput="recalculateReceita()" />
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="receita-valor" min="0" step="0.01" value="${valor}" oninput="recalculateReceita()" />
+      </div>
+    </td>
+    <td style="text-align:center">
+      <input type="checkbox" class="paid-check receita-nf-check" ${nf ? 'checked' : ''} onchange="recalculateReceita(); saveData()" />
+    </td>
+    <td style="text-align:center">
+      <input type="checkbox" class="paid-check receita-emitida-check" ${emitida ? 'checked' : ''} onchange="recalculateReceita(); saveData()" />
+    </td>
+    <td></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function addReceitaRow() {
+  createReceitaRow();
+  const tbody = document.getElementById('receita-body');
+  const lastInput = tbody.lastElementChild.querySelector('.receita-cliente');
+  if (lastInput) lastInput.focus();
+  recalculateReceita();
+  saveData();
+}
+
+function deleteReceitaRow(id) {
+  const tr = document.getElementById(id);
+  if (!tr) return;
+  tr.style.opacity = '0';
+  tr.style.transform = 'translateX(-10px)';
+  tr.style.transition = 'all 0.2s';
+  setTimeout(() => { tr.remove(); recalculateReceita(); saveData(); }, 200);
+}
+
+function recalculateReceita() {
+  let total = 0, totalNf = 0, totalSemNf = 0, count = 0, nfEmitidas = 0, semNfCount = 0;
+  document.querySelectorAll('#receita-body tr').forEach(tr => {
+    const val = parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
+    const temNf = tr.querySelector('.receita-nf-check')?.checked || false;
+    const emitida = tr.querySelector('.receita-emitida-check')?.checked || false;
+    total += val;
+    count++;
+    if (temNf) { totalNf += val; if (emitida) nfEmitidas++; }
+    else { totalSemNf += val; semNfCount++; }
+  });
+  document.getElementById('receita-monthly-total').textContent = formatBRL(total);
+  document.getElementById('receita-sum-total').textContent = formatBRL(total);
+  document.getElementById('receita-sum-count').textContent = count + (count === 1 ? ' cliente' : ' clientes');
+  document.getElementById('receita-sum-nf').textContent = formatBRL(totalNf);
+  document.getElementById('receita-sum-nf-sub').textContent = nfEmitidas + (nfEmitidas === 1 ? ' emitida' : ' emitidas');
+  document.getElementById('receita-sum-sem-nf').textContent = formatBRL(totalSemNf);
+  document.getElementById('receita-sum-sem-nf-sub').textContent = semNfCount + (semNfCount === 1 ? ' pendente de NF' : ' pendentes de NF');
+}
+
 function sumType(type) {
   let total = 0;
   document.querySelectorAll(`#${type}-body input[type="number"]:not(.due-input)`).forEach(inp => {
@@ -2313,6 +2470,15 @@ function saveData() {
     const el = document.getElementById(id);
     if (el) data.pricing[id] = el.value;
   });
+  data.receita = [];
+  document.querySelectorAll('#receita-body tr').forEach(tr => {
+    const cliente  = tr.querySelector('.receita-cliente')?.value || '';
+    const valor    = tr.querySelector('.receita-valor')?.value || '0';
+    const dataPgto = tr.querySelector('.receita-data')?.value || '';
+    const nf       = tr.querySelector('.receita-nf-check')?.checked || false;
+    const emitida  = tr.querySelector('.receita-emitida-check')?.checked || false;
+    data.receita.push({ cliente, valor, dataPgto, nf, emitida });
+  });
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   archiveToHistory(data);
   // Debounce: sincroniza com Supabase 2s após última alteração
@@ -2420,6 +2586,10 @@ async function loadData() {
         if (el && data.pricing[id] !== undefined) el.value = data.pricing[id];
       });
     }
+    if (data.receita && data.receita.length) {
+      data.receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
+    }
+    recalculateReceita();
     return true;
   } catch(e) { return false; }
 }
