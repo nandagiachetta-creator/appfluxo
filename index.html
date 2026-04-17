@@ -143,6 +143,19 @@
   }
   thead th:not(:first-child) { text-align: right; }
   thead th.th-pago { text-align: center; }
+  thead th.th-sortable {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  thead th.th-sortable:hover { color: var(--sage-dark); }
+  thead th.th-sortable::after {
+    content: ' ⇅';
+    font-size: 10px;
+    opacity: 0.4;
+  }
+  thead th.th-sortable.sort-asc::after { content: ' ↑'; opacity: 0.8; color: var(--sage-dark); }
+  thead th.th-sortable.sort-desc::after { content: ' ↓'; opacity: 0.8; color: var(--sage-dark); }
 
   /* Checkbox Pago */
   .paid-check {
@@ -672,6 +685,29 @@
     transition: transform linear;
   }
 
+  /* SORT DUE BUTTON */
+  .btn-sort-due {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.3px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .btn-sort-due:hover { background: var(--warm); color: var(--text); border-color: var(--sage-light); }
+  .btn-sort-due.sort-asc,
+  .btn-sort-due.sort-desc { background: var(--warm); border-color: var(--sage); color: var(--sage-dark); font-weight: 600; }
+
   /* DUE DATE */
   .due-wrap {
     display: inline-flex;
@@ -1146,6 +1182,7 @@
   <div class="section-header">
     <span class="section-pill">Fixos</span>
     <h2 class="section-title">Custos Fixos Mensais</h2>
+    <button class="btn-sort-due" id="sort-btn-fixed" onclick="sortByDue('fixed')">↕ Ordenar por vencimento</button>
   </div>
 
   <div class="table-wrapper">
@@ -1153,7 +1190,7 @@
       <thead>
         <tr>
           <th>Categoria</th>
-          <th>Vencimento</th>
+          <th class="th-sortable" id="sort-th-fixed" onclick="sortByDue('fixed')">Vencimento</th>
           <th>Mensal</th>
           <th>Anual</th>
           <th class="th-pago">Pago</th>
@@ -1181,6 +1218,7 @@
   <div class="section-header">
     <span class="section-pill variable">Variáveis</span>
     <h2 class="section-title">Custos Variáveis</h2>
+    <button class="btn-sort-due" id="sort-btn-variable" onclick="sortByDue('variable')">↕ Ordenar por vencimento</button>
   </div>
 
   <div class="table-wrapper">
@@ -1188,9 +1226,8 @@
       <thead>
         <tr>
           <th>Categoria</th>
-          <th>Vencimento</th>
+          <th class="th-sortable" id="sort-th-variable" onclick="sortByDue('variable')">Vencimento</th>
           <th>Mensal</th>
-          <th>Anual</th>
           <th class="th-pago">Pago</th>
         </tr>
       </thead>
@@ -1201,7 +1238,6 @@
           <td>Total Custos Variáveis</td>
           <td></td>
           <td><span class="total-amount" id="variable-monthly-total">R$ 0,00</span></td>
-          <td><span class="total-amount" id="variable-annual-total">R$ 0,00</span></td>
           <td></td>
         </tr>
       </tfoot>
@@ -1267,6 +1303,7 @@
   <div class="section-header" style="margin-top:72px">
     <span class="section-pill biz">Fixos</span>
     <h2 class="section-title">Custos Fixos da Empresa</h2>
+    <button class="btn-sort-due" id="sort-btn-biz-fixed" onclick="sortByDue('biz-fixed')">↕ Ordenar por vencimento</button>
   </div>
 
   <div class="table-wrapper">
@@ -1274,7 +1311,7 @@
       <thead>
         <tr>
           <th>Categoria</th>
-          <th>Vencimento</th>
+          <th class="th-sortable" id="sort-th-biz-fixed" onclick="sortByDue('biz-fixed')">Vencimento</th>
           <th>Mensal</th>
           <th>Anual</th>
           <th class="th-pago">Pago</th>
@@ -1301,6 +1338,7 @@
   <div class="section-header">
     <span class="section-pill biz-var">Variáveis</span>
     <h2 class="section-title">Custos Variáveis da Empresa</h2>
+    <button class="btn-sort-due" id="sort-btn-biz-variable" onclick="sortByDue('biz-variable')">↕ Ordenar por vencimento</button>
   </div>
 
   <div class="table-wrapper">
@@ -1308,9 +1346,8 @@
       <thead>
         <tr>
           <th>Categoria</th>
-          <th>Vencimento</th>
+          <th class="th-sortable" id="sort-th-biz-variable" onclick="sortByDue('biz-variable')">Vencimento</th>
           <th>Mensal</th>
-          <th>Anual</th>
           <th class="th-pago">Pago</th>
         </tr>
       </thead>
@@ -1320,7 +1357,6 @@
           <td>Total Custos Variáveis Empresa</td>
           <td></td>
           <td><span class="total-amount" id="biz-variable-monthly-total">R$ 0,00</span></td>
-          <td><span class="total-amount" id="biz-variable-annual-total">R$ 0,00</span></td>
           <td></td>
         </tr>
       </tfoot>
@@ -1806,6 +1842,7 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
   tr.id = 'row-' + id;
   tr.dataset.type = type;
 
+  const isVariable = type.includes('variable');
   const annual = value * 12;
 
   tr.innerHTML = `
@@ -1824,12 +1861,12 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
     <td>
       <div class="value-input-wrap">
         <span class="currency-sym">R$</span>
-        <input type="number" min="0" step="0.01" value="${value}" oninput="updateAnnual('row-${id}'); recalculate();" />
+        <input type="number" min="0" step="0.01" value="${value}" oninput="${isVariable ? '' : `updateAnnual('row-${id}'); `}recalculate();" />
       </div>
     </td>
-    <td>
+    ${isVariable ? '' : `<td>
       <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${id}">${formatBRL(annual)}</span>
-    </td>
+    </td>`}
     <td style="text-align:center">
       <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="recalculate()" />
     </td>
@@ -1844,6 +1881,7 @@ function updateAnnual(rowId) {
   const annual = val * 12;
   const id = rowId.split('-')[1];
   const span = document.getElementById('annual-' + id);
+  if (!span) return;
   span.textContent = formatBRL(annual);
   span.className = 'annual-val' + (annual > 0 ? ' has-value' : '');
 }
@@ -1920,6 +1958,7 @@ function undoDelete() {
   tr.id = s.id;
   tr.dataset.type = s.type;
   const rid = s.id.split('-')[1];
+  const isVariableUndo = s.type.includes('variable');
   const annual = s.value * 12;
 
   tr.innerHTML = `
@@ -1938,12 +1977,12 @@ function undoDelete() {
     <td>
       <div class="value-input-wrap">
         <span class="currency-sym">R$</span>
-        <input type="number" min="0" step="0.01" value="${s.value}" oninput="updateAnnual('${s.id}'); recalculate();" />
+        <input type="number" min="0" step="0.01" value="${s.value}" oninput="${isVariableUndo ? '' : `updateAnnual('${s.id}'); `}recalculate();" />
       </div>
     </td>
-    <td>
+    ${isVariableUndo ? '' : `<td>
       <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${rid}">${formatBRL(annual)}</span>
-    </td>
+    </td>`}
     <td style="text-align:center">
       <input type="checkbox" class="paid-check" ${s.paid ? 'checked' : ''} onchange="recalculate()" />
     </td>
@@ -1968,6 +2007,41 @@ function undoDelete() {
   recalculate();
 }
 
+const _sortDir = {};
+function sortByDue(type) {
+  const tbody = document.getElementById(type + '-body');
+  const th = document.getElementById('sort-th-' + type);
+  const btn = document.getElementById('sort-btn-' + type);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (!rows.length) return;
+
+  const asc = _sortDir[type] !== 'asc';
+  _sortDir[type] = asc ? 'asc' : 'desc';
+
+  // update arrow on th (scoped to this table only)
+  if (th) {
+    const table = th.closest('table');
+    if (table) table.querySelectorAll('.th-sortable').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+    th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+  }
+
+  // update sort button
+  if (btn) {
+    btn.classList.remove('sort-asc', 'sort-desc');
+    btn.classList.add(asc ? 'sort-asc' : 'sort-desc');
+    btn.textContent = (asc ? '↑' : '↓') + ' Ordenar por vencimento';
+  }
+
+  rows.sort((a, b) => {
+    const da = parseInt(a.querySelector('.due-input')?.value) || (asc ? 999 : -1);
+    const db = parseInt(b.querySelector('.due-input')?.value) || (asc ? 999 : -1);
+    return asc ? da - db : db - da;
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+  saveData();
+}
+
 function addRow(type) {
   createRow(type, '', 0);
   const tbody = document.getElementById(type + '-body');
@@ -1988,7 +2062,6 @@ function recalculate() {
   document.getElementById('fixed-monthly-total').textContent = formatBRL(fixedMonthly);
   document.getElementById('fixed-annual-total').textContent = formatBRL(fixedAnnual);
   document.getElementById('variable-monthly-total').textContent = formatBRL(variableMonthly);
-  document.getElementById('variable-annual-total').textContent = formatBRL(variableAnnual);
   document.getElementById('sum-fixed-annual').textContent = formatBRL(fixedAnnual);
   document.getElementById('sum-fixed-monthly-sub').textContent = formatBRL(fixedMonthly) + ' / mês';
   document.getElementById('sum-variable-annual').textContent = formatBRL(variableAnnual);
@@ -2009,7 +2082,6 @@ function recalculate() {
   document.getElementById('biz-fixed-monthly-total').textContent = formatBRL(bizFixed);
   document.getElementById('biz-fixed-annual-total').textContent = formatBRL(bizFixedAnnual);
   document.getElementById('biz-variable-monthly-total').textContent = formatBRL(bizVar);
-  document.getElementById('biz-variable-annual-total').textContent = formatBRL(bizVarAnnual);
   document.getElementById('biz-sum-fixed-annual').textContent = formatBRL(bizFixedAnnual);
   document.getElementById('biz-sum-fixed-monthly-sub').textContent = formatBRL(bizFixed) + ' / mês';
   document.getElementById('biz-sum-variable-annual').textContent = formatBRL(bizVarAnnual);
