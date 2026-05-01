@@ -1142,11 +1142,6 @@
       <div class="hsum-label">Custo Mensal</div>
       <div class="hsum-value" id="header-monthly">R$ 0,00</div>
     </div>
-    <div class="hsum-divider"></div>
-    <div class="hsum-item">
-      <div class="hsum-label">Custo Anual</div>
-      <div class="hsum-value" id="header-annual">R$ 0,00</div>
-    </div>
   </div>
   <div id="header-user" style="display:none;align-items:center;gap:12px;">
     <span id="user-email-display" style="font-size:12px;color:var(--sage-light);"></span>
@@ -1192,7 +1187,6 @@
           <th>Categoria</th>
           <th class="th-sortable" id="sort-th-fixed" onclick="sortByDue('fixed')">Vencimento</th>
           <th>Mensal</th>
-          <th>Anual</th>
           <th class="th-pago">Pago</th>
         </tr>
       </thead>
@@ -1203,7 +1197,6 @@
           <td>Total Custos Fixos</td>
           <td></td>
           <td><span class="total-amount" id="fixed-monthly-total">R$ 0,00</span></td>
-          <td><span class="total-amount" id="fixed-annual-total">R$ 0,00</span></td>
           <td></td>
         </tr>
       </tfoot>
@@ -1260,16 +1253,6 @@
         <div class="sum-value" id="sum-fixed-annual">R$ 0</div>
         <div class="sum-sub" id="sum-fixed-monthly-sub">R$ 0,00 / mês</div>
       </div>
-      <div class="sum-card variable">
-        <div class="sum-label">Total Variável Anual</div>
-        <div class="sum-value" id="sum-variable-annual">R$ 0</div>
-        <div class="sum-sub" id="sum-variable-monthly-sub">R$ 0,00 / mês</div>
-      </div>
-      <div class="sum-card total-annual">
-        <div class="sum-label">Custo Total Anual</div>
-        <div class="sum-value" id="sum-total-annual">R$ 0</div>
-        <div class="sum-sub">Fixo + Variável</div>
-      </div>
       <div class="sum-card total-monthly">
         <div class="sum-label">Custo Total Mensal</div>
         <div class="sum-value" id="sum-total-monthly">R$ 0</div>
@@ -1313,7 +1296,6 @@
           <th>Categoria</th>
           <th class="th-sortable" id="sort-th-biz-fixed" onclick="sortByDue('biz-fixed')">Vencimento</th>
           <th>Mensal</th>
-          <th>Anual</th>
           <th class="th-pago">Pago</th>
         </tr>
       </thead>
@@ -1323,7 +1305,6 @@
           <td>Total Custos Fixos Empresa</td>
           <td></td>
           <td><span class="total-amount" id="biz-fixed-monthly-total">R$ 0,00</span></td>
-          <td><span class="total-amount" id="biz-fixed-annual-total">R$ 0,00</span></td>
           <td></td>
         </tr>
       </tfoot>
@@ -1378,16 +1359,6 @@
         <div class="sum-label">Total Fixo Anual</div>
         <div class="sum-value" id="biz-sum-fixed-annual">R$ 0</div>
         <div class="sum-sub" id="biz-sum-fixed-monthly-sub">R$ 0,00 / mês</div>
-      </div>
-      <div class="sum-card biz-variable">
-        <div class="sum-label">Total Variável Anual</div>
-        <div class="sum-value" id="biz-sum-variable-annual">R$ 0</div>
-        <div class="sum-sub" id="biz-sum-variable-monthly-sub">R$ 0,00 / mês</div>
-      </div>
-      <div class="sum-card biz-total-annual">
-        <div class="sum-label">Custo Total Anual da Empresa</div>
-        <div class="sum-value" id="biz-sum-total-annual">R$ 0</div>
-        <div class="sum-sub">Fixo + Variável</div>
       </div>
       <div class="sum-card biz-total-monthly">
         <div class="sum-label">Custo Mensal da Empresa</div>
@@ -1843,7 +1814,6 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
   tr.dataset.type = type;
 
   const isVariable = type.includes('variable');
-  const annual = value * 12;
 
   tr.innerHTML = `
     <td>
@@ -1861,12 +1831,9 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
     <td>
       <div class="value-input-wrap">
         <span class="currency-sym">R$</span>
-        <input type="number" min="0" step="0.01" value="${value}" oninput="${isVariable ? '' : `updateAnnual('row-${id}'); `}recalculate();" />
+        <input type="number" min="0" step="0.01" value="${value}" oninput="recalculate();" />
       </div>
     </td>
-    ${isVariable ? '' : `<td>
-      <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${id}">${formatBRL(annual)}</span>
-    </td>`}
     <td style="text-align:center">
       <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="recalculate()" />
     </td>
@@ -1874,17 +1841,6 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
   tbody.appendChild(tr);
 }
 
-function updateAnnual(rowId) {
-  const tr = document.getElementById(rowId);
-  const input = tr.querySelector('input[type="number"]:not(.due-input)');
-  const val = parseFloat(input.value) || 0;
-  const annual = val * 12;
-  const id = rowId.split('-')[1];
-  const span = document.getElementById('annual-' + id);
-  if (!span) return;
-  span.textContent = formatBRL(annual);
-  span.className = 'annual-val' + (annual > 0 ? ' has-value' : '');
-}
 
 function updateDueBadge(input) {
   const unit = input.parentElement.querySelector('.due-label-unit');
@@ -1957,10 +1913,6 @@ function undoDelete() {
   const tr = document.createElement('tr');
   tr.id = s.id;
   tr.dataset.type = s.type;
-  const rid = s.id.split('-')[1];
-  const isVariableUndo = s.type.includes('variable');
-  const annual = s.value * 12;
-
   tr.innerHTML = `
     <td>
       <div class="td-label">
@@ -1977,12 +1929,9 @@ function undoDelete() {
     <td>
       <div class="value-input-wrap">
         <span class="currency-sym">R$</span>
-        <input type="number" min="0" step="0.01" value="${s.value}" oninput="${isVariableUndo ? '' : `updateAnnual('${s.id}'); `}recalculate();" />
+        <input type="number" min="0" step="0.01" value="${s.value}" oninput="recalculate();" />
       </div>
     </td>
-    ${isVariableUndo ? '' : `<td>
-      <span class="annual-val ${annual > 0 ? 'has-value' : ''}" id="annual-${rid}">${formatBRL(annual)}</span>
-    </td>`}
     <td style="text-align:center">
       <input type="checkbox" class="paid-check" ${s.paid ? 'checked' : ''} onchange="recalculate()" />
     </td>
@@ -2056,37 +2005,24 @@ function recalculate() {
   const variableMonthly = sumType('variable');
   const totalMonthly = fixedMonthly + variableMonthly;
   const fixedAnnual = fixedMonthly * 12;
-  const variableAnnual = variableMonthly * 12;
-  const totalAnnual = totalMonthly * 12;
 
   document.getElementById('fixed-monthly-total').textContent = formatBRL(fixedMonthly);
-  document.getElementById('fixed-annual-total').textContent = formatBRL(fixedAnnual);
   document.getElementById('variable-monthly-total').textContent = formatBRL(variableMonthly);
   document.getElementById('sum-fixed-annual').textContent = formatBRL(fixedAnnual);
   document.getElementById('sum-fixed-monthly-sub').textContent = formatBRL(fixedMonthly) + ' / mês';
-  document.getElementById('sum-variable-annual').textContent = formatBRL(variableAnnual);
-  document.getElementById('sum-variable-monthly-sub').textContent = formatBRL(variableMonthly) + ' / mês';
-  document.getElementById('sum-total-annual').textContent = formatBRL(totalAnnual);
   document.getElementById('sum-total-monthly').textContent = formatBRL(totalMonthly);
   document.getElementById('header-monthly').textContent = formatBRL(totalMonthly);
-  document.getElementById('header-annual').textContent = formatBRL(totalAnnual);
 
   // Business
   const bizFixed = sumType('biz-fixed');
   const bizVar = sumType('biz-variable');
   const bizTotal = bizFixed + bizVar;
   const bizFixedAnnual = bizFixed * 12;
-  const bizVarAnnual = bizVar * 12;
-  const bizTotalAnnual = bizTotal * 12;
 
   document.getElementById('biz-fixed-monthly-total').textContent = formatBRL(bizFixed);
-  document.getElementById('biz-fixed-annual-total').textContent = formatBRL(bizFixedAnnual);
   document.getElementById('biz-variable-monthly-total').textContent = formatBRL(bizVar);
   document.getElementById('biz-sum-fixed-annual').textContent = formatBRL(bizFixedAnnual);
   document.getElementById('biz-sum-fixed-monthly-sub').textContent = formatBRL(bizFixed) + ' / mês';
-  document.getElementById('biz-sum-variable-annual').textContent = formatBRL(bizVarAnnual);
-  document.getElementById('biz-sum-variable-monthly-sub').textContent = formatBRL(bizVar) + ' / mês';
-  document.getElementById('biz-sum-total-annual').textContent = formatBRL(bizTotalAnnual);
   document.getElementById('biz-sum-total-monthly').textContent = formatBRL(bizTotal);
 
   // Pago / Em aberto — Pessoal
@@ -2394,7 +2330,6 @@ function undoClear() {
     const dueInput = tr.querySelector('.due-input');
     if (valInput) {
       valInput.value = value;
-      updateAnnual(id);
     }
     if (dueInput) {
       dueInput.value = due;
@@ -2494,15 +2429,15 @@ async function exportWord() {
     }
 
     function tableSection(title, rows, totalLabel, totalM, totalA, hdrBg, totalBg) {
-      const w0=3600,w1=1100,w2=2200,w3=2460;
+      const w0=3600,w1=1100,w2=4660;
       let xml = par(title, { bold:true, size:24, color:'3D5C42', spBefore:240, spAfter:80 });
-      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/></w:tblGrid>`;
-      xml += `<w:tr>${tc('Categoria',{w:w0,bold:true,bg:hdrBg})}${tc('Vencimento',{w:w1,bold:true,bg:hdrBg,align:'center'})}${tc('Mensal',{w:w2,bold:true,bg:hdrBg,align:'right'})}${tc('Anual',{w:w3,bold:true,bg:hdrBg,align:'right'})}</w:tr>`;
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Categoria',{w:w0,bold:true,bg:hdrBg})}${tc('Vencimento',{w:w1,bold:true,bg:hdrBg,align:'center'})}${tc('Mensal',{w:w2,bold:true,bg:hdrBg,align:'right'})}</w:tr>`;
       rows.forEach(r => {
         const due = r.due ? r.due + 'o' : '-';
-        xml += `<w:tr>${tc(r.name,{w:w0})}${tc(due,{w:w1,align:'center',color:r.due?'2A2A2A':'AAAAAA'})}${tc(fBRL(r.value),{w:w2,align:'right'})}${tc(fBRL(r.value*12),{w:w3,align:'right'})}</w:tr>`;
+        xml += `<w:tr>${tc(r.name,{w:w0})}${tc(due,{w:w1,align:'center',color:r.due?'2A2A2A':'AAAAAA'})}${tc(fBRL(r.value),{w:w2,align:'right'})}</w:tr>`;
       });
-      xml += `<w:tr>${tc(totalLabel,{w:w0,bold:true,bg:totalBg})}${tc('',{w:w1,bg:totalBg})}${tc(fBRL(totalM),{w:w2,bold:true,bg:totalBg,align:'right'})}${tc(fBRL(totalA),{w:w3,bold:true,bg:totalBg,align:'right'})}</w:tr>`;
+      xml += `<w:tr>${tc(totalLabel,{w:w0,bold:true,bg:totalBg})}${tc('',{w:w1,bg:totalBg})}${tc(fBRL(totalM),{w:w2,bold:true,bg:totalBg,align:'right'})}</w:tr>`;
       xml += `</w:tbl>`;
       return xml;
     }
@@ -2526,8 +2461,6 @@ async function exportWord() {
       par('Resumo Pessoal', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80}) +
       summaryTable([
         ['Total Fixo Anual', fBRL(fixedM*12), 'E8F4EA'],
-        ['Total Variavel Anual', fBRL(varM*12), 'FBF0E0'],
-        ['Custo Total Anual', fBRL(pessoalM*12), 'E0EBE0'],
         ['Custo Total Mensal', fBRL(pessoalM), 'D4E8D4'],
       ]) +
       par('ORCAMENTO EMPRESARIAL', {bold:true, size:26, color:'3A4E6C', spBefore:560, spAfter:160}) +
@@ -2536,8 +2469,6 @@ async function exportWord() {
       par('Resumo Empresarial', {bold:true, size:22, color:'3A4E6C', spBefore:280, spAfter:80}) +
       summaryTable([
         ['Total Fixo Anual', fBRL(bizFM*12), 'EAF0F8'],
-        ['Total Variavel Anual', fBRL(bizVM*12), 'EEE8F8'],
-        ['Custo Total Anual da Empresa', fBRL(empresaM*12), 'DDE6F2'],
         ['Custo Mensal da Empresa', fBRL(empresaM), 'CCD8EE'],
       ]) +
       par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
