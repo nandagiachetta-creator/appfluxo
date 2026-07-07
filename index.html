@@ -1057,6 +1057,37 @@
   .month-tab.active.next-tab {
     background: #5a6e8c;
   }
+
+  /* APP VIEW TABS */
+  .view-nav {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+    width: fit-content;
+  }
+  .view-tab {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 22px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    letter-spacing: 0.2px;
+  }
+  .view-tab:hover { background: var(--warm); color: var(--text); }
+  .view-tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
   .preview-banner {
     display: none;
     align-items: center;
@@ -1283,6 +1314,13 @@
 </header>
 
 <main>
+
+<div class="view-nav">
+  <button class="view-tab active" id="view-tab-orcamento" onclick="switchView('orcamento')">Orçamento</button>
+  <button class="view-tab" id="view-tab-cartao" onclick="switchView('cartao')">💳 Cartão</button>
+</div>
+
+<div id="view-orcamento">
 <div id="new-month-banner" style="display:none">
   <div class="banner-icon">📅</div>
   <div class="banner-text">
@@ -1408,8 +1446,6 @@
         </div>
       </div>
     </div>
-  </div>
-
   </div>
 
   <!-- DIVIDER -->
@@ -1847,6 +1883,47 @@
     </button>
     <span id="save-status" style="font-size:12px;color:var(--text-muted);"></span>
   </div>
+
+</div>
+<!-- /view-orcamento -->
+
+<!-- VIEW: CARTÃO -->
+<div id="view-cartao" style="display:none">
+
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#a6763f">Cartão</span>
+    <h2 class="section-title">O que tem no Cartão</h2>
+    <button class="btn-sort-due" id="sort-btn-cartao" onclick="sortByDue('cartao')">↕ Ordenar por vencimento</button>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="cartao-table">
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th class="th-sortable" id="sort-th-cartao" onclick="sortByDue('cartao')">Dia</th>
+          <th>Valor</th>
+          <th class="th-pago">Pago</th>
+        </tr>
+      </thead>
+      <tbody id="cartao-body"></tbody>
+      <tfoot>
+        <tr class="total-row" id="cartao-total-row" style="background:#f0e6d8">
+          <td>Total no Cartão</td>
+          <td></td>
+          <td><span class="total-amount" id="cartao-monthly-total">R$ 0,00</span></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addRow('cartao')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar item do cartão
+    </button>
+  </div>
+
+</div>
+<!-- /view-cartao -->
 
 </main>
 
@@ -2290,6 +2367,10 @@ function recalculate() {
   document.getElementById('biz-sum-pago').textContent = formatBRL(bizPago);
   document.getElementById('biz-sum-aberto').textContent = formatBRL(bizAberto);
 
+  // Cartão (aba separada)
+  const cartaoTotalEl = document.getElementById('cartao-monthly-total');
+  if (cartaoTotalEl) cartaoTotalEl.textContent = formatBRL(sumType('cartao'));
+
   calcPricing();
   saveData();
 }
@@ -2550,6 +2631,13 @@ function loadMonthIntoDOM(monthData) {
   const receita = monthData.receita || [];
   receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
   recalculateReceita();
+}
+
+function switchView(view) {
+  document.getElementById('view-orcamento').style.display = view === 'orcamento' ? '' : 'none';
+  document.getElementById('view-cartao').style.display = view === 'cartao' ? '' : 'none';
+  document.getElementById('view-tab-orcamento').classList.toggle('active', view === 'orcamento');
+  document.getElementById('view-tab-cartao').classList.toggle('active', view === 'cartao');
 }
 
 function switchMonth(view) {
@@ -2943,6 +3031,17 @@ function saveData() {
     if (el) data.pricing[id] = el.value;
   });
 
+  // Cartão: aba separada, não vinculada ao mês atual/próximo
+  const cartaoRows = [];
+  document.querySelectorAll('#cartao-body tr').forEach(tr => {
+    const name  = tr.querySelector('input[type="text"]')?.value || '';
+    const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
+    const due   = tr.querySelector('.due-input')?.value || '';
+    const paid  = tr.querySelector('.paid-check')?.checked || false;
+    cartaoRows.push({ name, value, due, paid });
+  });
+  data.cartao = cartaoRows;
+
   // Save to correct slot
   if (activeMonth === 'current') {
     data.tables = monthTables;
@@ -3062,6 +3161,10 @@ async function loadData() {
       if (!rows || !rows.length) return;
       rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
     });
+
+    if (data.cartao && data.cartao.length) {
+      data.cartao.slice(0, 50).forEach(r => createRow('cartao', r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+    }
 
     if (data.pricing) {
       PRICING_IDS.forEach(id => {
