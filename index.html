@@ -1088,6 +1088,79 @@
     color: #fff;
   }
 
+  /* CARTÃO — MÚLTIPLOS CARTÕES */
+  .cartao-summary-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .cartao-summary-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .cartao-summary-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    flex: 1 1 220px;
+    min-width: 200px;
+    background: var(--warm);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  .cartao-summary-item span { color: var(--text-muted); }
+  .cartao-summary-item strong { color: var(--text); }
+  .cartao-summary-empty { font-size: 13px; color: var(--text-muted); }
+  .cartao-summary-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    margin-top: 16px;
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+  }
+  .cartao-summary-total strong { color: #a6763f; }
+  .cartao-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 20px 24px 24px;
+    margin-bottom: 24px;
+  }
+  .cartao-card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .cartao-card-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
+    padding: 4px 2px;
+    flex: 1;
+    min-width: 120px;
+    color: var(--text);
+  }
+  .cartao-card-name:focus { outline: none; border-color: var(--accent); }
+  .cartao-card-subtotal {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: #a6763f;
+    white-space: nowrap;
+  }
+  .cartao-card .table-wrapper { box-shadow: none; }
+
   .preview-banner {
     display: none;
     align-items: center;
@@ -1892,35 +1965,24 @@
 
   <div class="section-header" style="margin-top:0">
     <span class="section-pill" style="background:#a6763f">Cartão</span>
-    <h2 class="section-title">O que tem no Cartão</h2>
-    <button class="btn-sort-due" id="sort-btn-cartao" onclick="sortByDue('cartao')">↕ Ordenar por vencimento</button>
+    <h2 class="section-title">Meus Cartões</h2>
   </div>
 
-  <div class="table-wrapper">
-    <table id="cartao-table">
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th class="th-sortable" id="sort-th-cartao" onclick="sortByDue('cartao')">Dia</th>
-          <th>Valor</th>
-          <th class="th-pago">Pago</th>
-        </tr>
-      </thead>
-      <tbody id="cartao-body"></tbody>
-      <tfoot>
-        <tr class="total-row" id="cartao-total-row" style="background:#f0e6d8">
-          <td>Total no Cartão</td>
-          <td></td>
-          <td><span class="total-amount" id="cartao-monthly-total">R$ 0,00</span></td>
-          <td></td>
-        </tr>
-      </tfoot>
-    </table>
-    <button class="btn-add-row" onclick="addRow('cartao')">
-      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      Adicionar item do cartão
-    </button>
+  <!-- RESUMO POR CARTÃO -->
+  <div class="cartao-summary-box">
+    <div id="cartao-summary-list" class="cartao-summary-list"></div>
+    <div class="cartao-summary-total">
+      <span>Total em Cartões / mês</span>
+      <strong id="cartao-grand-total">R$ 0,00</strong>
+    </div>
   </div>
+
+  <div id="cartao-cards-container"></div>
+
+  <button class="btn-add-row" onclick="addCartaoCard()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar cartão
+  </button>
 
 </div>
 <!-- /view-cartao -->
@@ -2367,11 +2429,79 @@ function recalculate() {
   document.getElementById('biz-sum-pago').textContent = formatBRL(bizPago);
   document.getElementById('biz-sum-aberto').textContent = formatBRL(bizAberto);
 
-  // Cartão (aba separada)
-  const cartaoTotalEl = document.getElementById('cartao-monthly-total');
-  if (cartaoTotalEl) cartaoTotalEl.textContent = formatBRL(sumType('cartao'));
+  // Cartão (aba separada) — múltiplos cartões
+  const summaryList = document.getElementById('cartao-summary-list');
+  if (summaryList) {
+    summaryList.innerHTML = '';
+    let cartaoGrandTotal = 0;
+    const cards = document.querySelectorAll('.cartao-card');
+    cards.forEach(card => {
+      const id = card.dataset.cardId;
+      const name = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
+      const subtotal = sumType('cartao-' + id);
+      cartaoGrandTotal += subtotal;
+      const subtotalEl = document.getElementById('cartao-subtotal-' + id);
+      if (subtotalEl) subtotalEl.textContent = formatBRL(subtotal);
+      const item = document.createElement('div');
+      item.className = 'cartao-summary-item';
+      item.innerHTML = `<span>${name}</span><strong>${formatBRL(subtotal)}</strong>`;
+      summaryList.appendChild(item);
+    });
+    if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum cartão cadastrado ainda.</span>';
+    const grandTotalEl = document.getElementById('cartao-grand-total');
+    if (grandTotalEl) grandTotalEl.textContent = formatBRL(cartaoGrandTotal);
+  }
 
   calcPricing();
+  saveData();
+}
+
+let cartaoCardSeq = 0;
+function addCartaoCard(name = '', id = null) {
+  if (!id) {
+    id = 'c' + (cartaoCardSeq++);
+  } else {
+    const n = parseInt(String(id).replace('c', ''), 10);
+    if (!isNaN(n) && n >= cartaoCardSeq) cartaoCardSeq = n + 1;
+  }
+  const container = document.getElementById('cartao-cards-container');
+  const card = document.createElement('div');
+  card.className = 'cartao-card';
+  card.id = 'cartao-card-' + id;
+  card.dataset.cardId = id;
+  card.innerHTML = `
+    <div class="cartao-card-header">
+      <input type="text" class="cartao-card-name" value="${name}" placeholder="Nome do cartão (ex: Nubank PJ)" oninput="recalculate()" />
+      <span class="cartao-card-subtotal" id="cartao-subtotal-${id}">R$ 0,00</span>
+      <button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th style="text-align:right">Dia</th>
+            <th>Valor</th>
+            <th class="th-pago">Pago</th>
+          </tr>
+        </thead>
+        <tbody id="cartao-${id}-body"></tbody>
+      </table>
+      <button class="btn-add-row" onclick="addRow('cartao-${id}')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar item
+      </button>
+    </div>
+  `;
+  container.appendChild(card);
+  return id;
+}
+
+function deleteCartaoCard(id) {
+  if (!confirm('Remover este cartão e todos os itens cadastrados nele?')) return;
+  const card = document.getElementById('cartao-card-' + id);
+  if (card) card.remove();
+  recalculate();
   saveData();
 }
 
@@ -3031,16 +3161,22 @@ function saveData() {
     if (el) data.pricing[id] = el.value;
   });
 
-  // Cartão: aba separada, não vinculada ao mês atual/próximo
-  const cartaoRows = [];
-  document.querySelectorAll('#cartao-body tr').forEach(tr => {
-    const name  = tr.querySelector('input[type="text"]')?.value || '';
-    const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
-    const due   = tr.querySelector('.due-input')?.value || '';
-    const paid  = tr.querySelector('.paid-check')?.checked || false;
-    cartaoRows.push({ name, value, due, paid });
+  // Cartão: múltiplos cartões, aba separada, não vinculada ao mês atual/próximo
+  const cartoes = [];
+  document.querySelectorAll('.cartao-card').forEach(card => {
+    const id = card.dataset.cardId;
+    const name = card.querySelector('.cartao-card-name')?.value || '';
+    const items = [];
+    document.querySelectorAll(`#cartao-${id}-body tr`).forEach(tr => {
+      const iname = tr.querySelector('input[type="text"]')?.value || '';
+      const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
+      const due   = tr.querySelector('.due-input')?.value || '';
+      const paid  = tr.querySelector('.paid-check')?.checked || false;
+      items.push({ name: iname, value, due, paid });
+    });
+    cartoes.push({ id, name, items });
   });
-  data.cartao = cartaoRows;
+  data.cartoes = cartoes;
 
   // Save to correct slot
   if (activeMonth === 'current') {
@@ -3162,8 +3298,15 @@ async function loadData() {
       rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
     });
 
-    if (data.cartao && data.cartao.length) {
-      data.cartao.slice(0, 50).forEach(r => createRow('cartao', r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+    if (data.cartoes && data.cartoes.length) {
+      data.cartoes.slice(0, 30).forEach(c => {
+        const id = addCartaoCard(c.name || '', c.id);
+        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+      });
+    } else if (data.cartao && data.cartao.length) {
+      // Migração do formato antigo (cartão único sem nome)
+      const id = addCartaoCard('Cartão');
+      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
     }
 
     if (data.pricing) {
