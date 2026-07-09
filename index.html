@@ -1023,6 +1023,10 @@
     .section-title { font-size: 18px; }
     .pricing-row { flex-direction: column; align-items: flex-start; gap: 8px; }
     .pricing-row-input input[type="number"] { width: 100%; }
+
+    .dashboard-cards { grid-template-columns: 1fr 1fr; }
+    .dash-card-value { font-size: 19px; }
+    .dashboard-chart-row { flex-direction: column; align-items: flex-start; }
   }
 
   /* MONTH NAVIGATION TABS */
@@ -1061,6 +1065,7 @@
   /* APP VIEW TABS */
   .view-nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 32px;
     background: var(--surface);
@@ -1160,6 +1165,77 @@
     white-space: nowrap;
   }
   .cartao-card .table-wrapper { box-shadow: none; }
+
+  /* DASHBOARD */
+  .dashboard-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .dash-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .dash-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .dash-card-value { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--text); }
+  .dash-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .dash-card.highlight { background: var(--sage-dark); border-color: var(--sage-dark); }
+  .dash-card.highlight .dash-card-label { color: var(--sage-light); }
+  .dash-card.highlight .dash-card-value { color: var(--cream); }
+  .dash-card.highlight.negative { background: var(--red); border-color: var(--red); }
+  .dash-card.highlight.negative .dash-card-label { color: #f2c6c0; }
+
+  .dashboard-chart-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 32px;
+  }
+  .dashboard-chart-box h3 { font-family: 'Playfair Display', serif; font-size: 18px; margin-bottom: 20px; font-weight: 400; }
+  .dashboard-chart-row { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .dashboard-donut {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--warm);
+  }
+  .dashboard-legend { display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 220px; }
+  .dashboard-legend-item { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .dashboard-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dashboard-legend-label { flex: 1; color: var(--text-muted); }
+  .dashboard-legend-value { font-weight: 600; color: var(--text); }
+
+  /* OBJETIVO FINANCEIRO */
+  .objetivo-progress {
+    width: 100%;
+    height: 6px;
+    background: var(--warm);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .objetivo-progress-fill {
+    height: 100%;
+    background: var(--sage);
+    border-radius: 3px;
+    transition: width 0.2s;
+  }
+  input[type="month"] {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--cream);
+    color: var(--text);
+  }
 
   .preview-banner {
     display: none;
@@ -1389,8 +1465,13 @@
 <main>
 
 <div class="view-nav">
-  <button class="view-tab active" id="view-tab-orcamento" onclick="switchView('orcamento')">Orçamento</button>
+  <button class="view-tab active" id="view-tab-orcamento" onclick="switchView('orcamento')">📊 Dashboard</button>
+  <button class="view-tab" id="view-tab-pf" onclick="switchView('pf')">Orçamento PF</button>
+  <button class="view-tab" id="view-tab-pj" onclick="switchView('pj')">Orçamento PJ</button>
   <button class="view-tab" id="view-tab-cartao" onclick="switchView('cartao')">💳 Cartão</button>
+  <button class="view-tab" id="view-tab-receita" onclick="switchView('receita')">💰 Receita</button>
+  <button class="view-tab" id="view-tab-meta" onclick="switchView('meta')">🎯 Meta</button>
+  <button class="view-tab" id="view-tab-objetivo" onclick="switchView('objetivo')">🏆 Objetivo Financeiro</button>
 </div>
 
 <div id="view-orcamento">
@@ -1416,6 +1497,68 @@
     <div style="flex:1"><strong>Modo Previsão</strong> — Você está planejando os pagamentos e receitas do próximo mês. Os dados do mês atual estão preservados.</div>
     <button onclick="copyCurrentMonthToNext()" style="flex-shrink:0;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;background:#5a6e8c;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;white-space:nowrap;">Copiar mês atual como base</button>
   </div>
+
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:var(--sage-dark)">Resumo</span>
+    <h2 class="section-title">Dashboard Financeiro</h2>
+  </div>
+
+  <div class="dashboard-cards">
+    <div class="dash-card">
+      <div class="dash-card-label">Orçamento PF</div>
+      <div class="dash-card-value" id="dash-pf-total">R$ 0,00</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Orçamento PJ</div>
+      <div class="dash-card-value" id="dash-pj-total">R$ 0,00</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Total em Cartões</div>
+      <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Receita do Mês</div>
+      <div class="dash-card-value" id="dash-receita-total">R$ 0,00</div>
+    </div>
+    <div class="dash-card highlight">
+      <div class="dash-card-label">Saldo do Mês</div>
+      <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Objetivos Financeiros</div>
+      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+    </div>
+  </div>
+
+  <div class="dashboard-chart-box">
+    <h3>Gastos por Categoria</h3>
+    <div class="dashboard-chart-row">
+      <div class="dashboard-donut" id="dashboard-donut"></div>
+      <div class="dashboard-legend" id="dashboard-legend"></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-action" onclick="showClearModal()">Limpar tudo</button>
+    <button class="btn-action" onclick="showHistoryModal()">📅 Histórico</button>
+    <button class="btn-action primary" id="export-btn" onclick="exportWord()">
+      <span id="export-label">⬇ Exportar Word</span>
+    </button>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 48px 48px;">
+    <button id="save-btn" onclick="manualSave()" style="background:var(--sage-dark);color:var(--cream);border:none;border-radius:10px;padding:14px 48px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
+      Salvar
+    </button>
+    <span id="save-status" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+
+</div>
+<!-- /view-orcamento -->
+
+<!-- VIEW: ORÇAMENTO PF -->
+<div id="view-pf" style="display:none">
 
   <!-- FIXED COSTS -->
   <div class="section-header">
@@ -1520,12 +1663,14 @@
       </div>
     </div>
   </div>
+</div>
+<!-- /view-pf -->
 
-  <!-- DIVIDER -->
-  <hr class="section-divider">
+<!-- VIEW: ORÇAMENTO PJ -->
+<div id="view-pj" style="display:none">
 
   <!-- BIZ FIXED COSTS -->
-  <div class="section-header" style="margin-top:72px">
+  <div class="section-header" style="margin-top:0">
     <span class="section-pill biz">Fixos</span>
     <h2 class="section-title">Custos Fixos da Empresa</h2>
     <button class="btn-sort-due" id="sort-btn-biz-fixed" onclick="sortByDue('biz-fixed')">↕ Ordenar por vencimento</button>
@@ -1623,6 +1768,212 @@
           <div class="paid-card-value" id="biz-sum-aberto">R$ 0,00</div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+<!-- /view-pj -->
+
+<!-- VIEW: CARTÃO -->
+<div id="view-cartao" style="display:none">
+
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#a6763f">Cartão</span>
+    <h2 class="section-title">Meus Cartões</h2>
+  </div>
+
+  <!-- RESUMO POR CARTÃO -->
+  <div class="cartao-summary-box">
+    <div id="cartao-summary-list" class="cartao-summary-list"></div>
+    <div class="cartao-summary-total">
+      <span>Total em Cartões / mês</span>
+      <strong id="cartao-grand-total">R$ 0,00</strong>
+    </div>
+  </div>
+
+  <div id="cartao-cards-container"></div>
+
+  <button class="btn-add-row" onclick="addCartaoCard()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar cartão
+  </button>
+
+</div>
+<!-- /view-cartao -->
+
+<!-- VIEW: RECEITA -->
+<div id="view-receita" style="display:none">
+
+  <!-- RECEITA -->
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill receita">Receita</span>
+    <h2 class="section-title">Receitas do Mês</h2>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Data do Pagamento</th>
+          <th>Valor</th>
+          <th class="th-pago">Nota Fiscal</th>
+          <th class="th-pago">Emitida</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="receita-body"></tbody>
+      <tfoot>
+        <tr class="total-row receita">
+          <td>Total Recebido</td>
+          <td></td>
+          <td><span class="total-amount" id="receita-monthly-total">R$ 0,00</span></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addReceitaRow()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar cliente
+    </button>
+  </div>
+
+  <!-- RECEITA SUMMARY -->
+  <div class="summary-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill receita">Resumo</span>
+      <h2 class="section-title">Resumo de Receitas</h2>
+    </div>
+    <div class="summary-grid">
+      <div class="sum-card receita-total">
+        <div class="sum-label">Total Recebido</div>
+        <div class="sum-value" id="receita-sum-total">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-count">0 clientes</div>
+      </div>
+      <div class="sum-card receita-nf">
+        <div class="sum-label">Com Nota Fiscal</div>
+        <div class="sum-value" id="receita-sum-nf">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-nf-sub">0 emitidas</div>
+      </div>
+      <div class="sum-card receita-sem-nf">
+        <div class="sum-label">Sem Nota Fiscal</div>
+        <div class="sum-value" id="receita-sum-sem-nf">R$ 0</div>
+        <div class="sum-sub" id="receita-sum-sem-nf-sub">0 pendentes de NF</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- /view-receita -->
+
+<!-- VIEW: META -->
+<div id="view-meta" style="display:none">
+
+  <!-- META SEMANAL CALCULATOR -->
+  <div class="meta-semanal-section">
+    <div class="section-header" style="margin-top:0">
+      <span class="section-pill receita">Meta</span>
+      <h2 class="section-title">Calculadora de Meta Semanal</h2>
+    </div>
+    <div class="meta-grid">
+
+      <!-- Inputs -->
+      <div class="meta-card">
+        <div class="meta-card-title">Configurar meta</div>
+
+        <div class="meta-row">
+          <span class="meta-row-label">Meta do mês</span>
+          <div class="meta-row-input">
+            <span class="currency-sym">R$</span>
+            <input type="number" id="meta-goal" min="0" step="100" placeholder="0" oninput="calcMeta()">
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <span class="meta-row-label">Valor cobrado por sessão</span>
+          <div class="meta-row-input">
+            <span class="currency-sym">R$</span>
+            <input type="number" id="meta-session-price" min="0" step="10" placeholder="0" oninput="calcMeta()">
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <span class="meta-row-label">Dias de atendimento por semana</span>
+          <div class="meta-row-input">
+            <input type="number" id="meta-days-week" min="1" max="7" placeholder="—" oninput="calcMeta()">
+            <span class="meta-unit">dias</span>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <span class="meta-row-label">Duração de cada sessão</span>
+          <div class="meta-row-input">
+            <input type="number" id="meta-session-min" min="15" max="240" step="5" placeholder="50" oninput="calcMeta()">
+            <span class="meta-unit">min</span>
+          </div>
+        </div>
+
+        <div class="meta-row">
+          <span class="meta-row-label">Dia atual do mês</span>
+          <div class="meta-row-input">
+            <input type="number" id="meta-today" min="1" max="31" placeholder="—" oninput="calcMeta()">
+            <span class="meta-unit">dia</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div class="meta-card">
+        <div class="meta-card-title">Planejamento mensal</div>
+
+        <div class="meta-result-row">
+          <span>Sessões necessárias no mês</span>
+          <strong id="meta-r-sessoes-mes">—</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Sessões por semana</span>
+          <strong id="meta-r-sessoes-semana">—</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Sessões por dia de atendimento</span>
+          <strong id="meta-r-sessoes-dia">—</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Valor a fechar por semana</span>
+          <strong id="meta-r-valor-semana">—</strong>
+        </div>
+
+        <div class="meta-divider"></div>
+
+        <div class="meta-card-title" style="margin-top:4px">
+          Progresso do mês
+          <span id="meta-hoje-label" style="font-weight:400;font-size:12px;color:var(--text-muted);text-transform:none;letter-spacing:0"></span>
+        </div>
+
+        <div class="meta-result-row">
+          <span>Já recebido este mês <span class="auto-badge">auto</span></span>
+          <strong id="meta-r-recebido" style="color:var(--sage-dark)">R$ 0,00</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Falta para a meta</span>
+          <strong id="meta-r-falta">—</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Semanas restantes no mês</span>
+          <strong id="meta-r-semanas">—</strong>
+        </div>
+        <div class="meta-result-row">
+          <span>Sessões ainda necessárias</span>
+          <strong id="meta-r-sessoes-falta">—</strong>
+        </div>
+
+        <div class="meta-highlight meta-ok" id="meta-highlight-box">
+          <div class="meta-highlight-label">Precisa fechar por semana</div>
+          <div class="meta-highlight-value" id="meta-r-valor-semana-restante">R$ —</div>
+          <div class="meta-highlight-sub" id="meta-r-sub">preencha os campos ao lado</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -1769,223 +2120,46 @@
 
     </div>
   </div>
+</div>
+<!-- /view-meta -->
 
-  <!-- DIVIDER RECEITA -->
-  <hr class="section-divider">
+<!-- VIEW: OBJETIVO FINANCEIRO -->
+<div id="view-objetivo" style="display:none">
 
-  <!-- RECEITA -->
-  <div class="section-header" style="margin-top:72px">
-    <span class="section-pill receita">Receita</span>
-    <h2 class="section-title">Receitas do Mês</h2>
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#6b5b95">Objetivo</span>
+    <h2 class="section-title">Objetivos Financeiros</h2>
+  </div>
+
+  <div class="cartao-summary-box">
+    <div class="cartao-summary-list">
+      <div class="cartao-summary-item"><span>Total necessário</span><strong id="objetivo-total-necessario">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Já guardado</span><strong id="objetivo-total-guardado">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Falta guardar</span><strong id="objetivo-total-falta">R$ 0,00</strong></div>
+    </div>
   </div>
 
   <div class="table-wrapper">
     <table>
       <thead>
         <tr>
-          <th>Cliente</th>
-          <th>Data do Pagamento</th>
-          <th>Valor</th>
-          <th class="th-pago">Nota Fiscal</th>
-          <th class="th-pago">Emitida</th>
-          <th></th>
+          <th>Objetivo / Gasto Futuro</th>
+          <th style="text-align:center">Data Alvo</th>
+          <th>Valor Necessário</th>
+          <th>Já Guardado</th>
+          <th class="th-pago">Concluído</th>
         </tr>
       </thead>
-      <tbody id="receita-body"></tbody>
-      <tfoot>
-        <tr class="total-row receita">
-          <td>Total Recebido</td>
-          <td></td>
-          <td><span class="total-amount" id="receita-monthly-total">R$ 0,00</span></td>
-          <td></td>
-          <td></td>
-          <td></td>
-        </tr>
-      </tfoot>
+      <tbody id="objetivo-body"></tbody>
     </table>
-    <button class="btn-add-row" onclick="addReceitaRow()">
+    <button class="btn-add-row" onclick="addObjetivoRow()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      Adicionar cliente
+      Adicionar objetivo
     </button>
-  </div>
-
-  <!-- RECEITA SUMMARY -->
-  <div class="summary-section">
-    <div class="section-header" style="margin-top:0">
-      <span class="section-pill receita">Resumo</span>
-      <h2 class="section-title">Resumo de Receitas</h2>
-    </div>
-    <div class="summary-grid">
-      <div class="sum-card receita-total">
-        <div class="sum-label">Total Recebido</div>
-        <div class="sum-value" id="receita-sum-total">R$ 0</div>
-        <div class="sum-sub" id="receita-sum-count">0 clientes</div>
-      </div>
-      <div class="sum-card receita-nf">
-        <div class="sum-label">Com Nota Fiscal</div>
-        <div class="sum-value" id="receita-sum-nf">R$ 0</div>
-        <div class="sum-sub" id="receita-sum-nf-sub">0 emitidas</div>
-      </div>
-      <div class="sum-card receita-sem-nf">
-        <div class="sum-label">Sem Nota Fiscal</div>
-        <div class="sum-value" id="receita-sum-sem-nf">R$ 0</div>
-        <div class="sum-sub" id="receita-sum-sem-nf-sub">0 pendentes de NF</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- META SEMANAL CALCULATOR -->
-  <div class="meta-semanal-section">
-    <div class="section-header" style="margin-top:0">
-      <span class="section-pill receita">Meta</span>
-      <h2 class="section-title">Calculadora de Meta Semanal</h2>
-    </div>
-    <div class="meta-grid">
-
-      <!-- Inputs -->
-      <div class="meta-card">
-        <div class="meta-card-title">Configurar meta</div>
-
-        <div class="meta-row">
-          <span class="meta-row-label">Meta do mês</span>
-          <div class="meta-row-input">
-            <span class="currency-sym">R$</span>
-            <input type="number" id="meta-goal" min="0" step="100" placeholder="0" oninput="calcMeta()">
-          </div>
-        </div>
-
-        <div class="meta-row">
-          <span class="meta-row-label">Valor cobrado por sessão</span>
-          <div class="meta-row-input">
-            <span class="currency-sym">R$</span>
-            <input type="number" id="meta-session-price" min="0" step="10" placeholder="0" oninput="calcMeta()">
-          </div>
-        </div>
-
-        <div class="meta-row">
-          <span class="meta-row-label">Dias de atendimento por semana</span>
-          <div class="meta-row-input">
-            <input type="number" id="meta-days-week" min="1" max="7" placeholder="—" oninput="calcMeta()">
-            <span class="meta-unit">dias</span>
-          </div>
-        </div>
-
-        <div class="meta-row">
-          <span class="meta-row-label">Duração de cada sessão</span>
-          <div class="meta-row-input">
-            <input type="number" id="meta-session-min" min="15" max="240" step="5" placeholder="50" oninput="calcMeta()">
-            <span class="meta-unit">min</span>
-          </div>
-        </div>
-
-        <div class="meta-row">
-          <span class="meta-row-label">Dia atual do mês</span>
-          <div class="meta-row-input">
-            <input type="number" id="meta-today" min="1" max="31" placeholder="—" oninput="calcMeta()">
-            <span class="meta-unit">dia</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Results -->
-      <div class="meta-card">
-        <div class="meta-card-title">Planejamento mensal</div>
-
-        <div class="meta-result-row">
-          <span>Sessões necessárias no mês</span>
-          <strong id="meta-r-sessoes-mes">—</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Sessões por semana</span>
-          <strong id="meta-r-sessoes-semana">—</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Sessões por dia de atendimento</span>
-          <strong id="meta-r-sessoes-dia">—</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Valor a fechar por semana</span>
-          <strong id="meta-r-valor-semana">—</strong>
-        </div>
-
-        <div class="meta-divider"></div>
-
-        <div class="meta-card-title" style="margin-top:4px">
-          Progresso do mês
-          <span id="meta-hoje-label" style="font-weight:400;font-size:12px;color:var(--text-muted);text-transform:none;letter-spacing:0"></span>
-        </div>
-
-        <div class="meta-result-row">
-          <span>Já recebido este mês <span class="auto-badge">auto</span></span>
-          <strong id="meta-r-recebido" style="color:var(--sage-dark)">R$ 0,00</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Falta para a meta</span>
-          <strong id="meta-r-falta">—</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Semanas restantes no mês</span>
-          <strong id="meta-r-semanas">—</strong>
-        </div>
-        <div class="meta-result-row">
-          <span>Sessões ainda necessárias</span>
-          <strong id="meta-r-sessoes-falta">—</strong>
-        </div>
-
-        <div class="meta-highlight meta-ok" id="meta-highlight-box">
-          <div class="meta-highlight-label">Precisa fechar por semana</div>
-          <div class="meta-highlight-value" id="meta-r-valor-semana-restante">R$ —</div>
-          <div class="meta-highlight-sub" id="meta-r-sub">preencha os campos ao lado</div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <div class="actions">
-    <button class="btn-action" onclick="showClearModal()">Limpar tudo</button>
-    <button class="btn-action" onclick="showHistoryModal()">📅 Histórico</button>
-    <button class="btn-action primary" id="export-btn" onclick="exportWord()">
-      <span id="export-label">⬇ Exportar Word</span>
-    </button>
-  </div>
-
-  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 48px 48px;">
-    <button id="save-btn" onclick="manualSave()" style="background:var(--sage-dark);color:var(--cream);border:none;border-radius:10px;padding:14px 48px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:0.5px;transition:background 0.2s;">
-      Salvar
-    </button>
-    <span id="save-status" style="font-size:12px;color:var(--text-muted);"></span>
   </div>
 
 </div>
-<!-- /view-orcamento -->
-
-<!-- VIEW: CARTÃO -->
-<div id="view-cartao" style="display:none">
-
-  <div class="section-header" style="margin-top:0">
-    <span class="section-pill" style="background:#a6763f">Cartão</span>
-    <h2 class="section-title">Meus Cartões</h2>
-  </div>
-
-  <!-- RESUMO POR CARTÃO -->
-  <div class="cartao-summary-box">
-    <div id="cartao-summary-list" class="cartao-summary-list"></div>
-    <div class="cartao-summary-total">
-      <span>Total em Cartões / mês</span>
-      <strong id="cartao-grand-total">R$ 0,00</strong>
-    </div>
-  </div>
-
-  <div id="cartao-cards-container"></div>
-
-  <button class="btn-add-row" onclick="addCartaoCard()">
-    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-    Adicionar cartão
-  </button>
-
-</div>
-<!-- /view-cartao -->
+<!-- /view-objetivo -->
 
 </main>
 
@@ -2453,6 +2627,7 @@ function recalculate() {
   }
 
   calcPricing();
+  updateDashboard();
   saveData();
 }
 
@@ -2638,6 +2813,7 @@ function recalculateReceita() {
   document.getElementById('receita-sum-sem-nf').textContent = formatBRL(totalSemNf);
   document.getElementById('receita-sum-sem-nf-sub').textContent = semNfCount + (semNfCount === 1 ? ' pendente de NF' : ' pendentes de NF');
   calcMeta();
+  updateDashboard();
 }
 
 function calcMeta() {
@@ -2764,10 +2940,150 @@ function loadMonthIntoDOM(monthData) {
 }
 
 function switchView(view) {
-  document.getElementById('view-orcamento').style.display = view === 'orcamento' ? '' : 'none';
-  document.getElementById('view-cartao').style.display = view === 'cartao' ? '' : 'none';
-  document.getElementById('view-tab-orcamento').classList.toggle('active', view === 'orcamento');
-  document.getElementById('view-tab-cartao').classList.toggle('active', view === 'cartao');
+  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo'].forEach(v => {
+    document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
+    document.getElementById('view-tab-' + v).classList.toggle('active', v === view);
+  });
+}
+
+const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f'];
+function updateDashboard() {
+  const pfTotal = sumType('fixed') + sumType('variable');
+  const pjTotal = sumType('biz-fixed') + sumType('biz-variable');
+
+  let cartaoTotal = 0;
+  document.querySelectorAll('.cartao-card').forEach(card => {
+    cartaoTotal += sumType('cartao-' + card.dataset.cardId);
+  });
+
+  let receitaTotal = 0;
+  document.querySelectorAll('.receita-valor').forEach(inp => { receitaTotal += parseFloat(inp.value) || 0; });
+
+  const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal);
+
+  let objNecessario = 0, objGuardado = 0;
+  document.querySelectorAll('#objetivo-body tr').forEach(tr => {
+    objNecessario += parseFloat(tr.querySelector('.objetivo-necessario')?.value) || 0;
+    objGuardado += parseFloat(tr.querySelector('.objetivo-guardado')?.value) || 0;
+  });
+  const objPct = objNecessario > 0 ? Math.min(100, Math.round((objGuardado / objNecessario) * 100)) : 0;
+
+  const el = id => document.getElementById(id);
+  if (el('dash-pf-total')) el('dash-pf-total').textContent = formatBRL(pfTotal);
+  if (el('dash-pj-total')) el('dash-pj-total').textContent = formatBRL(pjTotal);
+  if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoTotal);
+  if (el('dash-receita-total')) el('dash-receita-total').textContent = formatBRL(receitaTotal);
+  const saldoValueEl = el('dash-saldo');
+  if (saldoValueEl) {
+    saldoValueEl.textContent = formatBRL(saldo);
+    const saldoCard = saldoValueEl.closest('.dash-card');
+    if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
+  }
+  if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
+  if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
+
+  // Donut: Fixos vs Variáveis vs Cartões
+  const fixosTotal = sumType('fixed') + sumType('biz-fixed');
+  const variaveisTotal = sumType('variable') + sumType('biz-variable');
+  const chartTotal = fixosTotal + variaveisTotal + cartaoTotal;
+  const donut = el('dashboard-donut');
+  const legend = el('dashboard-legend');
+  if (donut && legend) {
+    if (chartTotal <= 0) {
+      donut.style.background = 'var(--warm)';
+      legend.innerHTML = '<span class="cartao-summary-empty">Sem gastos lançados ainda.</span>';
+    } else {
+      const cats = [
+        { label: 'Fixos', value: fixosTotal, color: DASH_COLORS[0] },
+        { label: 'Variáveis', value: variaveisTotal, color: DASH_COLORS[1] },
+        { label: 'Cartões', value: cartaoTotal, color: DASH_COLORS[2] },
+      ];
+      let acc = 0;
+      const stops = cats.map(c => {
+        const pct = (c.value / chartTotal) * 100;
+        const start = acc;
+        acc += pct;
+        return `${c.color} ${start}% ${acc}%`;
+      }).join(', ');
+      donut.style.background = `conic-gradient(${stops})`;
+      legend.innerHTML = cats.map(c => `
+        <div class="dashboard-legend-item">
+          <span class="dashboard-legend-dot" style="background:${c.color}"></span>
+          <span class="dashboard-legend-label">${c.label}</span>
+          <span class="dashboard-legend-value">${formatBRL(c.value)} (${Math.round((c.value / chartTotal) * 100)}%)</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+let objetivoRowId = 0;
+function createObjetivoRow(name = '', necessario = 0, guardado = 0, dataAlvo = '', concluido = false) {
+  const id = objetivoRowId++;
+  const tbody = document.getElementById('objetivo-body');
+  const tr = document.createElement('tr');
+  tr.id = 'objetivo-row-' + id;
+  tr.innerHTML = `
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="deleteObjetivoRow('objetivo-row-${id}')" title="Remover">×</button>
+        <input type="text" value="${name}" placeholder="Nome do objetivo ou gasto futuro" oninput="recalculateObjetivos()" />
+      </div>
+    </td>
+    <td style="text-align:center">
+      <input type="month" class="objetivo-data" value="${dataAlvo}" oninput="recalculateObjetivos()" />
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="objetivo-necessario" min="0" step="0.01" value="${necessario}" oninput="recalculateObjetivos()" />
+      </div>
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="objetivo-guardado" min="0" step="0.01" value="${guardado}" oninput="recalculateObjetivos()" />
+      </div>
+      <div class="objetivo-progress"><div class="objetivo-progress-fill" style="width:0%"></div></div>
+    </td>
+    <td style="text-align:center">
+      <input type="checkbox" class="paid-check objetivo-concluido" ${concluido ? 'checked' : ''} onchange="recalculateObjetivos()" />
+    </td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function addObjetivoRow() {
+  createObjetivoRow();
+  const tbody = document.getElementById('objetivo-body');
+  const lastInput = tbody.lastElementChild.querySelector('input[type="text"]');
+  if (lastInput) lastInput.focus();
+  recalculateObjetivos();
+}
+
+function deleteObjetivoRow(id) {
+  const tr = document.getElementById(id);
+  if (tr) tr.remove();
+  recalculateObjetivos();
+}
+
+function recalculateObjetivos() {
+  let totalNecessario = 0, totalGuardado = 0;
+  document.querySelectorAll('#objetivo-body tr').forEach(tr => {
+    const nec = parseFloat(tr.querySelector('.objetivo-necessario')?.value) || 0;
+    const gua = parseFloat(tr.querySelector('.objetivo-guardado')?.value) || 0;
+    totalNecessario += nec;
+    totalGuardado += gua;
+    const fill = tr.querySelector('.objetivo-progress-fill');
+    if (fill) fill.style.width = (nec > 0 ? Math.min(100, (gua / nec) * 100) : 0) + '%';
+  });
+  const falta = Math.max(0, totalNecessario - totalGuardado);
+  const el = id => document.getElementById(id);
+  if (el('objetivo-total-necessario')) el('objetivo-total-necessario').textContent = formatBRL(totalNecessario);
+  if (el('objetivo-total-guardado')) el('objetivo-total-guardado').textContent = formatBRL(totalGuardado);
+  if (el('objetivo-total-falta')) el('objetivo-total-falta').textContent = formatBRL(falta);
+  saveData();
+  updateDashboard();
 }
 
 function switchMonth(view) {
@@ -3178,6 +3494,19 @@ function saveData() {
   });
   data.cartoes = cartoes;
 
+  // Objetivos financeiros: lista única, não vinculada ao mês atual/próximo
+  const objetivos = [];
+  document.querySelectorAll('#objetivo-body tr').forEach(tr => {
+    objetivos.push({
+      name: tr.querySelector('input[type="text"]')?.value || '',
+      necessario: tr.querySelector('.objetivo-necessario')?.value || '0',
+      guardado: tr.querySelector('.objetivo-guardado')?.value || '0',
+      dataAlvo: tr.querySelector('.objetivo-data')?.value || '',
+      concluido: tr.querySelector('.objetivo-concluido')?.checked || false,
+    });
+  });
+  data.objetivos = objetivos;
+
   // Save to correct slot
   if (activeMonth === 'current') {
     data.tables = monthTables;
@@ -3307,6 +3636,11 @@ async function loadData() {
       // Migração do formato antigo (cartão único sem nome)
       const id = addCartaoCard('Cartão');
       data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+    }
+
+    if (data.objetivos && data.objetivos.length) {
+      data.objetivos.slice(0, 100).forEach(o => createObjetivoRow(o.name || '', parseFloat(o.necessario) || 0, parseFloat(o.guardado) || 0, o.dataAlvo || '', o.concluido || false));
+      recalculateObjetivos();
     }
 
     if (data.pricing) {
