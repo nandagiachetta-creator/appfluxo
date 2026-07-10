@@ -57,6 +57,19 @@ Deno.serve(async (req) => {
       return json({ user: data.user })
     }
 
+    if (action === 'reset_password') {
+      const { user_id, new_password } = params
+      const { data: existing, error: getError } = await sb.auth.admin.getUserById(user_id)
+      if (getError) return json({ error: getError.message }, 400)
+      const currentMeta = existing?.user?.user_metadata || {}
+      const { data, error } = await sb.auth.admin.updateUserById(user_id, {
+        password: new_password,
+        user_metadata: { ...currentMeta, must_change_password: true }
+      })
+      if (error) return json({ error: error.message }, 400)
+      return json({ user: data.user })
+    }
+
     if (action === 'delete_user') {
       const { user_id } = params
       const { error } = await sb.auth.admin.deleteUser(user_id)

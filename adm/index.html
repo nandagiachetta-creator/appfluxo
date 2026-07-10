@@ -193,6 +193,29 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans','Segoe UI',syste
   </div>
 </div>
 
+<!-- RESET PASSWORD MODAL -->
+<div id="reset-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-title">🔑 Redefinir senha</div>
+    <div class="modal-sub">Defina uma nova senha temporária para <b id="reset-name"></b>. O usuário será obrigado a trocá-la no próximo login.</div>
+    <div class="field">
+      <label>Nova senha temporária</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="reset-pass" placeholder="Mínimo 6 caracteres" style="flex:1;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:15px;outline:none" onkeydown="if(event.key==='Enter')doResetPassword()"/>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="genResetPass()">🎲 Gerar</button>
+      </div>
+    </div>
+    <div id="reset-copy" style="display:none;background:rgba(90,143,94,.08);border:1px solid rgba(90,143,94,.2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--a3);align-items:center;gap:10px;cursor:pointer" onclick="copyResetSenha()">
+      📋 <span id="reset-copy-text"></span> <span style="color:var(--mu);font-size:11px">(clique para copiar)</span>
+    </div>
+    <div id="reset-err" class="err"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeResetModal()">Cancelar</button>
+      <button class="btn btn-primary" id="reset-btn" onclick="doResetPassword()">Redefinir</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div id="del-modal" class="modal-overlay" style="display:none">
   <div class="modal">
@@ -319,6 +342,7 @@ function renderUsers() {
       </div>
       <div style="font-size:13px;color:var(--mu)">${fmt(u.created_at)}</div>
       <div class="row-actions">
+        <button class="btn btn-sm btn-ghost" onclick="openResetModal('${u.id}','${esc(name)}')" title="Redefinir senha">🔑</button>
         <button class="btn btn-sm btn-danger" onclick="openDelModal('${u.id}','${esc(name)}')">🗑</button>
       </div>`;
     list.appendChild(row);
@@ -402,6 +426,52 @@ async function doInvite() {
     err.textContent = e.message.includes('already') ? 'Este e-mail já está cadastrado.' : e.message;
   }
   btn.disabled = false; btn.textContent = 'Enviar convite';
+}
+
+// RESET PASSWORD
+let pendingResetId = null;
+function openResetModal(userId, name) {
+  pendingResetId = userId;
+  document.getElementById('reset-name').textContent = name;
+  document.getElementById('reset-pass').value = '';
+  document.getElementById('reset-err').textContent = '';
+  document.getElementById('reset-copy').style.display = 'none';
+  document.getElementById('reset-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('reset-pass').focus(), 50);
+}
+function closeResetModal() { document.getElementById('reset-modal').style.display = 'none'; pendingResetId = null; }
+
+function genResetPass() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+  let p = '';
+  for (let i = 0; i < 10; i++) p += chars[Math.floor(Math.random() * chars.length)];
+  document.getElementById('reset-pass').value = p;
+  const box = document.getElementById('reset-copy');
+  document.getElementById('reset-copy-text').textContent = p;
+  box.style.display = 'flex';
+}
+
+function copyResetSenha() {
+  const senha = document.getElementById('reset-copy-text').textContent;
+  navigator.clipboard.writeText(senha).then(() => showToast('📋 Senha copiada!'));
+}
+
+async function doResetPassword() {
+  if (!pendingResetId) return;
+  const pass = document.getElementById('reset-pass').value.trim();
+  const err  = document.getElementById('reset-err');
+  const btn  = document.getElementById('reset-btn');
+  err.textContent = '';
+  if (pass.length < 6) { err.textContent = 'A senha precisa ter pelo menos 6 caracteres.'; return; }
+  btn.disabled = true; btn.textContent = 'Redefinindo...';
+  try {
+    await callAdmin('reset_password', { user_id: pendingResetId, new_password: pass });
+    closeResetModal();
+    showToast(`✅ Senha redefinida! Nova senha: ${pass}`);
+  } catch(e) {
+    err.textContent = e.message;
+  }
+  btn.disabled = false; btn.textContent = 'Redefinir';
 }
 
 // DELETE
