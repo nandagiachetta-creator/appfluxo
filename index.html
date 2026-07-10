@@ -1027,6 +1027,10 @@
     .dashboard-cards { grid-template-columns: 1fr 1fr; }
     .dash-card-value { font-size: 19px; }
     .dashboard-chart-row { flex-direction: column; align-items: flex-start; }
+
+    .cliente-gerar-row { flex-direction: column; align-items: stretch; }
+    .cliente-gerar-row input { width: 100%; }
+    .agenda-month { min-width: 100%; }
   }
 
   /* MONTH NAVIGATION TABS */
@@ -1236,6 +1240,130 @@
     background: var(--cream);
     color: var(--text);
   }
+
+  /* CLIENTES: PACOTES / AVULSO */
+  .cliente-bloco { margin-bottom: 24px; }
+  .cliente-gerar-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-end;
+    background: var(--warm);
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+  }
+  .cliente-gerar-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cliente-gerar-row input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--surface);
+    color: var(--text);
+    width: 130px;
+  }
+  .btn-gerar {
+    background: var(--sage-dark);
+    color: var(--cream);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-gerar:hover { background: var(--sage); }
+  input[type="date"], input[type="time"] {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--cream);
+    color: var(--text);
+  }
+
+  /* AGENDA / CALENDÁRIO */
+  .agenda-config {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+  }
+  .agenda-config label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #agenda-meses { display: flex; gap: 20px; flex-wrap: wrap; }
+  .agenda-month {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    flex: 1;
+    min-width: 300px;
+    box-shadow: var(--shadow);
+  }
+  .agenda-month h4 {
+    font-family: 'Playfair Display', serif;
+    font-size: 17px;
+    margin-bottom: 14px;
+    text-transform: capitalize;
+    font-weight: 400;
+  }
+  .agenda-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .agenda-dow { font-size: 10px; text-align: center; color: var(--text-muted); text-transform: uppercase; padding-bottom: 4px; }
+  .agenda-cell {
+    min-height: 64px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    background: var(--cream);
+  }
+  .agenda-cell.empty { border: none; background: transparent; }
+  .agenda-day-num { font-weight: 600; font-size: 11px; color: var(--text); }
+  .agenda-horas-input {
+    width: 100%;
+    font-size: 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 4px;
+    margin: 3px 0;
+    background: var(--surface);
+  }
+  .agenda-slots { display: flex; flex-wrap: wrap; gap: 2px; }
+  .agenda-slot {
+    font-size: 8px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: var(--warm);
+    color: var(--text-muted);
+    cursor: default;
+  }
+  .agenda-slot.aberto { background: #d9ead3; color: #3d5c42; }
+  .agenda-slot.ocupado { background: #f4c7c3; color: #8c3d3d; font-weight: 600; }
 
   .preview-banner {
     display: none;
@@ -1472,6 +1600,7 @@
   <button class="view-tab" id="view-tab-receita" onclick="switchView('receita')">💰 Receita</button>
   <button class="view-tab" id="view-tab-meta" onclick="switchView('meta')">🎯 Meta</button>
   <button class="view-tab" id="view-tab-objetivo" onclick="switchView('objetivo')">🏆 Objetivo Financeiro</button>
+  <button class="view-tab" id="view-tab-clientes" onclick="switchView('clientes')">🧑‍💼 Clientes</button>
 </div>
 
 <div id="view-orcamento">
@@ -1861,6 +1990,16 @@
         <div class="sum-value" id="receita-sum-sem-nf">R$ 0</div>
         <div class="sum-sub" id="receita-sum-sem-nf-sub">0 pendentes de NF</div>
       </div>
+      <div class="sum-card receita-total">
+        <div class="sum-label">Receita de Pacotes</div>
+        <div class="sum-value" id="receita-sum-pacotes">R$ 0</div>
+        <div class="sum-sub">Sessões pagas no mês</div>
+      </div>
+      <div class="sum-card receita-total">
+        <div class="sum-label">Receita de Atendimentos Avulsos</div>
+        <div class="sum-value" id="receita-sum-avulsos">R$ 0</div>
+        <div class="sum-sub">Sessões pagas no mês</div>
+      </div>
     </div>
   </div>
 </div>
@@ -2160,6 +2299,62 @@
 
 </div>
 <!-- /view-objetivo -->
+
+<!-- VIEW: CLIENTES -->
+<div id="view-clientes" style="display:none">
+
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#3d7a8c">Clientes</span>
+    <h2 class="section-title">Pacotes, Sessões Avulsas e Agenda</h2>
+  </div>
+
+  <div class="cartao-summary-box">
+    <div class="cartao-summary-list">
+      <div class="cartao-summary-item"><span>Receita de Pacotes (mês)</span><strong id="clientes-total-pacotes">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Receita de Avulsos (mês)</span><strong id="clientes-total-avulsos">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Clientes cadastrados</span><strong id="clientes-total-count">0</strong></div>
+    </div>
+  </div>
+
+  <!-- PACOTES -->
+  <div class="section-header">
+    <span class="section-pill" style="background:#3d7a8c">Pacotes</span>
+    <h2 class="section-title" style="font-size:20px">Pacotes de Sessões</h2>
+  </div>
+  <div id="pacotes-container"></div>
+  <button class="btn-add-row" onclick="addClienteBloco('pacote')">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar pacote
+  </button>
+
+  <!-- AVULSO -->
+  <div class="section-header" style="margin-top:56px">
+    <span class="section-pill" style="background:#8c6b3d">Avulso</span>
+    <h2 class="section-title" style="font-size:20px">Sessões Avulsas</h2>
+  </div>
+  <div id="avulsos-container"></div>
+  <button class="btn-add-row" onclick="addClienteBloco('avulso')">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar sessão avulsa
+  </button>
+
+  <!-- AGENDA -->
+  <div class="section-header" style="margin-top:56px">
+    <span class="section-pill" style="background:#5a6e8c">Agenda</span>
+    <h2 class="section-title" style="font-size:20px">Calendário de Vagas</h2>
+  </div>
+  <div class="agenda-config">
+    <label>Duração de cada sessão (min)
+      <input type="number" id="agenda-duracao" min="10" max="240" step="5" value="50" oninput="recalcAgenda()">
+    </label>
+    <label>Horário de início do dia
+      <input type="time" id="agenda-hora-inicio" value="08:00" oninput="recalcAgenda()">
+    </label>
+  </div>
+  <div id="agenda-meses"></div>
+
+</div>
+<!-- /view-clientes -->
 
 </main>
 
@@ -2806,12 +3001,25 @@ function recalculateReceita() {
     else { totalSemNf += val; semNfCount++; }
   });
   document.getElementById('receita-monthly-total').textContent = formatBRL(total);
-  document.getElementById('receita-sum-total').textContent = formatBRL(total);
   document.getElementById('receita-sum-count').textContent = count + (count === 1 ? ' cliente' : ' clientes');
   document.getElementById('receita-sum-nf').textContent = formatBRL(totalNf);
   document.getElementById('receita-sum-nf-sub').textContent = nfEmitidas + (nfEmitidas === 1 ? ' emitida' : ' emitidas');
   document.getElementById('receita-sum-sem-nf').textContent = formatBRL(totalSemNf);
   document.getElementById('receita-sum-sem-nf-sub').textContent = semNfCount + (semNfCount === 1 ? ' pendente de NF' : ' pendentes de NF');
+
+  // Receita de Pacotes / Avulsos (Clientes) — sessões pagas dentro do mês atual real
+  const clientesRecebido = getClientesRecebidoMes();
+  const pacotesEl = document.getElementById('receita-sum-pacotes');
+  const avulsosEl = document.getElementById('receita-sum-avulsos');
+  if (pacotesEl) pacotesEl.textContent = formatBRL(clientesRecebido.pacotes);
+  if (avulsosEl) avulsosEl.textContent = formatBRL(clientesRecebido.avulsos);
+  const clientesTotalPacotesEl = document.getElementById('clientes-total-pacotes');
+  const clientesTotalAvulsosEl = document.getElementById('clientes-total-avulsos');
+  if (clientesTotalPacotesEl) clientesTotalPacotesEl.textContent = formatBRL(clientesRecebido.pacotes);
+  if (clientesTotalAvulsosEl) clientesTotalAvulsosEl.textContent = formatBRL(clientesRecebido.avulsos);
+
+  document.getElementById('receita-sum-total').textContent = formatBRL(total + clientesRecebido.pacotes + clientesRecebido.avulsos);
+
   calcMeta();
   updateDashboard();
 }
@@ -2824,11 +3032,13 @@ function calcMeta() {
   const todayDayRaw  = document.getElementById('meta-today')?.value;
   const todayDay     = parseFloat(todayDayRaw) || new Date().getDate();
 
-  // Já recebido (soma direta da tabela de receitas)
+  // Já recebido (tabela de receitas + pacotes/avulsos pagos no mês)
   let recebido = 0;
   document.querySelectorAll('#receita-body tr').forEach(tr => {
     recebido += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
   });
+  const clientesRecebidoMeta = getClientesRecebidoMes();
+  recebido += clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos;
 
   // --- Planejamento mensal ---
   const semanasMes   = 4.3;
@@ -2940,10 +3150,11 @@ function loadMonthIntoDOM(monthData) {
 }
 
 function switchView(view) {
-  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo'].forEach(v => {
+  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo', 'clientes'].forEach(v => {
     document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
     document.getElementById('view-tab-' + v).classList.toggle('active', v === view);
   });
+  if (view === 'clientes') recalcAgenda();
 }
 
 const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f'];
@@ -2958,6 +3169,8 @@ function updateDashboard() {
 
   let receitaTotal = 0;
   document.querySelectorAll('.receita-valor').forEach(inp => { receitaTotal += parseFloat(inp.value) || 0; });
+  const clientesRecebidoDash = getClientesRecebidoMes();
+  receitaTotal += clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
 
   const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal);
 
@@ -3086,6 +3299,275 @@ function recalculateObjetivos() {
   updateDashboard();
 }
 
+// ── CLIENTES: PACOTES E SESSÕES AVULSAS ─────────────────────────
+
+let clienteBlocoSeq = 0;
+function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null) {
+  if (!id) {
+    id = kind[0] + (clienteBlocoSeq++);
+  } else {
+    const n = parseInt(String(id).replace(/^[a-z]/, ''), 10);
+    if (!isNaN(n) && n >= clienteBlocoSeq) clienteBlocoSeq = n + 1;
+  }
+  const container = document.getElementById(kind === 'pacote' ? 'pacotes-container' : 'avulsos-container');
+  const block = document.createElement('div');
+  block.className = 'cartao-card cliente-bloco';
+  block.id = 'cliente-bloco-' + id;
+  block.dataset.blocoId = id;
+  block.dataset.kind = kind;
+  block.innerHTML = `
+    <div class="cartao-card-header">
+      <input type="text" class="cliente-nome" value="${cliente}" placeholder="Nome do cliente" oninput="recalculateClientes()" />
+      <span class="cartao-card-subtotal" id="cliente-subtotal-${id}">R$ 0,00 / R$ 0,00</span>
+      <button class="btn-del" onclick="deleteClienteBloco('${id}')" title="Remover">×</button>
+    </div>
+    <div class="cliente-gerar-row">
+      <label>Valor/sessão
+        <input type="number" class="cliente-valor-sessao" min="0" step="0.01" value="${valorSessao}">
+      </label>
+      <label>Qtd sessões
+        <input type="number" class="cliente-qtd" min="1" step="1" value="1">
+      </label>
+      <label>Já pagas
+        <input type="number" class="cliente-ja-pagas" min="0" step="1" value="0">
+      </label>
+      <label>1ª sessão
+        <input type="date" class="cliente-data-inicial">
+      </label>
+      <label>Horário
+        <input type="time" class="cliente-hora-inicial" value="09:00">
+      </label>
+      <button class="btn-gerar" type="button" onclick="gerarSessoesCliente('${id}')">Gerar sessões</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago / Realizado</th><th></th></tr>
+        </thead>
+        <tbody id="cliente-sessoes-${id}"></tbody>
+      </table>
+      <button class="btn-add-row" onclick="addSessaoManual('${id}')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar sessão manual
+      </button>
+    </div>
+  `;
+  container.appendChild(block);
+  return id;
+}
+
+function addClienteBloco(kind) {
+  const id = createClienteBloco(kind);
+  const block = document.getElementById('cliente-bloco-' + id);
+  const nomeInput = block?.querySelector('.cliente-nome');
+  if (nomeInput) nomeInput.focus();
+  recalculateClientes();
+}
+
+function deleteClienteBloco(id) {
+  if (!confirm('Remover este cliente e todas as sessões cadastradas nele?')) return;
+  const block = document.getElementById('cliente-bloco-' + id);
+  if (block) block.remove();
+  recalculateClientes();
+  recalcAgenda();
+}
+
+function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false) {
+  const tbody = document.getElementById('cliente-sessoes-' + blocoId);
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="date" class="sessao-data" value="${data}" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td style="text-align:center"><input type="time" class="sessao-hora" value="${hora}" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="sessao-valor" min="0" step="0.01" value="${valor}" oninput="recalculateClientes()">
+      </div>
+    </td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" ${pago ? 'checked' : ''} onchange="recalculateClientes()"></td>
+    <td style="text-align:center"><button class="btn-del" onclick="this.closest('tr').remove(); recalculateClientes(); recalcAgenda();" title="Remover">×</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function addSessaoManual(blocoId) {
+  createSessaoRow(blocoId);
+  recalculateClientes();
+}
+
+function gerarSessoesCliente(blocoId) {
+  const block = document.getElementById('cliente-bloco-' + blocoId);
+  if (!block) return;
+  const valorSessao = parseFloat(block.querySelector('.cliente-valor-sessao').value) || 0;
+  const qtd = parseInt(block.querySelector('.cliente-qtd').value, 10) || 0;
+  const jaPagas = parseInt(block.querySelector('.cliente-ja-pagas').value, 10) || 0;
+  const dataInicial = block.querySelector('.cliente-data-inicial').value;
+  const horaInicial = block.querySelector('.cliente-hora-inicial').value || '09:00';
+
+  if (!dataInicial || qtd <= 0) {
+    alert('Preencha a data da 1ª sessão e a quantidade de sessões.');
+    return;
+  }
+  if (!confirm(`Gerar ${qtd} sessões semanais a partir de ${dataInicial}, sempre às ${horaInicial}?\n\nAs sessões já existentes desse cliente não são apagadas.`)) return;
+
+  const [y, m, d] = dataInicial.split('-').map(Number);
+  for (let i = 0; i < qtd; i++) {
+    const dt = new Date(y, m - 1, d + (i * 7));
+    const dataStr = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    createSessaoRow(blocoId, dataStr, horaInicial, valorSessao, i < jaPagas);
+  }
+  recalculateClientes();
+  recalcAgenda();
+}
+
+function recalculateClientes() {
+  let totalClientes = 0;
+  document.querySelectorAll('.cliente-bloco').forEach(block => {
+    totalClientes++;
+    const id = block.dataset.blocoId;
+    let recebido = 0, total = 0;
+    block.querySelectorAll('tbody tr').forEach(tr => {
+      const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+      const pago = tr.querySelector('.sessao-pago')?.checked || false;
+      total += valor;
+      if (pago) recebido += valor;
+    });
+    const subtotalEl = document.getElementById('cliente-subtotal-' + id);
+    if (subtotalEl) subtotalEl.textContent = formatBRL(recebido) + ' / ' + formatBRL(total);
+  });
+
+  const countEl = document.getElementById('clientes-total-count');
+  if (countEl) countEl.textContent = totalClientes;
+
+  saveData();
+  recalculateReceita();
+}
+
+function getClientesRecebidoMes() {
+  const nowKey = monthKey();
+  let pacotes = 0, avulsos = 0;
+  document.querySelectorAll('.cliente-bloco').forEach(block => {
+    const kind = block.dataset.kind;
+    block.querySelectorAll('tbody tr').forEach(tr => {
+      const dataVal = tr.querySelector('.sessao-data')?.value || '';
+      const pago = tr.querySelector('.sessao-pago')?.checked || false;
+      const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+      if (pago && dataVal.startsWith(nowKey)) {
+        if (kind === 'pacote') pacotes += valor; else avulsos += valor;
+      }
+    });
+  });
+  return { pacotes, avulsos };
+}
+
+// ── AGENDA: CALENDÁRIO DE VAGAS (mês atual + 2 próximos) ────────
+
+let AGENDA_HORAS = {}; // { 'YYYY-MM-DD': horasTrabalho (number) }
+
+function gerarHorariosDoDia(horaInicio, horasTrabalho, duracaoMin) {
+  if (!horasTrabalho || horasTrabalho <= 0 || !duracaoMin) return [];
+  const [h, m] = horaInicio.split(':').map(Number);
+  let totalMin = (h || 0) * 60 + (m || 0);
+  const totalSlotsMin = horasTrabalho * 60;
+  let used = 0;
+  const slots = [];
+  while (used + duracaoMin <= totalSlotsMin + 0.001) {
+    const hh = Math.floor(totalMin / 60) % 24;
+    const mm = Math.round(totalMin % 60);
+    slots.push(String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0'));
+    totalMin += duracaoMin;
+    used += duracaoMin;
+  }
+  return slots;
+}
+
+function timeToMinutes(hhmm) {
+  const [h, m] = String(hhmm).split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function getOccupiedSlotsMap() {
+  // { 'YYYY-MM-DD': [{ hora: 'HH:MM', nome: 'Cliente' }, ...] }
+  const map = {};
+  document.querySelectorAll('.cliente-bloco').forEach(block => {
+    const nome = block.querySelector('.cliente-nome')?.value || 'Cliente sem nome';
+    block.querySelectorAll('tbody tr').forEach(tr => {
+      const d = tr.querySelector('.sessao-data')?.value;
+      const h = tr.querySelector('.sessao-hora')?.value;
+      if (!d || !h) return;
+      if (!map[d]) map[d] = [];
+      map[d].push({ hora: h, nome });
+    });
+  });
+  return map;
+}
+
+function setAgendaHoras(input) {
+  const date = input.dataset.date;
+  const val = parseFloat(input.value);
+  if (!isNaN(val) && val > 0) AGENDA_HORAS[date] = val;
+  else delete AGENDA_HORAS[date];
+  saveData();
+  recalcAgenda();
+}
+
+function renderAgendaMonth(year, month) {
+  const duracao = parseFloat(document.getElementById('agenda-duracao')?.value) || 50;
+  const horaInicioStr = document.getElementById('agenda-hora-inicio')?.value || '08:00';
+  const occupied = getOccupiedSlotsMap();
+
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = firstDay.getDay();
+  const monthName = firstDay.toLocaleString('pt-BR', { month: 'long' });
+
+  let html = `<div class="agenda-month"><h4>${monthName} ${year}</h4><div class="agenda-grid">`;
+  ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(dow => { html += `<div class="agenda-dow">${dow}</div>`; });
+  for (let i = 0; i < startWeekday; i++) html += `<div class="agenda-cell empty"></div>`;
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateKey = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const horas = AGENDA_HORAS[dateKey] || '';
+    const slots = gerarHorariosDoDia(horaInicioStr, parseFloat(horas) || 0, duracao);
+    const occupiedForDay = occupied[dateKey] || [];
+    const slotHtml = slots.map(s => {
+      const slotMin = timeToMinutes(s);
+      const match = occupiedForDay.find(o => {
+        const oMin = timeToMinutes(o.hora);
+        return oMin >= slotMin && oMin < slotMin + duracao;
+      });
+      return `<span class="agenda-slot ${match ? 'ocupado' : 'aberto'}" title="${match ? escHtml(match.nome) : 'Vaga aberta'}">${s}</span>`;
+    }).join('');
+    // Sessões que caem fora de qualquer slot da grade (ex: horário manual que não bate na grade) ainda aparecem, marcadas à parte
+    const slotMins = slots.map(timeToMinutes);
+    const foraDaGrade = occupiedForDay.filter(o => {
+      const oMin = timeToMinutes(o.hora);
+      return !slotMins.some(sm => oMin >= sm && oMin < sm + duracao);
+    });
+    const extraHtml = foraDaGrade.map(o => `<span class="agenda-slot ocupado" title="${escHtml(o.nome)} (fora do horário configurado)">${o.hora}</span>`).join('');
+    html += `<div class="agenda-cell">
+      <div class="agenda-day-num">${day}</div>
+      <input type="number" class="agenda-horas-input" min="0" max="14" step="0.5" value="${horas}" placeholder="0h" data-date="${dateKey}" oninput="setAgendaHoras(this)">
+      <div class="agenda-slots">${slotHtml}${extraHtml}</div>
+    </div>`;
+  }
+  html += `</div></div>`;
+  return html;
+}
+
+function recalcAgenda() {
+  const container = document.getElementById('agenda-meses');
+  if (!container) return;
+  const now = new Date();
+  let html = '';
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    html += renderAgendaMonth(d.getFullYear(), d.getMonth());
+  }
+  container.innerHTML = html;
+}
+
 function switchMonth(view) {
   if (activeMonth === view) return;
   saveData(); // save current DOM state to old slot
@@ -3125,6 +3607,10 @@ function sumType(type) {
 
 function formatBRL(val) {
   return val.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function showClearModal() {
@@ -3507,6 +3993,34 @@ function saveData() {
   });
   data.objetivos = objetivos;
 
+  // Clientes: pacotes e sessões avulsas, não vinculados ao mês atual/próximo
+  function collectClienteBlocos(kind) {
+    const blocos = [];
+    document.querySelectorAll(`.cliente-bloco[data-kind="${kind}"]`).forEach(block => {
+      const id = block.dataset.blocoId;
+      const cliente = block.querySelector('.cliente-nome')?.value || '';
+      const valorSessao = block.querySelector('.cliente-valor-sessao')?.value || '0';
+      const sessoes = [];
+      block.querySelectorAll('tbody tr').forEach(tr => {
+        sessoes.push({
+          data: tr.querySelector('.sessao-data')?.value || '',
+          hora: tr.querySelector('.sessao-hora')?.value || '',
+          valor: tr.querySelector('.sessao-valor')?.value || '0',
+          pago: tr.querySelector('.sessao-pago')?.checked || false,
+        });
+      });
+      blocos.push({ id, cliente, valorSessao, sessoes });
+    });
+    return blocos;
+  }
+  data.pacotes = collectClienteBlocos('pacote');
+  data.avulsos = collectClienteBlocos('avulso');
+  data.agendaHoras = AGENDA_HORAS;
+  data.agendaConfig = {
+    duracao: document.getElementById('agenda-duracao')?.value || '50',
+    horaInicio: document.getElementById('agenda-hora-inicio')?.value || '08:00',
+  };
+
   // Save to correct slot
   if (activeMonth === 'current') {
     data.tables = monthTables;
@@ -3641,6 +4155,24 @@ async function loadData() {
     if (data.objetivos && data.objetivos.length) {
       data.objetivos.slice(0, 100).forEach(o => createObjetivoRow(o.name || '', parseFloat(o.necessario) || 0, parseFloat(o.guardado) || 0, o.dataAlvo || '', o.concluido || false));
       recalculateObjetivos();
+    }
+
+    function loadClienteBlocos(kind, blocos) {
+      (blocos || []).slice(0, 100).forEach(b => {
+        const id = createClienteBloco(kind, b.cliente || '', parseFloat(b.valorSessao) || 0, b.id);
+        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false));
+      });
+    }
+    loadClienteBlocos('pacote', data.pacotes);
+    loadClienteBlocos('avulso', data.avulsos);
+    if ((data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
+
+    AGENDA_HORAS = data.agendaHoras || {};
+    if (data.agendaConfig) {
+      const durEl = document.getElementById('agenda-duracao');
+      const inicioEl = document.getElementById('agenda-hora-inicio');
+      if (durEl && data.agendaConfig.duracao) durEl.value = data.agendaConfig.duracao;
+      if (inicioEl && data.agendaConfig.horaInicio) inicioEl.value = data.agendaConfig.horaInicio;
     }
 
     if (data.pricing) {
