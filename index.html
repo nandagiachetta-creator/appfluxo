@@ -1030,6 +1030,7 @@
 
     .cliente-gerar-row { flex-direction: column; align-items: stretch; }
     .cliente-gerar-row input { width: 100%; }
+    .cliente-bloco-body-header { flex-direction: column; align-items: stretch; gap: 10px; }
     .agenda-month { min-width: 100%; }
   }
 
@@ -1243,6 +1244,61 @@
 
   /* CLIENTES: PACOTES / AVULSO */
   .cliente-bloco { margin-bottom: 24px; }
+  .cliente-bloco-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 6px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .cliente-bloco-header:hover { background: var(--warm); }
+  .cliente-bloco-header:hover .cliente-nome-label { color: var(--accent); }
+  .cliente-toggle-icon {
+    font-size: 12px;
+    color: var(--text-muted);
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .cliente-nome-label {
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--text);
+    flex: 1;
+    transition: color 0.15s;
+  }
+  .cliente-bloco-body { margin-top: 16px; }
+  .cliente-bloco-body-header {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .cliente-nome-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 1;
+  }
+  .cliente-nome-field input {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--cream);
+    color: var(--text);
+  }
   .cliente-gerar-row {
     display: flex;
     flex-wrap: wrap;
@@ -2317,6 +2373,11 @@
     <h2 class="section-title">Pacotes, Sessões Avulsas e Agenda</h2>
   </div>
 
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+    <button id="save-btn-clientes" onclick="manualSaveClientes()" class="btn-gerar" type="button">💾 Salvar</button>
+    <span id="save-status-clientes" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+
   <div class="cartao-summary-box">
     <div class="cartao-summary-list">
       <div class="cartao-summary-item"><span>Receita de Pacotes (mês)</span><strong id="clientes-total-pacotes">R$ 0,00</strong></div>
@@ -3311,7 +3372,7 @@ function recalculateObjetivos() {
 // ── CLIENTES: PACOTES E SESSÕES AVULSAS ─────────────────────────
 
 let clienteBlocoSeq = 0;
-function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null) {
+function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null, expanded = false) {
   if (!id) {
     id = kind[0] + (clienteBlocoSeq++);
   } else {
@@ -3325,48 +3386,71 @@ function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null) {
   block.dataset.blocoId = id;
   block.dataset.kind = kind;
   block.innerHTML = `
-    <div class="cartao-card-header">
-      <input type="text" class="cliente-nome" value="${cliente}" placeholder="Nome do cliente" oninput="recalculateClientes()" />
+    <button class="cliente-bloco-header" type="button" onclick="toggleClienteBloco('${id}')">
+      <span class="cliente-toggle-icon" id="cliente-toggle-icon-${id}">${expanded ? '▾' : '▸'}</span>
+      <span class="cliente-nome-label" id="cliente-nome-label-${id}">${cliente || 'Novo cliente'}</span>
       <span class="cartao-card-subtotal" id="cliente-subtotal-${id}">R$ 0,00 / R$ 0,00</span>
-      <button class="btn-del" onclick="deleteClienteBloco('${id}')" title="Remover">×</button>
-    </div>
-    <div class="cliente-gerar-row">
-      <label>Valor/sessão
-        <input type="number" class="cliente-valor-sessao" min="0" step="0.01" value="${valorSessao}">
-      </label>
-      <label>Qtd sessões
-        <input type="number" class="cliente-qtd" min="1" step="1" value="1">
-      </label>
-      <label>Já pagas
-        <input type="number" class="cliente-ja-pagas" min="0" step="1" value="0">
-      </label>
-      <label>1ª sessão
-        <input type="date" class="cliente-data-inicial">
-      </label>
-      <label>Horário
-        <input type="time" class="cliente-hora-inicial" value="09:00">
-      </label>
-      <button class="btn-gerar" type="button" onclick="gerarSessoesCliente('${id}')">Gerar sessões</button>
-    </div>
-    <div class="table-wrapper">
-      <table>
-        <thead>
-          <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago</th><th class="th-pago">Realizada</th><th></th></tr>
-        </thead>
-        <tbody id="cliente-sessoes-${id}"></tbody>
-      </table>
-      <button class="btn-add-row" onclick="addSessaoManual('${id}')">
-        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Adicionar sessão manual
-      </button>
+    </button>
+    <div class="cliente-bloco-body" id="cliente-bloco-body-${id}" style="display:${expanded ? '' : 'none'}">
+      <div class="cliente-bloco-body-header">
+        <label class="cliente-nome-field">Nome do cliente
+          <input type="text" class="cliente-nome" value="${cliente}" placeholder="Nome do cliente" oninput="recalculateClientes(); syncClienteNomeLabel('${id}')" />
+        </label>
+        <button class="btn-del" onclick="deleteClienteBloco('${id}')" title="Remover">×</button>
+      </div>
+      <div class="cliente-gerar-row">
+        <label>Valor/sessão
+          <input type="number" class="cliente-valor-sessao" min="0" step="0.01" value="${valorSessao}">
+        </label>
+        <label>Qtd sessões
+          <input type="number" class="cliente-qtd" min="1" step="1" value="1">
+        </label>
+        <label>Já pagas
+          <input type="number" class="cliente-ja-pagas" min="0" step="1" value="0">
+        </label>
+        <label>1ª sessão
+          <input type="date" class="cliente-data-inicial">
+        </label>
+        <label>Horário
+          <input type="time" class="cliente-hora-inicial" value="09:00">
+        </label>
+        <button class="btn-gerar" type="button" onclick="gerarSessoesCliente('${id}')">Gerar sessões</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago</th><th class="th-pago">Realizada</th><th></th></tr>
+          </thead>
+          <tbody id="cliente-sessoes-${id}"></tbody>
+        </table>
+        <button class="btn-add-row" onclick="addSessaoManual('${id}')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Adicionar sessão manual
+        </button>
+      </div>
     </div>
   `;
   container.appendChild(block);
   return id;
 }
 
+function toggleClienteBloco(id) {
+  const body = document.getElementById('cliente-bloco-body-' + id);
+  const icon = document.getElementById('cliente-toggle-icon-' + id);
+  if (!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  if (icon) icon.textContent = isOpen ? '▸' : '▾';
+}
+
+function syncClienteNomeLabel(id) {
+  const input = document.querySelector('#cliente-bloco-' + id + ' .cliente-nome');
+  const label = document.getElementById('cliente-nome-label-' + id);
+  if (input && label) label.textContent = input.value || 'Novo cliente';
+}
+
 function addClienteBloco(kind) {
-  const id = createClienteBloco(kind);
+  const id = createClienteBloco(kind, '', 0, null, true);
   const block = document.getElementById('cliente-bloco-' + id);
   const nomeInput = block?.querySelector('.cliente-nome');
   if (nomeInput) nomeInput.focus();
@@ -3794,6 +3878,45 @@ async function exportWord() {
       return xml;
     }
 
+    function sessaoRowsTable(nome, valorSessao, rows) {
+      const w0=2200,w1=1400,w2=2160,w3=1800,w4=1800;
+      let recebido=0, total=0, realizadas=0;
+      rows.forEach(r => { total += r.valor; if (r.pago) recebido += r.valor; if (r.realizada) realizadas++; });
+      let xml = par(nome || 'Cliente sem nome', {bold:true, size:22, color:'3D5C42', spBefore:200, spAfter:40});
+      xml += par(`Valor/sessao: ${fBRL(valorSessao)}   -   Recebido: ${fBRL(recebido)} de ${fBRL(total)}   -   Realizadas: ${realizadas} de ${rows.length}`, {size:18, color:'7A7A7A', spAfter:80});
+      if (!rows.length) { xml += par('Nenhuma sessao cadastrada.', {size:18, color:'AAAAAA', spAfter:120}); return xml; }
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Data',{w:w0,bold:true,bg:'F0EAD8'})}${tc('Horario',{w:w1,bold:true,bg:'F0EAD8',align:'center'})}${tc('Valor',{w:w2,bold:true,bg:'F0EAD8',align:'right'})}${tc('Pago',{w:w3,bold:true,bg:'F0EAD8',align:'center'})}${tc('Realizada',{w:w4,bold:true,bg:'F0EAD8',align:'center'})}</w:tr>`;
+      rows.forEach(r => {
+        const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
+        xml += `<w:tr>${tc(dataFmt,{w:w0})}${tc(r.hora||'-',{w:w1,align:'center'})}${tc(fBRL(r.valor),{w:w2,align:'right'})}${tc(r.pago?'Sim':'Nao',{w:w3,align:'center',color:r.pago?'3D5C42':'C0392B'})}${tc(r.realizada?'Sim':'Nao',{w:w4,align:'center',color:r.realizada?'3D5C42':'AAAAAA'})}</w:tr>`;
+      });
+      xml += `</w:tbl>`;
+      return xml;
+    }
+
+    function clientesGroupSection(kind, titleLabel, titleColor) {
+      const blocks = document.querySelectorAll(`.cliente-bloco[data-kind="${kind}"]`);
+      if (!blocks.length) return '';
+      let xml = par(titleLabel, {bold:true, size:26, color:titleColor, spBefore:560, spAfter:160});
+      blocks.forEach(block => {
+        const nome = block.querySelector('.cliente-nome')?.value || '';
+        const valorSessao = parseFloat(block.querySelector('.cliente-valor-sessao')?.value) || 0;
+        const rows = [];
+        block.querySelectorAll('tbody tr').forEach(tr => {
+          rows.push({
+            data: tr.querySelector('.sessao-data')?.value || '',
+            hora: tr.querySelector('.sessao-hora')?.value || '',
+            valor: parseFloat(tr.querySelector('.sessao-valor')?.value) || 0,
+            pago: tr.querySelector('.sessao-pago')?.checked || false,
+            realizada: tr.querySelector('.sessao-realizada')?.checked || false,
+          });
+        });
+        xml += sessaoRowsTable(nome, valorSessao, rows);
+      });
+      return xml;
+    }
+
     const body =
       par('Fluxo . Gestao Financeira', {bold:true, size:36, color:'3D5C42', spAfter:60}) +
       par(`Relatorio - ${mesC} de ${ano}`, {size:20, color:'7A7A7A', spAfter:320}) +
@@ -3832,7 +3955,9 @@ async function exportWord() {
         ['Sessoes necessarias/mes', sessNeeded + ' sessoes'],
         ['Sessoes por dia de trabalho', sessDay + ' sess/dia'],
         ['Margem apos cobrir custos', fBRL(profit), profit >= 0 ? 'D4E8D4' : 'FDECEA'],
-      ]);
+      ]) +
+      clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
+      clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D');
 
     const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
     const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
@@ -4050,9 +4175,9 @@ function saveData() {
   _syncTimer = setTimeout(() => syncToSupabase(data), 2000);
 }
 
-async function manualSave() {
-  const btn = document.getElementById('save-btn');
-  const status = document.getElementById('save-status');
+async function doManualSave(btnId, statusId, idleLabel) {
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
   btn.textContent = 'Salvando...';
   btn.disabled = true;
   saveData();
@@ -4069,10 +4194,18 @@ async function manualSave() {
     if (status) status.textContent = 'Falha na sincronização. Verifique o console (F12).';
   }
   setTimeout(() => {
-    btn.textContent = 'Salvar';
+    btn.textContent = idleLabel;
     btn.style.background = '';
     btn.disabled = false;
   }, 3000);
+}
+
+async function manualSave() {
+  await doManualSave('save-btn', 'save-status', 'Salvar');
+}
+
+async function manualSaveClientes() {
+  await doManualSave('save-btn-clientes', 'save-status-clientes', '💾 Salvar');
 }
 
 async function syncToSupabase(data) {
