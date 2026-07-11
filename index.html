@@ -3351,7 +3351,7 @@ function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null) {
     <div class="table-wrapper">
       <table>
         <thead>
-          <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago / Realizado</th><th></th></tr>
+          <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago</th><th class="th-pago">Realizada</th><th></th></tr>
         </thead>
         <tbody id="cliente-sessoes-${id}"></tbody>
       </table>
@@ -3381,7 +3381,7 @@ function deleteClienteBloco(id) {
   recalcAgenda();
 }
 
-function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false) {
+function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false, realizada = false) {
   const tbody = document.getElementById('cliente-sessoes-' + blocoId);
   if (!tbody) return;
   const tr = document.createElement('tr');
@@ -3395,6 +3395,7 @@ function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false)
       </div>
     </td>
     <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" ${pago ? 'checked' : ''} onchange="recalculateClientes()"></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-realizada" ${realizada ? 'checked' : ''} onchange="recalculateClientes()"></td>
     <td style="text-align:center"><button class="btn-del" onclick="this.closest('tr').remove(); recalculateClientes(); recalcAgenda();" title="Remover">×</button></td>
   `;
   tbody.appendChild(tr);
@@ -4016,6 +4017,7 @@ function saveData() {
           hora: tr.querySelector('.sessao-hora')?.value || '',
           valor: tr.querySelector('.sessao-valor')?.value || '0',
           pago: tr.querySelector('.sessao-pago')?.checked || false,
+          realizada: tr.querySelector('.sessao-realizada')?.checked || false,
         });
       });
       blocos.push({ id, cliente, valorSessao, sessoes });
@@ -4169,7 +4171,7 @@ async function loadData() {
     function loadClienteBlocos(kind, blocos) {
       (blocos || []).slice(0, 100).forEach(b => {
         const id = createClienteBloco(kind, b.cliente || '', parseFloat(b.valorSessao) || 0, b.id);
-        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false));
+        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false, s.realizada || false));
       });
     }
     loadClienteBlocos('pacote', data.pacotes);
