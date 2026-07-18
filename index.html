@@ -1372,6 +1372,33 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
+  .agenda-dias-semana {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 22px;
+    box-shadow: var(--shadow);
+  }
+  .agenda-dias-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .agenda-dias-checks { display: flex; gap: 16px; flex-wrap: wrap; }
+  .agenda-dias-checks label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .agenda-dias-checks input[type="checkbox"] { cursor: pointer; }
   #agenda-meses { display: flex; gap: 20px; flex-wrap: wrap; }
   .agenda-month {
     background: var(--surface);
@@ -2442,6 +2469,18 @@
     <label>Horário de fim do dia
       <input type="time" id="agenda-hora-fim" value="18:00" oninput="recalcAgenda()">
     </label>
+  </div>
+  <div class="agenda-dias-semana">
+    <div class="agenda-dias-label">Repetir esse horário nos dias</div>
+    <div class="agenda-dias-checks">
+      <label><input type="checkbox" class="agenda-dia-check" data-day="1" checked onchange="recalcAgenda()"> Segunda</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="2" checked onchange="recalcAgenda()"> Terça</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="3" checked onchange="recalcAgenda()"> Quarta</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="4" checked onchange="recalcAgenda()"> Quinta</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="5" checked onchange="recalcAgenda()"> Sexta</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="6" checked onchange="recalcAgenda()"> Sábado</label>
+      <label><input type="checkbox" class="agenda-dia-check" data-day="0" checked onchange="recalcAgenda()"> Domingo</label>
+    </div>
   </div>
   <div id="agenda-meses"></div>
 
@@ -3619,6 +3658,13 @@ function timeToMinutes(hhmm) {
   return (h || 0) * 60 + (m || 0);
 }
 
+function getAgendaDiasSemana() {
+  const checks = document.querySelectorAll('.agenda-dia-check');
+  const dias = new Set();
+  checks.forEach(c => { if (c.checked) dias.add(parseInt(c.dataset.day, 10)); });
+  return dias;
+}
+
 function getOccupiedSlotsMap() {
   // { 'YYYY-MM-DD': [{ hora: 'HH:MM', nome: 'Cliente' }, ...] }
   const map = {};
@@ -3653,6 +3699,7 @@ function renderAgendaMonth(year, month) {
   const horaInicioStr = document.getElementById('agenda-hora-inicio')?.value || '08:00';
   const horaFimStr = document.getElementById('agenda-hora-fim')?.value || '18:00';
   const horasPadrao = Math.max(0, (timeToMinutes(horaFimStr) - timeToMinutes(horaInicioStr)) / 60);
+  const diasSemanaAtivos = getAgendaDiasSemana();
   const occupied = getOccupiedSlotsMap();
 
   const firstDay = new Date(year, month, 1);
@@ -3666,8 +3713,9 @@ function renderAgendaMonth(year, month) {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const weekday = new Date(year, month, day).getDay();
     const horasManual = AGENDA_HORAS[dateKey];
-    const horas = horasManual !== undefined ? horasManual : horasPadrao;
+    const horas = horasManual !== undefined ? horasManual : (diasSemanaAtivos.has(weekday) ? horasPadrao : 0);
     const slots = gerarHorariosDoDia(horaInicioStr, parseFloat(horas) || 0, duracao);
     const occupiedForDay = occupied[dateKey] || [];
     const slotHtml = slots.map(s => {
@@ -4385,6 +4433,7 @@ function saveData() {
     duracao: document.getElementById('agenda-duracao')?.value || '50',
     horaInicio: document.getElementById('agenda-hora-inicio')?.value || '08:00',
     horaFim: document.getElementById('agenda-hora-fim')?.value || '18:00',
+    diasSemana: Array.from(getAgendaDiasSemana()),
   };
 
   // Save to correct slot
@@ -4549,6 +4598,12 @@ async function loadData() {
       if (durEl && data.agendaConfig.duracao) durEl.value = data.agendaConfig.duracao;
       if (inicioEl && data.agendaConfig.horaInicio) inicioEl.value = data.agendaConfig.horaInicio;
       if (fimEl && data.agendaConfig.horaFim) fimEl.value = data.agendaConfig.horaFim;
+      if (Array.isArray(data.agendaConfig.diasSemana)) {
+        const diasSet = new Set(data.agendaConfig.diasSemana);
+        document.querySelectorAll('.agenda-dia-check').forEach(c => {
+          c.checked = diasSet.has(parseInt(c.dataset.day, 10));
+        });
+      }
     }
 
     if (data.pricing) {
