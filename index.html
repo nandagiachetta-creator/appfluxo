@@ -1766,6 +1766,9 @@
     <button class="btn-action primary" id="export-btn" onclick="exportWord()">
       <span id="export-label">⬇ Exportar Word</span>
     </button>
+    <button class="btn-action primary" id="export-excel-btn" onclick="exportExcel()">
+      <span id="export-excel-label">⬇ Exportar Excel</span>
+    </button>
   </div>
 
   <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:24px 48px 48px;">
@@ -3886,6 +3889,54 @@ function hideUndoClearToast() {
 function clearAll() { showClearModal(); }
 
 
+// ── ZIP (OOXML) builder — usado por exportWord() e exportExcel() ────
+function strToBytes(str) { return new TextEncoder().encode(str); }
+
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  const t = crc32._t || (crc32._t = (() => {
+    const arr = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      arr[i] = c;
+    }
+    return arr;
+  })());
+  for (let i = 0; i < data.length; i++) crc = t[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function u16(n) { return [n & 0xFF, (n >> 8) & 0xFF]; }
+function u32(n) { return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; }
+
+function makeEntry(name, content) {
+  const nb = strToBytes(name);
+  const data = strToBytes(content);
+  const crc = crc32(data);
+  const lh = new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),0x00,0x00,...nb]);
+  return { nb, lh, data, crc, sz: data.length };
+}
+
+function buildZip(files) {
+  const entries = files.map(([n,c]) => makeEntry(n,c));
+  const parts = []; const cds = []; let off = 0;
+  entries.forEach((e, i) => {
+    const lo = off;
+    parts.push(e.lh, e.data);
+    off += e.lh.length + e.data.length;
+    cds.push(new Uint8Array([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.crc),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(lo),...e.nb]));
+  });
+  const cdOff = off;
+  const cdSz = cds.reduce((s,d)=>s+d.length,0);
+  const eocd = new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(entries.length),...u16(entries.length),...u32(cdSz),...u32(cdOff),0x00,0x00]);
+  const all = [...parts,...cds,eocd];
+  const tot = all.reduce((s,p)=>s+p.length,0);
+  const out = new Uint8Array(tot); let pos=0;
+  all.forEach(p=>{out.set(p,pos);pos+=p.length;});
+  return out;
+}
+
 async function exportWord() {
   const btn = document.getElementById('export-btn');
   const lbl = document.getElementById('export-label');
@@ -4242,53 +4293,6 @@ async function exportWord() {
     const contentTypesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
     const rootRelsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
 
-    function strToBytes(str) { return new TextEncoder().encode(str); }
-
-    function crc32(data) {
-      let crc = 0xFFFFFFFF;
-      const t = crc32._t || (crc32._t = (() => {
-        const arr = new Uint32Array(256);
-        for (let i = 0; i < 256; i++) {
-          let c = i;
-          for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-          arr[i] = c;
-        }
-        return arr;
-      })());
-      for (let i = 0; i < data.length; i++) crc = t[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
-      return (crc ^ 0xFFFFFFFF) >>> 0;
-    }
-
-    function u16(n) { return [n & 0xFF, (n >> 8) & 0xFF]; }
-    function u32(n) { return [n & 0xFF, (n >> 8) & 0xFF, (n >> 16) & 0xFF, (n >> 24) & 0xFF]; }
-
-    function makeEntry(name, content) {
-      const nb = strToBytes(name);
-      const data = strToBytes(content);
-      const crc = crc32(data);
-      const lh = new Uint8Array([0x50,0x4B,0x03,0x04,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(crc),...u32(data.length),...u32(data.length),...u16(nb.length),0x00,0x00,...nb]);
-      return { nb, lh, data, crc, sz: data.length };
-    }
-
-    function buildZip(files) {
-      const entries = files.map(([n,c]) => makeEntry(n,c));
-      const parts = []; const cds = []; let off = 0;
-      entries.forEach((e, i) => {
-        const lo = off;
-        parts.push(e.lh, e.data);
-        off += e.lh.length + e.data.length;
-        cds.push(new Uint8Array([0x50,0x4B,0x01,0x02,0x14,0x00,0x14,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(e.crc),...u32(e.sz),...u32(e.sz),...u16(e.nb.length),0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,...u32(lo),...e.nb]));
-      });
-      const cdOff = off;
-      const cdSz = cds.reduce((s,d)=>s+d.length,0);
-      const eocd = new Uint8Array([0x50,0x4B,0x05,0x06,0x00,0x00,0x00,0x00,...u16(entries.length),...u16(entries.length),...u32(cdSz),...u32(cdOff),0x00,0x00]);
-      const all = [...parts,...cds,eocd];
-      const tot = all.reduce((s,p)=>s+p.length,0);
-      const out = new Uint8Array(tot); let pos=0;
-      all.forEach(p=>{out.set(p,pos);pos+=p.length;});
-      return out;
-    }
-
     const zip = buildZip([
       ['[Content_Types].xml', contentTypesXml],
       ['_rels/.rels', rootRelsXml],
@@ -4315,6 +4319,387 @@ async function exportWord() {
 
 function fBRL(val) {
   return (parseFloat(val)||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+}
+
+async function exportExcel() {
+  const btn = document.getElementById('export-excel-btn');
+  const lbl = document.getElementById('export-excel-label');
+  lbl.textContent = '⏳ Gerando...';
+  btn.disabled = true;
+
+  try {
+    function getRows(type) {
+      const rows = [];
+      document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+        const name = tr.querySelector('input[type="text"]')?.value || '';
+        const value = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
+        const due = tr.querySelector('.due-input')?.value || '';
+        rows.push({ name, value, due });
+      });
+      return rows;
+    }
+
+    const now2 = new Date();
+    const mes = now2.toLocaleString('pt-BR', { month: 'long' });
+    const mesC = mes.charAt(0).toUpperCase() + mes.slice(1);
+    const ano = now2.getFullYear();
+
+    const fixedRows = getRows('fixed');
+    const varRows   = getRows('variable');
+    const bizFRows  = getRows('biz-fixed');
+    const bizVRows  = getRows('biz-variable');
+
+    const fixedM   = fixedRows.reduce((s,r)=>s+r.value,0);
+    const varM     = varRows.reduce((s,r)=>s+r.value,0);
+    const bizFM    = bizFRows.reduce((s,r)=>s+r.value,0);
+    const bizVM    = bizVRows.reduce((s,r)=>s+r.value,0);
+    const pessoalM = fixedM + varM;
+    const empresaM = bizFM + bizVM;
+
+    const workDays  = parseFloat(document.getElementById('work-days').value) || 22;
+    const hpd       = parseFloat(document.getElementById('hours-per-day').value) || 8;
+    const margin    = parseFloat(document.getElementById('profit-margin').value) || 0;
+    const goal      = parseFloat(document.getElementById('monthly-goal').value) || 0;
+    const sessPrice = parseFloat(document.getElementById('session-price').value) || 0;
+    const sessDur   = parseFloat(document.getElementById('session-duration').value) || 50;
+    const hourCostManualRaw = document.getElementById('hour-cost-manual').value.trim();
+    const custoMensalTotal = hourCostManualRaw !== '' ? (parseFloat(hourCostManualRaw) || 0) : empresaM;
+    const pacoteValor = parseFloat(document.getElementById('pacote-valor').value) || 0;
+    const pacoteQtd = parseFloat(document.getElementById('pacote-quantidade').value) || 0;
+    const pacoteRevenue = pacoteValor * pacoteQtd;
+    const metaRestante = Math.max(0, goal - pacoteRevenue);
+    const totalH    = workDays * hpd;
+    const minHour   = totalH > 0 ? custoMensalTotal / totalH : 0;
+    const finalHour = minHour * (1 + margin / 100);
+    const sessNeeded = sessPrice > 0 ? Math.ceil(metaRestante / sessPrice) : 0;
+    const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
+    const profit     = goal - custoMensalTotal;
+
+    let cartaoTotal = 0;
+    document.querySelectorAll('.cartao-card').forEach(card => {
+      cartaoTotal += sumType('cartao-' + card.dataset.cardId);
+    });
+
+    const receitaRows = [];
+    document.querySelectorAll('#receita-body tr').forEach(tr => {
+      receitaRows.push({
+        cliente: tr.querySelector('.receita-cliente')?.value || '',
+        data: tr.querySelector('.receita-data')?.value || '',
+        valor: parseFloat(tr.querySelector('.receita-valor')?.value) || 0,
+        nf: tr.querySelector('.receita-nf-check')?.checked || false,
+        emitida: tr.querySelector('.receita-emitida-check')?.checked || false,
+      });
+    });
+    const receitaManualTotal = receitaRows.reduce((s,r)=>s+r.valor,0);
+    const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
+    const receitaSemNf = receitaManualTotal - receitaComNf;
+    const clientesRecebido = getClientesRecebidoMes();
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos;
+
+    const objetivoRows = [];
+    document.querySelectorAll('#objetivo-body tr').forEach(tr => {
+      objetivoRows.push({
+        nome: tr.querySelector('input[type="text"]')?.value || '',
+        dataAlvo: tr.querySelector('.objetivo-data')?.value || '',
+        necessario: parseFloat(tr.querySelector('.objetivo-necessario')?.value) || 0,
+        guardado: parseFloat(tr.querySelector('.objetivo-guardado')?.value) || 0,
+        concluido: tr.querySelector('.objetivo-concluido')?.checked || false,
+      });
+    });
+    const objNecessarioTotal = objetivoRows.reduce((s,r)=>s+r.necessario,0);
+    const objGuardadoTotal = objetivoRows.reduce((s,r)=>s+r.guardado,0);
+
+    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal);
+    const fixosTotalDash = fixedM + bizFM;
+    const variaveisTotalDash = varM + bizVM;
+    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal;
+    const pct = (v) => chartTotalDash > 0 ? Math.round((v/chartTotalDash)*100) : 0;
+
+    const metaTextos = {};
+    ['meta-r-sessoes-mes','meta-r-sessoes-semana','meta-r-sessoes-dia','meta-r-valor-semana','meta-r-recebido','meta-r-falta','meta-r-semanas','meta-r-sessoes-falta','meta-r-valor-semana-restante']
+      .forEach(id => { metaTextos[id] = document.getElementById(id)?.textContent || '-'; });
+    const metaGoalVal = parseFloat(document.getElementById('meta-goal')?.value) || 0;
+    const metaSessionPriceVal = parseFloat(document.getElementById('meta-session-price')?.value) || 0;
+    const metaDaysWeekVal = document.getElementById('meta-days-week')?.value || '-';
+
+    // ── Helpers XLSX ──
+    function xlsxEscape(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/[\r\n]+/g,' ');
+    }
+    function colLetter(n) {
+      let s = '';
+      while (n > 0) { const rem = (n - 1) % 26; s = String.fromCharCode(65 + rem) + s; n = Math.floor((n - 1) / 26); }
+      return s;
+    }
+    function sheetXml(rows) {
+      let body = '';
+      rows.forEach((row, ri) => {
+        const r = ri + 1;
+        body += `<row r="${r}">`;
+        row.forEach((cell, ci) => {
+          const ref = colLetter(ci + 1) + r;
+          const obj = (cell && typeof cell === 'object') ? cell : { v: cell };
+          const val = obj.v === undefined || obj.v === null ? '' : String(obj.v);
+          const s = obj.bold ? ' s="1"' : '';
+          body += `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${xlsxEscape(val)}</t></is></c>`;
+        });
+        body += `</row>`;
+      });
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"/></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="36" customWidth="1"/><col min="2" max="8" width="20" customWidth="1"/></cols><sheetData>${body}</sheetData></worksheet>`;
+    }
+    function tit(text) { return [{ v: text, bold: true }]; }
+    function hdr(...cells) { return cells.map(v => ({ v, bold: true })); }
+
+    // ── Monta as abas ──
+    const sheets = [];
+
+    // DASHBOARD
+    sheets.push({ name: 'Dashboard', rows: [
+      tit('DASHBOARD'),
+      [],
+      ['Orçamento PF (mensal)', fBRL(pessoalM)],
+      ['Orçamento PJ (mensal)', fBRL(empresaM)],
+      ['Total em Cartões', fBRL(cartaoTotal)],
+      ['Receita do Mês', fBRL(receitaTotalGeral)],
+      [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
+      ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+      [],
+      tit('Distribuição de Gastos'),
+      ['Fixos', fBRL(fixosTotalDash) + ' (' + pct(fixosTotalDash) + '%)'],
+      ['Variáveis', fBRL(variaveisTotalDash) + ' (' + pct(variaveisTotalDash) + '%)'],
+      ['Cartões', fBRL(cartaoTotal) + ' (' + pct(cartaoTotal) + '%)'],
+    ]});
+
+    // ORÇAMENTO PESSOAL
+    const pessoalRows = [
+      tit(`ORÇAMENTO PESSOAL — ${mesC} de ${ano}`),
+      [],
+      tit('Custos Fixos'),
+      hdr('Categoria','Vencimento','Mensal'),
+    ];
+    fixedRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
+    pessoalRows.push([{v:'Total Custos Fixos',bold:true},'',{v:fBRL(fixedM),bold:true}]);
+    pessoalRows.push([]);
+    pessoalRows.push(tit('Custos Variáveis'));
+    pessoalRows.push(hdr('Categoria','Vencimento','Mensal'));
+    varRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
+    pessoalRows.push([{v:'Total Custos Variáveis',bold:true},'',{v:fBRL(varM),bold:true}]);
+    pessoalRows.push([]);
+    pessoalRows.push(['Total Fixo Anual', fBRL(fixedM*12)]);
+    pessoalRows.push([{v:'Custo Total Mensal',bold:true}, {v:fBRL(pessoalM),bold:true}]);
+    sheets.push({ name: 'Orcamento Pessoal', rows: pessoalRows });
+
+    // ORÇAMENTO EMPRESARIAL
+    const empresaRows = [
+      tit('ORÇAMENTO EMPRESARIAL'),
+      [],
+      tit('Custos Fixos Empresa'),
+      hdr('Categoria','Vencimento','Mensal'),
+    ];
+    bizFRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
+    empresaRows.push([{v:'Total Custos Fixos Empresa',bold:true},'',{v:fBRL(bizFM),bold:true}]);
+    empresaRows.push([]);
+    empresaRows.push(tit('Custos Variáveis Empresa'));
+    empresaRows.push(hdr('Categoria','Vencimento','Mensal'));
+    bizVRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
+    empresaRows.push([{v:'Total Custos Variáveis Empresa',bold:true},'',{v:fBRL(bizVM),bold:true}]);
+    empresaRows.push([]);
+    empresaRows.push(['Total Fixo Anual', fBRL(bizFM*12)]);
+    empresaRows.push([{v:'Custo Mensal da Empresa',bold:true}, {v:fBRL(empresaM),bold:true}]);
+    sheets.push({ name: 'Orcamento Empresarial', rows: empresaRows });
+
+    // CARTÕES
+    const cards = document.querySelectorAll('.cartao-card');
+    if (cards.length) {
+      const cartaoRows = [tit('CARTÕES'), []];
+      cards.forEach(card => {
+        const nome = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
+        const cid = card.dataset.cardId;
+        const itemRows = [];
+        document.querySelectorAll(`#cartao-${cid}-body tr`).forEach(tr => {
+          itemRows.push({
+            name: tr.querySelector('input[type="text"]')?.value || '',
+            due: tr.querySelector('.due-input')?.value || '',
+            value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+            paid: tr.querySelector('.paid-check')?.checked || false,
+          });
+        });
+        const subtotal = itemRows.reduce((s,r)=>s+r.value,0);
+        cartaoRows.push(tit(nome));
+        cartaoRows.push(['Total no cartão', fBRL(subtotal)]);
+        if (itemRows.length) {
+          cartaoRows.push(hdr('Item','Dia','Valor','Pago'));
+          itemRows.forEach(r => cartaoRows.push([r.name, r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não']));
+        } else {
+          cartaoRows.push(['Nenhum item cadastrado.']);
+        }
+        cartaoRows.push([]);
+      });
+      sheets.push({ name: 'Cartoes', rows: cartaoRows });
+    }
+
+    // RECEITA
+    const receitaSheetRows = [tit('RECEITA'), [], tit('Receitas do Mês')];
+    if (receitaRows.length) {
+      receitaSheetRows.push(hdr('Cliente','Data','Valor','NF','Emitida'));
+      receitaRows.forEach(r => {
+        const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
+        receitaSheetRows.push([r.cliente, dataFmt, fBRL(r.valor), r.nf?'Sim':'Não', r.emitida?'Sim':'Não']);
+      });
+    } else {
+      receitaSheetRows.push(['Nenhuma receita manual cadastrada.']);
+    }
+    receitaSheetRows.push([]);
+    receitaSheetRows.push(tit('Resumo de Receitas'));
+    receitaSheetRows.push(['Total Recebido (manual)', fBRL(receitaManualTotal)]);
+    receitaSheetRows.push(['Com Nota Fiscal', fBRL(receitaComNf)]);
+    receitaSheetRows.push(['Sem Nota Fiscal', fBRL(receitaSemNf)]);
+    receitaSheetRows.push(['Receita de Pacotes', fBRL(clientesRecebido.pacotes)]);
+    receitaSheetRows.push(['Receita de Atendimentos Avulsos', fBRL(clientesRecebido.avulsos)]);
+    receitaSheetRows.push([{v:'TOTAL GERAL RECEBIDO',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}]);
+    sheets.push({ name: 'Receita', rows: receitaSheetRows });
+
+    // PRECIFICAÇÃO E META
+    const precifRows = [
+      tit('Valor da Hora'),
+      ['Custo mensal total', fBRL(custoMensalTotal)],
+      ['Dias úteis de trabalho', workDays + ' dias'],
+      ['Horas de atendimento por dia', hpd + 'h/dia'],
+      ['Total de horas/mês disponíveis', totalH + 'h'],
+      ['Valor mínimo por hora (sem margem)', fBRL(minHour)],
+      ['Margem de lucro (' + margin + '%)', fBRL(minHour * margin/100)],
+      [{v:'VALOR DA HORA',bold:true}, {v:fBRL(finalHour),bold:true}],
+      [],
+      tit('Meta de Faturamento'),
+      ['Meta de faturamento mensal', fBRL(goal)],
+    ];
+    if (pacoteRevenue > 0) {
+      precifRows.push(['Receita de pacotes', fBRL(pacoteRevenue) + ' (' + pacoteQtd + ' pct.)']);
+      precifRows.push(['Meta restante (sessões avulsas)', fBRL(metaRestante)]);
+    }
+    precifRows.push(['Valor cobrado por sessão', fBRL(sessPrice)]);
+    precifRows.push(['Duração de cada sessão', sessDur + ' min']);
+    precifRows.push(['Sessões necessárias/mês', sessNeeded + ' sessões']);
+    precifRows.push(['Sessões por dia de trabalho', sessDay + ' sess/dia']);
+    precifRows.push([{v:'Margem após cobrir custos',bold:true}, {v:fBRL(profit),bold:true}]);
+    sheets.push({ name: 'Precificacao e Meta', rows: precifRows });
+
+    // META SEMANAL
+    sheets.push({ name: 'Meta Semanal', rows: [
+      tit('Calculadora de Meta Semanal'),
+      [],
+      ['Meta do mês', fBRL(metaGoalVal)],
+      ['Valor cobrado por sessão', fBRL(metaSessionPriceVal)],
+      ['Dias de atendimento por semana', metaDaysWeekVal],
+      ['Sessões necessárias no mês', metaTextos['meta-r-sessoes-mes']],
+      ['Sessões por semana', metaTextos['meta-r-sessoes-semana']],
+      ['Sessões por dia de atendimento', metaTextos['meta-r-sessoes-dia']],
+      ['Valor a fechar por semana', metaTextos['meta-r-valor-semana']],
+      [],
+      tit('Progresso do Mês'),
+      ['Já recebido este mês', metaTextos['meta-r-recebido']],
+      ['Falta para a meta', metaTextos['meta-r-falta']],
+      ['Semanas restantes no mês', metaTextos['meta-r-semanas']],
+      ['Sessões ainda necessárias', metaTextos['meta-r-sessoes-falta']],
+      ['Precisa fechar por semana', metaTextos['meta-r-valor-semana-restante']],
+    ]});
+
+    // OBJETIVOS
+    if (objetivoRows.length) {
+      const objSheetRows = [tit('OBJETIVOS FINANCEIROS'), [], hdr('Objetivo','Data Alvo','Necessário','Guardado','Concluído')];
+      objetivoRows.forEach(r => {
+        objSheetRows.push([r.nome||'-', r.dataAlvo||'-', fBRL(r.necessario), fBRL(r.guardado), r.concluido?'Sim':'Não']);
+      });
+      objSheetRows.push([]);
+      objSheetRows.push(['Total necessário', fBRL(objNecessarioTotal)]);
+      objSheetRows.push(['Já guardado', fBRL(objGuardadoTotal)]);
+      objSheetRows.push([{v:'Falta guardar',bold:true}, {v:fBRL(Math.max(0, objNecessarioTotal - objGuardadoTotal)),bold:true}]);
+      sheets.push({ name: 'Objetivos', rows: objSheetRows });
+    }
+
+    // CLIENTES (pacotes e avulsos)
+    function clientesSheet(kind, title, sheetName) {
+      const blocks = document.querySelectorAll(`.cliente-bloco[data-kind="${kind}"]`);
+      if (!blocks.length) return null;
+      const rows = [tit(title), []];
+      blocks.forEach(block => {
+        const nome = block.querySelector('.cliente-nome')?.value || 'Cliente sem nome';
+        const valorSessao = parseFloat(block.querySelector('.cliente-valor-sessao')?.value) || 0;
+        const sessRows = [];
+        block.querySelectorAll('tbody tr').forEach(tr => {
+          sessRows.push({
+            data: tr.querySelector('.sessao-data')?.value || '',
+            hora: tr.querySelector('.sessao-hora')?.value || '',
+            valor: parseFloat(tr.querySelector('.sessao-valor')?.value) || 0,
+            pago: tr.querySelector('.sessao-pago')?.checked || false,
+            realizada: tr.querySelector('.sessao-realizada')?.checked || false,
+          });
+        });
+        let recebido=0, total=0, realizadas=0;
+        sessRows.forEach(r => { total += r.valor; if (r.pago) recebido += r.valor; if (r.realizada) realizadas++; });
+        rows.push(tit(nome));
+        rows.push([`Valor/sessão: ${fBRL(valorSessao)}`, `Recebido: ${fBRL(recebido)} de ${fBRL(total)}`, `Realizadas: ${realizadas} de ${sessRows.length}`]);
+        if (sessRows.length) {
+          rows.push(hdr('Data','Horário','Valor','Pago','Realizada'));
+          sessRows.forEach(r => {
+            const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
+            rows.push([dataFmt, r.hora||'-', fBRL(r.valor), r.pago?'Sim':'Não', r.realizada?'Sim':'Não']);
+          });
+        } else {
+          rows.push(['Nenhuma sessão cadastrada.']);
+        }
+        rows.push([]);
+      });
+      return { name: sheetName, rows };
+    }
+    const pacoteSheet = clientesSheet('pacote', 'CLIENTES - PACOTES DE SESSÕES', 'Clientes Pacotes');
+    if (pacoteSheet) sheets.push(pacoteSheet);
+    const avulsoSheet = clientesSheet('avulso', 'CLIENTES - SESSÕES AVULSAS', 'Clientes Avulsos');
+    if (avulsoSheet) sheets.push(avulsoSheet);
+
+    // ── Monta o arquivo XLSX ──
+    function buildContentTypesXlsx(n) {
+      let overrides = '';
+      for (let i=1;i<=n;i++) overrides += `<Override PartName="/xl/worksheets/sheet${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${overrides}</Types>`;
+    }
+    const rootRelsXlsxXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+    const stylesXlsxXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="1"><fill><patternFill patternType="none"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" xfId="0"/><xf numFmtId="0" fontId="1" xfId="0" applyFont="1"/></cellXfs></styleSheet>`;
+    function buildWorkbookXml(names) {
+      const sheetsXml = names.map((name, i) => `<sheet name="${xlsxEscape(name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('');
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetsXml}</sheets></workbook>`;
+    }
+    function buildWorkbookRelsXml(names) {
+      const rels = names.map((name, i) => `<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('');
+      const stylesRel = `<Relationship Id="rId${names.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`;
+      return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}${stylesRel}</Relationships>`;
+    }
+
+    const sheetNames = sheets.map(s => s.name);
+    const files = [
+      ['[Content_Types].xml', buildContentTypesXlsx(sheets.length)],
+      ['_rels/.rels', rootRelsXlsxXml],
+      ['xl/workbook.xml', buildWorkbookXml(sheetNames)],
+      ['xl/_rels/workbook.xml.rels', buildWorkbookRelsXml(sheetNames)],
+      ['xl/styles.xml', stylesXlsxXml],
+    ];
+    sheets.forEach((s, i) => files.push([`xl/worksheets/sheet${i+1}.xml`, sheetXml(s.rows)]));
+
+    const zip = buildZip(files);
+    const blob = new Blob([zip], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `Fluxo_Financeiro_${mesC}_${ano}.xlsx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+
+  } catch(e) {
+    alert('Erro ao gerar planilha: ' + e.message);
+    console.error(e);
+  } finally {
+    lbl.textContent = '⬇ Exportar Excel';
+    btn.disabled = false;
+  }
 }
 
 // ── PERSISTÊNCIA ──────────────────────────────────────────────
