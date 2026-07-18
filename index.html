@@ -2201,10 +2201,11 @@
           <div class="pricing-row">
             <div class="pricing-row-label">
               Custo mensal total
-              <div class="pricing-auto-note" style="margin-top:2px"><span class="auto-badge">auto</span> calculado pelo orçamento</div>
+              <div class="pricing-auto-note" style="margin-top:2px"><span class="auto-badge">auto</span> calculado pelo orçamento — edite para usar outro valor</div>
             </div>
-            <div style="text-align:right">
-              <div style="font-size:15px;font-weight:600;color:var(--sage-dark)" id="hour-cost-display">R$ 0,00</div>
+            <div class="pricing-row-input">
+              <span style="font-size:12px;color:var(--text-muted)">R$</span>
+              <input type="number" id="hour-cost-manual" min="0" step="10" placeholder="0" oninput="calcPricing()">
             </div>
           </div>
 
@@ -2293,6 +2294,22 @@
           </div>
 
           <div class="pricing-row">
+            <div class="pricing-row-label">Valor de pacote <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></div>
+            <div class="pricing-row-input">
+              <span style="font-size:12px;color:var(--text-muted)">R$</span>
+              <input type="number" id="pacote-valor" min="0" step="10" placeholder="0" oninput="calcPricing()">
+            </div>
+          </div>
+
+          <div class="pricing-row">
+            <div class="pricing-row-label">Quantidade de pacote <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></div>
+            <div class="pricing-row-input">
+              <input type="number" id="pacote-quantidade" min="0" step="1" placeholder="0" oninput="calcPricing()">
+              <span class="unit">pct.</span>
+            </div>
+          </div>
+
+          <div class="pricing-row">
             <div class="pricing-row-label">Sessões realizadas no mês <span style="font-size:11px;color:var(--text-muted)">(opcional)</span></div>
             <div class="pricing-row-input">
               <input type="number" id="actual-sessions" min="0" step="1" placeholder="—" oninput="calcPricing()">
@@ -2301,6 +2318,8 @@
           </div>
 
           <div class="pricing-breakdown">
+            <div class="breakdown-row" id="bd-pacote-row" style="display:none"><span>Receita de pacotes</span><strong id="bd-pacote-revenue">—</strong></div>
+            <div class="breakdown-row" id="bd-meta-restante-row" style="display:none"><span>Meta restante (sessões avulsas)</span><strong id="bd-meta-restante">—</strong></div>
             <div class="breakdown-row"><span>Sessões necessárias/mês</span><strong id="bd-sessions">—</strong></div>
             <div class="breakdown-row"><span>Sessões por dia de trabalho</span><strong id="bd-sessions-day">—</strong></div>
             <div class="breakdown-row"><span>Horas de trabalho/mês</span><strong id="bd-work-hours">—</strong></div>
@@ -2419,6 +2438,9 @@
     </label>
     <label>Horário de início do dia
       <input type="time" id="agenda-hora-inicio" value="08:00" oninput="recalcAgenda()">
+    </label>
+    <label>Horário de fim do dia
+      <input type="time" id="agenda-hora-fim" value="18:00" oninput="recalcAgenda()">
     </label>
   </div>
   <div id="agenda-meses"></div>
@@ -2946,7 +2968,9 @@ function deleteCartaoCard(id) {
 }
 
 function calcPricing() {
-  const totalMonthly = sumType('biz-fixed') + sumType('biz-variable');
+  const autoMonthly = sumType('biz-fixed') + sumType('biz-variable');
+  const hourCostManualRaw = document.getElementById('hour-cost-manual').value.trim();
+  const totalMonthly = hourCostManualRaw !== '' ? (parseFloat(hourCostManualRaw) || 0) : autoMonthly;
   const workDays = parseFloat(document.getElementById('work-days').value) || 22;
   const hoursPerDay = parseFloat(document.getElementById('hours-per-day').value) || 8;
   const marginPct = parseFloat(document.getElementById('profit-margin').value) || 0;
@@ -2954,9 +2978,11 @@ function calcPricing() {
   const monthlyGoal = parseFloat(document.getElementById('monthly-goal').value) || 0;
   const sessionPrice = parseFloat(document.getElementById('session-price').value) || 0;
   const sessionDuration = parseFloat(document.getElementById('session-duration').value) || 50;
+  const pacoteValor = parseFloat(document.getElementById('pacote-valor').value) || 0;
+  const pacoteQtd = parseFloat(document.getElementById('pacote-quantidade').value) || 0;
 
-  // Update cost display
-  document.getElementById('hour-cost-display').textContent = formatBRL(totalMonthly);
+  // Update cost display: shows the auto-calculated value as placeholder when not manually overridden
+  document.getElementById('hour-cost-manual').placeholder = formatBRL(autoMonthly);
 
   // Hour value calc
   const totalHours = workDays * hoursPerDay;
@@ -2974,11 +3000,23 @@ function calcPricing() {
   document.getElementById('result-hour-value').textContent = formatBRL(finalHourValue);
   document.getElementById('res-margin').textContent = marginPct;
 
-  // Meta calc
-  const sessionsNeeded = sessionPrice > 0 ? Math.ceil(monthlyGoal / sessionPrice) : 0;
+  // Meta calc — receita de pacotes abate da meta antes de calcular sessões avulsas necessárias
+  const pacoteRevenue = pacoteValor * pacoteQtd;
+  const metaRestante = Math.max(0, monthlyGoal - pacoteRevenue);
+  const sessionsNeeded = sessionPrice > 0 ? Math.ceil(metaRestante / sessionPrice) : 0;
   const sessionsPerDay = workDays > 0 ? (sessionsNeeded / workDays).toFixed(1) : 0;
   const workHoursMonth = (sessionsNeeded * sessionDuration / 60).toFixed(1);
   const profit = monthlyGoal - totalMonthly;
+
+  if (pacoteRevenue > 0) {
+    document.getElementById('bd-pacote-revenue').textContent = formatBRL(pacoteRevenue) + ' (' + pacoteQtd + ' pct.)';
+    document.getElementById('bd-pacote-row').style.display = 'flex';
+    document.getElementById('bd-meta-restante').textContent = formatBRL(metaRestante);
+    document.getElementById('bd-meta-restante-row').style.display = 'flex';
+  } else {
+    document.getElementById('bd-pacote-row').style.display = 'none';
+    document.getElementById('bd-meta-restante-row').style.display = 'none';
+  }
 
   document.getElementById('bd-sessions').textContent = sessionsNeeded + ' sessões';
   document.getElementById('bd-sessions-day').textContent = sessionsPerDay + ' sess/dia';
@@ -3599,9 +3637,13 @@ function getOccupiedSlotsMap() {
 
 function setAgendaHoras(input) {
   const date = input.dataset.date;
-  const val = parseFloat(input.value);
-  if (!isNaN(val) && val > 0) AGENDA_HORAS[date] = val;
-  else delete AGENDA_HORAS[date];
+  const raw = input.value.trim();
+  if (raw === '') { delete AGENDA_HORAS[date]; }
+  else {
+    const val = parseFloat(raw);
+    if (!isNaN(val) && val >= 0) AGENDA_HORAS[date] = val;
+    else delete AGENDA_HORAS[date];
+  }
   saveData();
   recalcAgenda();
 }
@@ -3609,6 +3651,8 @@ function setAgendaHoras(input) {
 function renderAgendaMonth(year, month) {
   const duracao = parseFloat(document.getElementById('agenda-duracao')?.value) || 50;
   const horaInicioStr = document.getElementById('agenda-hora-inicio')?.value || '08:00';
+  const horaFimStr = document.getElementById('agenda-hora-fim')?.value || '18:00';
+  const horasPadrao = Math.max(0, (timeToMinutes(horaFimStr) - timeToMinutes(horaInicioStr)) / 60);
   const occupied = getOccupiedSlotsMap();
 
   const firstDay = new Date(year, month, 1);
@@ -3622,7 +3666,8 @@ function renderAgendaMonth(year, month) {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    const horas = AGENDA_HORAS[dateKey] || '';
+    const horasManual = AGENDA_HORAS[dateKey];
+    const horas = horasManual !== undefined ? horasManual : horasPadrao;
     const slots = gerarHorariosDoDia(horaInicioStr, parseFloat(horas) || 0, duracao);
     const occupiedForDay = occupied[dateKey] || [];
     const slotHtml = slots.map(s => {
@@ -3834,12 +3879,70 @@ async function exportWord() {
     const goal      = parseFloat(document.getElementById('monthly-goal').value) || 0;
     const sessPrice = parseFloat(document.getElementById('session-price').value) || 0;
     const sessDur   = parseFloat(document.getElementById('session-duration').value) || 50;
+    const hourCostManualRaw = document.getElementById('hour-cost-manual').value.trim();
+    const custoMensalTotal = hourCostManualRaw !== '' ? (parseFloat(hourCostManualRaw) || 0) : empresaM;
+    const pacoteValor = parseFloat(document.getElementById('pacote-valor').value) || 0;
+    const pacoteQtd = parseFloat(document.getElementById('pacote-quantidade').value) || 0;
+    const pacoteRevenue = pacoteValor * pacoteQtd;
+    const metaRestante = Math.max(0, goal - pacoteRevenue);
     const totalH    = workDays * hpd;
-    const minHour   = totalH > 0 ? empresaM / totalH : 0;
+    const minHour   = totalH > 0 ? custoMensalTotal / totalH : 0;
     const finalHour = minHour * (1 + margin / 100);
-    const sessNeeded = sessPrice > 0 ? Math.ceil(goal / sessPrice) : 0;
+    const sessNeeded = sessPrice > 0 ? Math.ceil(metaRestante / sessPrice) : 0;
     const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
-    const profit     = goal - empresaM;
+    const profit     = goal - custoMensalTotal;
+
+    // Cartões
+    let cartaoTotal = 0;
+    document.querySelectorAll('.cartao-card').forEach(card => {
+      cartaoTotal += sumType('cartao-' + card.dataset.cardId);
+    });
+
+    // Receita manual (tabela "Receitas do Mês")
+    const receitaRows = [];
+    document.querySelectorAll('#receita-body tr').forEach(tr => {
+      receitaRows.push({
+        cliente: tr.querySelector('.receita-cliente')?.value || '',
+        data: tr.querySelector('.receita-data')?.value || '',
+        valor: parseFloat(tr.querySelector('.receita-valor')?.value) || 0,
+        nf: tr.querySelector('.receita-nf-check')?.checked || false,
+        emitida: tr.querySelector('.receita-emitida-check')?.checked || false,
+      });
+    });
+    const receitaManualTotal = receitaRows.reduce((s,r)=>s+r.valor,0);
+    const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
+    const receitaSemNf = receitaManualTotal - receitaComNf;
+    const clientesRecebido = getClientesRecebidoMes();
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos;
+
+    // Objetivos financeiros
+    const objetivoRows = [];
+    document.querySelectorAll('#objetivo-body tr').forEach(tr => {
+      objetivoRows.push({
+        nome: tr.querySelector('input[type="text"]')?.value || '',
+        dataAlvo: tr.querySelector('.objetivo-data')?.value || '',
+        necessario: parseFloat(tr.querySelector('.objetivo-necessario')?.value) || 0,
+        guardado: parseFloat(tr.querySelector('.objetivo-guardado')?.value) || 0,
+        concluido: tr.querySelector('.objetivo-concluido')?.checked || false,
+      });
+    });
+    const objNecessarioTotal = objetivoRows.reduce((s,r)=>s+r.necessario,0);
+    const objGuardadoTotal = objetivoRows.reduce((s,r)=>s+r.guardado,0);
+
+    // Dashboard
+    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal);
+    const fixosTotalDash = fixedM + bizFM;
+    const variaveisTotalDash = varM + bizVM;
+    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal;
+    const pct = (v) => chartTotalDash > 0 ? Math.round((v/chartTotalDash)*100) : 0;
+
+    // Meta Semanal (calculadora) — lê os resultados já calculados na tela
+    const metaTextos = {};
+    ['meta-r-sessoes-mes','meta-r-sessoes-semana','meta-r-sessoes-dia','meta-r-valor-semana','meta-r-recebido','meta-r-falta','meta-r-semanas','meta-r-sessoes-falta','meta-r-valor-semana-restante']
+      .forEach(id => { metaTextos[id] = document.getElementById(id)?.textContent || '-'; });
+    const metaGoalVal = parseFloat(document.getElementById('meta-goal')?.value) || 0;
+    const metaSessionPriceVal = parseFloat(document.getElementById('meta-session-price')?.value) || 0;
+    const metaDaysWeekVal = document.getElementById('meta-days-week')?.value || '-';
 
     const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
@@ -3917,10 +4020,128 @@ async function exportWord() {
       return xml;
     }
 
+    function dashboardSection() {
+      let xml = par('DASHBOARD', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160});
+      xml += summaryTable([
+        ['Orcamento PF (mensal)', fBRL(pessoalM)],
+        ['Orcamento PJ (mensal)', fBRL(empresaM)],
+        ['Total em Cartoes', fBRL(cartaoTotal)],
+        ['Receita do Mes', fBRL(receitaTotalGeral)],
+        ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
+        ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+      ]);
+      xml += par('Distribuicao de Gastos', {bold:true, size:20, color:'7A7A7A', spBefore:160, spAfter:80});
+      xml += summaryTable([
+        ['Fixos', fBRL(fixosTotalDash) + ' (' + pct(fixosTotalDash) + '%)'],
+        ['Variaveis', fBRL(variaveisTotalDash) + ' (' + pct(variaveisTotalDash) + '%)'],
+        ['Cartoes', fBRL(cartaoTotal) + ' (' + pct(cartaoTotal) + '%)'],
+      ]);
+      return xml;
+    }
+
+    function cartaoSection() {
+      const cards = document.querySelectorAll('.cartao-card');
+      if (!cards.length) return '';
+      let xml = par('CARTOES', {bold:true, size:26, color:'A6763F', spBefore:560, spAfter:160});
+      const w0=3200,w1=1200,w2=2960,w3=2000;
+      cards.forEach(card => {
+        const nome = card.querySelector('.cartao-card-name')?.value || 'Cartao sem nome';
+        const cid = card.dataset.cardId;
+        const itemRows = [];
+        document.querySelectorAll(`#cartao-${cid}-body tr`).forEach(tr => {
+          itemRows.push({
+            name: tr.querySelector('input[type="text"]')?.value || '',
+            due: tr.querySelector('.due-input')?.value || '',
+            value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+            paid: tr.querySelector('.paid-check')?.checked || false,
+          });
+        });
+        const subtotal = itemRows.reduce((s,r)=>s+r.value,0);
+        xml += par(nome, {bold:true, size:22, color:'A6763F', spBefore:200, spAfter:40});
+        xml += par(`Total no cartao: ${fBRL(subtotal)}`, {size:18, color:'7A7A7A', spAfter:80});
+        if (!itemRows.length) { xml += par('Nenhum item cadastrado.', {size:18, color:'AAAAAA', spAfter:120}); return; }
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Item',{w:w0,bold:true,bg:'F0E6D8'})}${tc('Dia',{w:w1,bold:true,bg:'F0E6D8',align:'center'})}${tc('Valor',{w:w2,bold:true,bg:'F0E6D8',align:'right'})}${tc('Pago',{w:w3,bold:true,bg:'F0E6D8',align:'center'})}</w:tr>`;
+        itemRows.forEach(r => {
+          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.due?r.due+'o':'-',{w:w1,align:'center'})}${tc(fBRL(r.value),{w:w2,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w3,align:'center',color:r.paid?'3D5C42':'C0392B'})}</w:tr>`;
+        });
+        xml += `</w:tbl>`;
+      });
+      return xml;
+    }
+
+    function receitaSection() {
+      let xml = par('RECEITA', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
+      xml += par('Receitas do Mes', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80});
+      if (receitaRows.length) {
+        const w0=3200,w1=1800,w2=1960,w3=1200,w4=1200;
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Cliente',{w:w0,bold:true,bg:'EAF0F8'})}${tc('Data',{w:w1,bold:true,bg:'EAF0F8',align:'center'})}${tc('Valor',{w:w2,bold:true,bg:'EAF0F8',align:'right'})}${tc('NF',{w:w3,bold:true,bg:'EAF0F8',align:'center'})}${tc('Emitida',{w:w4,bold:true,bg:'EAF0F8',align:'center'})}</w:tr>`;
+        receitaRows.forEach(r => {
+          const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
+          xml += `<w:tr>${tc(r.cliente,{w:w0})}${tc(dataFmt,{w:w1,align:'center'})}${tc(fBRL(r.valor),{w:w2,align:'right'})}${tc(r.nf?'Sim':'Nao',{w:w3,align:'center'})}${tc(r.emitida?'Sim':'Nao',{w:w4,align:'center'})}</w:tr>`;
+        });
+        xml += `</w:tbl>`;
+      } else {
+        xml += par('Nenhuma receita manual cadastrada.', {size:18, color:'AAAAAA', spAfter:120});
+      }
+      xml += par('Resumo de Receitas', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80});
+      xml += summaryTable([
+        ['Total Recebido (manual)', fBRL(receitaManualTotal)],
+        ['Com Nota Fiscal', fBRL(receitaComNf)],
+        ['Sem Nota Fiscal', fBRL(receitaSemNf)],
+        ['Receita de Pacotes', fBRL(clientesRecebido.pacotes)],
+        ['Receita de Atendimentos Avulsos', fBRL(clientesRecebido.avulsos)],
+        ['TOTAL GERAL RECEBIDO', fBRL(receitaTotalGeral), 'D4E8D4'],
+      ]);
+      return xml;
+    }
+
+    function metaSemanalSection() {
+      let xml = par('META SEMANAL', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
+      xml += summaryTable([
+        ['Meta do mes', fBRL(metaGoalVal)],
+        ['Valor cobrado por sessao', fBRL(metaSessionPriceVal)],
+        ['Dias de atendimento por semana', metaDaysWeekVal],
+        ['Sessoes necessarias no mes', metaTextos['meta-r-sessoes-mes']],
+        ['Sessoes por semana', metaTextos['meta-r-sessoes-semana']],
+        ['Sessoes por dia de atendimento', metaTextos['meta-r-sessoes-dia']],
+        ['Valor a fechar por semana', metaTextos['meta-r-valor-semana']],
+      ]);
+      xml += par('Progresso do Mes', {bold:true, size:20, color:'7A7A7A', spBefore:160, spAfter:80});
+      xml += summaryTable([
+        ['Ja recebido este mes', metaTextos['meta-r-recebido']],
+        ['Falta para a meta', metaTextos['meta-r-falta']],
+        ['Semanas restantes no mes', metaTextos['meta-r-semanas']],
+        ['Sessoes ainda necessarias', metaTextos['meta-r-sessoes-falta']],
+        ['Precisa fechar por semana', metaTextos['meta-r-valor-semana-restante']],
+      ]);
+      return xml;
+    }
+
+    function objetivoSection() {
+      if (!objetivoRows.length) return '';
+      let xml = par('OBJETIVOS FINANCEIROS', {bold:true, size:26, color:'6B5B95', spBefore:560, spAfter:160});
+      const w0=3200,w1=1600,w2=1900,w3=1660,w4=1000;
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Objetivo',{w:w0,bold:true,bg:'EDE7F6'})}${tc('Data Alvo',{w:w1,bold:true,bg:'EDE7F6',align:'center'})}${tc('Necessario',{w:w2,bold:true,bg:'EDE7F6',align:'right'})}${tc('Guardado',{w:w3,bold:true,bg:'EDE7F6',align:'right'})}${tc('Concluido',{w:w4,bold:true,bg:'EDE7F6',align:'center'})}</w:tr>`;
+      objetivoRows.forEach(r => {
+        xml += `<w:tr>${tc(r.nome||'-',{w:w0})}${tc(r.dataAlvo||'-',{w:w1,align:'center'})}${tc(fBRL(r.necessario),{w:w2,align:'right'})}${tc(fBRL(r.guardado),{w:w3,align:'right'})}${tc(r.concluido?'Sim':'Nao',{w:w4,align:'center',color:r.concluido?'3D5C42':'AAAAAA'})}</w:tr>`;
+      });
+      xml += `</w:tbl>`;
+      xml += summaryTable([
+        ['Total necessario', fBRL(objNecessarioTotal)],
+        ['Ja guardado', fBRL(objGuardadoTotal)],
+        ['Falta guardar', fBRL(Math.max(0, objNecessarioTotal - objGuardadoTotal))],
+      ]);
+      return xml;
+    }
+
     const body =
       par('Fluxo . Gestao Financeira', {bold:true, size:36, color:'3D5C42', spAfter:60}) +
       par(`Relatorio - ${mesC} de ${ano}`, {size:20, color:'7A7A7A', spAfter:320}) +
-      par('ORCAMENTO PESSOAL', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160}) +
+      dashboardSection() +
+      par('ORCAMENTO PESSOAL', {bold:true, size:26, color:'3D5C42', spBefore:560, spAfter:160}) +
       tableSection('Custos Fixos', fixedRows, 'Total Custos Fixos', fixedM, fixedM*12, 'F0EAD8', 'E8F0E8') +
       tableSection('Custos Variaveis', varRows, 'Total Custos Variaveis', varM, varM*12, 'F0EAD8', 'FBF0E0') +
       par('Resumo Pessoal', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80}) +
@@ -3936,10 +4157,12 @@ async function exportWord() {
         ['Total Fixo Anual', fBRL(bizFM*12), 'EAF0F8'],
         ['Custo Mensal da Empresa', fBRL(empresaM), 'CCD8EE'],
       ]) +
+      cartaoSection() +
+      receitaSection() +
       par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
       par('Valor da Hora', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80}) +
       summaryTable([
-        ['Custo mensal total (empresa)', fBRL(empresaM)],
+        ['Custo mensal total', fBRL(custoMensalTotal)],
         ['Dias uteis de trabalho', workDays + ' dias'],
         ['Horas de atendimento por dia', hpd + 'h/dia'],
         ['Total de horas/mes disponiveis', totalH + 'h'],
@@ -3950,12 +4173,18 @@ async function exportWord() {
       par('Meta de Faturamento', {bold:true, size:22, color:'C17F3E', spBefore:280, spAfter:80}) +
       summaryTable([
         ['Meta de faturamento mensal', fBRL(goal)],
+        ...(pacoteRevenue > 0 ? [
+          ['Receita de pacotes', fBRL(pacoteRevenue) + ' (' + pacoteQtd + ' pct.)'],
+          ['Meta restante (sessoes avulsas)', fBRL(metaRestante)],
+        ] : []),
         ['Valor cobrado por sessao', fBRL(sessPrice)],
         ['Duracao de cada sessao', sessDur + ' min'],
         ['Sessoes necessarias/mes', sessNeeded + ' sessoes'],
         ['Sessoes por dia de trabalho', sessDay + ' sess/dia'],
         ['Margem apos cobrir custos', fBRL(profit), profit >= 0 ? 'D4E8D4' : 'FDECEA'],
       ]) +
+      metaSemanalSection() +
+      objetivoSection() +
       clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
       clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D');
 
@@ -4043,7 +4272,7 @@ function fBRL(val) {
 // ── PERSISTÊNCIA ──────────────────────────────────────────────
 const STORAGE_KEY = 'fluxo_v1';
 const HISTORY_KEY = 'fluxo_history_v1';
-const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration','actual-sessions','meta-goal','meta-session-price','meta-days-week','meta-session-min','meta-today'];
+const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration','actual-sessions','meta-goal','meta-session-price','meta-days-week','meta-session-min','meta-today','hour-cost-manual','pacote-valor','pacote-quantidade'];
 
 function monthKey(date) {
   const d = date || new Date();
@@ -4155,6 +4384,7 @@ function saveData() {
   data.agendaConfig = {
     duracao: document.getElementById('agenda-duracao')?.value || '50',
     horaInicio: document.getElementById('agenda-hora-inicio')?.value || '08:00',
+    horaFim: document.getElementById('agenda-hora-fim')?.value || '18:00',
   };
 
   // Save to correct slot
@@ -4315,8 +4545,10 @@ async function loadData() {
     if (data.agendaConfig) {
       const durEl = document.getElementById('agenda-duracao');
       const inicioEl = document.getElementById('agenda-hora-inicio');
+      const fimEl = document.getElementById('agenda-hora-fim');
       if (durEl && data.agendaConfig.duracao) durEl.value = data.agendaConfig.duracao;
       if (inicioEl && data.agendaConfig.horaInicio) inicioEl.value = data.agendaConfig.horaInicio;
+      if (fimEl && data.agendaConfig.horaFim) fimEl.value = data.agendaConfig.horaFim;
     }
 
     if (data.pricing) {
