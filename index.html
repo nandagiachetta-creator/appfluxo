@@ -1114,8 +1114,8 @@
   }
   .cartao-summary-item {
     display: flex;
-    justify-content: space-between;
-    gap: 16px;
+    align-items: center;
+    gap: 12px;
     flex: 1 1 220px;
     min-width: 200px;
     background: var(--warm);
@@ -1123,8 +1123,10 @@
     padding: 10px 16px;
     font-size: 13px;
   }
+  .cartao-summary-info { display: flex; justify-content: space-between; gap: 16px; flex: 1; min-width: 0; }
   .cartao-summary-item span { color: var(--text-muted); }
   .cartao-summary-item strong { color: var(--text); }
+  .cartao-summary-item .btn-del { width: 22px; height: 22px; font-size: 12px; }
   .cartao-summary-empty { font-size: 13px; color: var(--text-muted); }
   .cartao-summary-total {
     display: flex;
@@ -1194,6 +1196,13 @@
   .dash-card.highlight.negative { background: var(--red); border-color: var(--red); }
   .dash-card.highlight.negative .dash-card-label { color: #f2c6c0; }
 
+  .dashboard-charts-grid {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .dashboard-charts-grid .dashboard-chart-box { flex: 1 1 300px; margin-bottom: 0; }
   .dashboard-chart-box {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -1750,13 +1759,34 @@
       <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
       <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
     </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
+      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
+      <div class="dash-card-sub">Sessões agendadas ainda não pagas</div>
+    </div>
   </div>
 
-  <div class="dashboard-chart-box">
-    <h3>Gastos por Categoria</h3>
-    <div class="dashboard-chart-row">
-      <div class="dashboard-donut" id="dashboard-donut"></div>
-      <div class="dashboard-legend" id="dashboard-legend"></div>
+  <div class="dashboard-charts-grid">
+    <div class="dashboard-chart-box">
+      <h3>Orçamento PF</h3>
+      <div class="dashboard-chart-row">
+        <div class="dashboard-donut" id="dashboard-donut-pf"></div>
+        <div class="dashboard-legend" id="dashboard-legend-pf"></div>
+      </div>
+    </div>
+    <div class="dashboard-chart-box">
+      <h3>Orçamento PJ</h3>
+      <div class="dashboard-chart-row">
+        <div class="dashboard-donut" id="dashboard-donut-pj"></div>
+        <div class="dashboard-legend" id="dashboard-legend-pj"></div>
+      </div>
+    </div>
+    <div class="dashboard-chart-box">
+      <h3>Receita do Mês</h3>
+      <div class="dashboard-chart-row">
+        <div class="dashboard-donut" id="dashboard-donut-receita"></div>
+        <div class="dashboard-legend" id="dashboard-legend-receita"></div>
+      </div>
     </div>
   </div>
 
@@ -2937,7 +2967,7 @@ function recalculate() {
   if (summaryList) {
     summaryList.innerHTML = '';
     let cartaoGrandTotal = 0;
-    const cards = document.querySelectorAll('.cartao-card');
+    const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
     cards.forEach(card => {
       const id = card.dataset.cardId;
       const name = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
@@ -2947,7 +2977,7 @@ function recalculate() {
       if (subtotalEl) subtotalEl.textContent = formatBRL(subtotal);
       const item = document.createElement('div');
       item.className = 'cartao-summary-item';
-      item.innerHTML = `<span>${name}</span><strong>${formatBRL(subtotal)}</strong>`;
+      item.innerHTML = `<div class="cartao-summary-info"><span>${name}</span><strong>${formatBRL(subtotal)}</strong></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
       summaryList.appendChild(item);
     });
     if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum cartão cadastrado ainda.</span>';
@@ -3313,16 +3343,18 @@ function updateDashboard() {
   const pjTotal = sumType('biz-fixed') + sumType('biz-variable');
 
   let cartaoTotal = 0;
-  document.querySelectorAll('.cartao-card').forEach(card => {
+  document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
     cartaoTotal += sumType('cartao-' + card.dataset.cardId);
   });
 
-  let receitaTotal = 0;
-  document.querySelectorAll('.receita-valor').forEach(inp => { receitaTotal += parseFloat(inp.value) || 0; });
+  let receitaManual = 0;
+  document.querySelectorAll('.receita-valor').forEach(inp => { receitaManual += parseFloat(inp.value) || 0; });
   const clientesRecebidoDash = getClientesRecebidoMes();
-  receitaTotal += clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
+  const receitaTotal = receitaManual + clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
 
   const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal);
+
+  const previsao = getPrevisaoProximoMes();
 
   let objNecessario = 0, objGuardado = 0;
   document.querySelectorAll('#objetivo-body tr').forEach(tr => {
@@ -3344,40 +3376,71 @@ function updateDashboard() {
   }
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
+  if (el('dash-previsao-mes')) el('dash-previsao-mes').textContent = previsao.monthLabel;
+  if (el('dash-previsao-total')) el('dash-previsao-total').textContent = formatBRL(previsao.total);
 
-  // Donut: Fixos vs Variáveis vs Cartões
-  const fixosTotal = sumType('fixed') + sumType('biz-fixed');
-  const variaveisTotal = sumType('variable') + sumType('biz-variable');
-  const chartTotal = fixosTotal + variaveisTotal + cartaoTotal;
-  const donut = el('dashboard-donut');
-  const legend = el('dashboard-legend');
-  if (donut && legend) {
-    if (chartTotal <= 0) {
-      donut.style.background = 'var(--warm)';
-      legend.innerHTML = '<span class="cartao-summary-empty">Sem gastos lançados ainda.</span>';
-    } else {
-      const cats = [
-        { label: 'Fixos', value: fixosTotal, color: DASH_COLORS[0] },
-        { label: 'Variáveis', value: variaveisTotal, color: DASH_COLORS[1] },
-        { label: 'Cartões', value: cartaoTotal, color: DASH_COLORS[2] },
-      ];
-      let acc = 0;
-      const stops = cats.map(c => {
-        const pct = (c.value / chartTotal) * 100;
-        const start = acc;
-        acc += pct;
-        return `${c.color} ${start}% ${acc}%`;
-      }).join(', ');
-      donut.style.background = `conic-gradient(${stops})`;
-      legend.innerHTML = cats.map(c => `
-        <div class="dashboard-legend-item">
-          <span class="dashboard-legend-dot" style="background:${c.color}"></span>
-          <span class="dashboard-legend-label">${c.label}</span>
-          <span class="dashboard-legend-value">${formatBRL(c.value)} (${Math.round((c.value / chartTotal) * 100)}%)</span>
-        </div>
-      `).join('');
-    }
+  renderDashDonut('dashboard-donut-pf', 'dashboard-legend-pf', [
+    { label: 'Fixos', value: sumType('fixed'), color: DASH_COLORS[0] },
+    { label: 'Variáveis', value: sumType('variable'), color: DASH_COLORS[1] },
+  ], 'Sem gastos pessoais lançados ainda.');
+
+  renderDashDonut('dashboard-donut-pj', 'dashboard-legend-pj', [
+    { label: 'Fixos', value: sumType('biz-fixed'), color: DASH_COLORS[0] },
+    { label: 'Variáveis', value: sumType('biz-variable'), color: DASH_COLORS[1] },
+  ], 'Sem gastos empresariais lançados ainda.');
+
+  renderDashDonut('dashboard-donut-receita', 'dashboard-legend-receita', [
+    { label: 'Pacotes pagos', value: clientesRecebidoDash.pacotes, color: DASH_COLORS[0] },
+    { label: 'Avulsos pagos', value: clientesRecebidoDash.avulsos, color: DASH_COLORS[1] },
+    { label: 'Demais valores', value: receitaManual, color: DASH_COLORS[2] },
+  ], 'Sem receita lançada ainda.');
+}
+
+function renderDashDonut(donutId, legendId, cats, emptyMsg) {
+  const donut = document.getElementById(donutId);
+  const legend = document.getElementById(legendId);
+  if (!donut || !legend) return;
+  const total = cats.reduce((s, c) => s + c.value, 0);
+  if (total <= 0) {
+    donut.style.background = 'var(--warm)';
+    legend.innerHTML = `<span class="cartao-summary-empty">${emptyMsg}</span>`;
+    return;
   }
+  let acc = 0;
+  const stops = cats.map(c => {
+    const pct = (c.value / total) * 100;
+    const start = acc;
+    acc += pct;
+    return `${c.color} ${start}% ${acc}%`;
+  }).join(', ');
+  donut.style.background = `conic-gradient(${stops})`;
+  legend.innerHTML = cats.map(c => `
+    <div class="dashboard-legend-item">
+      <span class="dashboard-legend-dot" style="background:${c.color}"></span>
+      <span class="dashboard-legend-label">${c.label}</span>
+      <span class="dashboard-legend-value">${formatBRL(c.value)} (${Math.round((c.value / total) * 100)}%)</span>
+    </div>
+  `).join('');
+}
+
+function getPrevisaoProximoMes() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const ny = next.getFullYear(), nm = next.getMonth();
+  let total = 0;
+  document.querySelectorAll('.cliente-bloco').forEach(block => {
+    block.querySelectorAll('tbody tr').forEach(tr => {
+      const dataStr = tr.querySelector('.sessao-data')?.value;
+      if (!dataStr) return;
+      if (tr.querySelector('.sessao-pago')?.checked) return;
+      const [y, m] = dataStr.split('-').map(Number);
+      if (y === ny && (m - 1) === nm) {
+        total += parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+      }
+    });
+  });
+  const monthName = next.toLocaleString('pt-BR', { month: 'long' });
+  return { total, monthLabel: monthName.charAt(0).toUpperCase() + monthName.slice(1) };
 }
 
 let objetivoRowId = 0;
@@ -3993,7 +4056,7 @@ async function exportWord() {
 
     // Cartões
     let cartaoTotal = 0;
-    document.querySelectorAll('.cartao-card').forEach(card => {
+    document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
       cartaoTotal += sumType('cartao-' + card.dataset.cardId);
     });
 
@@ -4139,7 +4202,7 @@ async function exportWord() {
     }
 
     function cartaoSection() {
-      const cards = document.querySelectorAll('.cartao-card');
+      const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
       if (!cards.length) return '';
       let xml = par('CARTOES', {bold:true, size:26, color:'A6763F', spBefore:560, spAfter:160});
       const w0=3200,w1=1200,w2=2960,w3=2000;
@@ -4376,7 +4439,7 @@ async function exportExcel() {
     const profit     = goal - custoMensalTotal;
 
     let cartaoTotal = 0;
-    document.querySelectorAll('.cartao-card').forEach(card => {
+    document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
       cartaoTotal += sumType('cartao-' + card.dataset.cardId);
     });
 
@@ -4509,7 +4572,7 @@ async function exportExcel() {
     sheets.push({ name: 'Orcamento Empresarial', rows: empresaRows });
 
     // CARTÕES
-    const cards = document.querySelectorAll('.cartao-card');
+    const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
     if (cards.length) {
       const cartaoRows = [tit('CARTÕES'), []];
       cards.forEach(card => {
@@ -4762,7 +4825,7 @@ function saveData() {
 
   // Cartão: múltiplos cartões, aba separada, não vinculada ao mês atual/próximo
   const cartoes = [];
-  document.querySelectorAll('.cartao-card').forEach(card => {
+  document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
     const id = card.dataset.cardId;
     const name = card.querySelector('.cartao-card-name')?.value || '';
     const items = [];
@@ -4773,6 +4836,8 @@ function saveData() {
       const paid  = tr.querySelector('.paid-check')?.checked || false;
       items.push({ name: iname, value, due, paid });
     });
+    const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
+    if (name.trim() === '' && !hasItems) return; // descarta caixas fantasmas sem nome e sem itens
     cartoes.push({ id, name, items });
   });
   data.cartoes = cartoes;
