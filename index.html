@@ -627,6 +627,29 @@
     color: var(--text);
     width: 130px;
   }
+  /* Linha cuja data de pagamento não é do mês vigente: não entra no total */
+  tr.receita-fora-mes { opacity: 0.55; }
+  tr.receita-fora-mes .receita-data-input {
+    border-color: #e8a020;
+    background: #fdf6e8;
+  }
+  .receita-fora-tag {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #a9761a;
+    background: #fdf1dc;
+    border-radius: 4px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
+  .receita-nota-mes {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: -4px 0 12px;
+  }
 
   /* UNDO TOAST */
   #undo-toast {
@@ -2062,6 +2085,10 @@
     <span class="section-pill receita">Receita</span>
     <h2 class="section-title">Receitas do Mês</h2>
   </div>
+  <p class="receita-nota-mes">
+    Só entram no total os pagamentos com data dentro de <strong id="receita-mes-label">—</strong>.
+    Linhas sem data ou de outro mês ficam registradas, mas não são contabilizadas.
+  </p>
 
   <div class="table-wrapper">
     <table>
@@ -2078,8 +2105,8 @@
       <tbody id="receita-body"></tbody>
       <tfoot>
         <tr class="total-row receita">
-          <td>Total Recebido</td>
-          <td></td>
+          <td>Total Recebido no Mês</td>
+          <td><span class="receita-fora-tag" id="receita-ignoradas" style="display:none"></span></td>
           <td><span class="total-amount" id="receita-monthly-total">R$ 0,00</span></td>
           <td></td>
           <td></td>
@@ -3118,6 +3145,30 @@ function calcPricing() {
 
 let receitaRowId = 0;
 
+// Mês que está sendo exibido: o mês atual real ou o próximo (modo previsão).
+function getActiveMonthDate() {
+  const d = new Date();
+  if (activeMonth === 'next') return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  return d;
+}
+
+function getActiveMonthKey() {
+  return monthKey(getActiveMonthDate());
+}
+
+// Uma receita só conta quando a data de pagamento cai no mês vigente.
+function isReceitaDoMes(dataPgto) {
+  if (!dataPgto) return false;
+  return String(dataPgto).startsWith(getActiveMonthKey());
+}
+
+// Data sugerida para uma nova linha: hoje (ou o dia 1º, no modo previsão).
+function defaultReceitaDate() {
+  const d = getActiveMonthDate();
+  const day = activeMonth === 'next' ? 1 : d.getDate();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
 function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, emitida = false) {
   const id = receitaRowId++;
   const tbody = document.getElementById('receita-body');
@@ -3152,7 +3203,8 @@ function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, em
 }
 
 function addReceitaRow() {
-  createReceitaRow();
+  // Já nasce com data do mês vigente para entrar no total; é só editar se for outra.
+  createReceitaRow('', 0, defaultReceitaDate());
   const tbody = document.getElementById('receita-body');
   const lastInput = tbody.lastElementChild.querySelector('.receita-cliente');
   if (lastInput) lastInput.focus();
@@ -3171,15 +3223,42 @@ function deleteReceitaRow(id) {
 
 function recalculateReceita() {
   let total = 0, totalNf = 0, totalSemNf = 0, count = 0, nfEmitidas = 0, semNfCount = 0;
+  let foraDoMes = 0;
   document.querySelectorAll('#receita-body tr').forEach(tr => {
     const val = parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
     const temNf = tr.querySelector('.receita-nf-check')?.checked || false;
     const emitida = tr.querySelector('.receita-emitida-check')?.checked || false;
+    const dataPgto = tr.querySelector('.receita-data')?.value || '';
+
+    // Fora do mês vigente (ou sem data): fica registrado, mas não soma.
+    if (!isReceitaDoMes(dataPgto)) {
+      tr.classList.add('receita-fora-mes');
+      tr.title = dataPgto
+        ? 'Pagamento de outro mês — não entra no total deste mês.'
+        : 'Sem data de pagamento — não entra no total deste mês.';
+      if (val > 0) foraDoMes++;
+      return;
+    }
+    tr.classList.remove('receita-fora-mes');
+    tr.removeAttribute('title');
+
     total += val;
     count++;
     if (temNf) { totalNf += val; if (emitida) nfEmitidas++; }
     else { totalSemNf += val; semNfCount++; }
   });
+
+  const mesLabelEl = document.getElementById('receita-mes-label');
+  if (mesLabelEl) mesLabelEl.textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
+
+  const ignoradasEl = document.getElementById('receita-ignoradas');
+  if (ignoradasEl) {
+    ignoradasEl.style.display = foraDoMes > 0 ? '' : 'none';
+    ignoradasEl.textContent = foraDoMes === 1
+      ? '1 lançamento fora do mês'
+      : foraDoMes + ' lançamentos fora do mês';
+  }
+
   document.getElementById('receita-monthly-total').textContent = formatBRL(total);
   document.getElementById('receita-sum-count').textContent = count + (count === 1 ? ' cliente' : ' clientes');
   document.getElementById('receita-sum-nf').textContent = formatBRL(totalNf);
@@ -3215,6 +3294,7 @@ function calcMeta() {
   // Já recebido (tabela de receitas + pacotes/avulsos pagos no mês)
   let recebido = 0;
   document.querySelectorAll('#receita-body tr').forEach(tr => {
+    if (!isReceitaDoMes(tr.querySelector('.receita-data')?.value || '')) return;
     recebido += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
   });
   const clientesRecebidoMeta = getClientesRecebidoMes();
@@ -3348,7 +3428,10 @@ function updateDashboard() {
   });
 
   let receitaManual = 0;
-  document.querySelectorAll('.receita-valor').forEach(inp => { receitaManual += parseFloat(inp.value) || 0; });
+  document.querySelectorAll('#receita-body tr').forEach(tr => {
+    if (!isReceitaDoMes(tr.querySelector('.receita-data')?.value || '')) return;
+    receitaManual += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
+  });
   const clientesRecebidoDash = getClientesRecebidoMes();
   const receitaTotal = receitaManual + clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
 
@@ -3682,7 +3765,7 @@ function recalculateClientes() {
 }
 
 function getClientesRecebidoMes() {
-  const nowKey = monthKey();
+  const nowKey = getActiveMonthKey();
   let pacotes = 0, avulsos = 0;
   document.querySelectorAll('.cliente-bloco').forEach(block => {
     const kind = block.dataset.kind;
