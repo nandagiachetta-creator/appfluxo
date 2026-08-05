@@ -671,6 +671,51 @@
   }
   .receita-alerta.visible { display: flex; }
 
+  /* META DE FATURAMENTO NO DASHBOARD */
+  .dash-card-meta .dash-meta-input-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    margin-top: 2px;
+  }
+  .dash-card-meta .currency-sym {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: var(--sage-dark);
+  }
+  .dash-meta-input {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    color: var(--sage-dark);
+    border: none;
+    border-bottom: 1px dashed var(--border);
+    background: transparent;
+    width: 100%;
+    min-width: 0;
+    padding: 0 0 2px;
+    -moz-appearance: textfield;
+  }
+  .dash-meta-input::-webkit-outer-spin-button,
+  .dash-meta-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .dash-meta-input:hover { border-bottom-color: var(--accent); }
+  .dash-meta-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .dash-meta-bar {
+    height: 6px;
+    background: var(--warm);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+  .dash-meta-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--sage);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+  }
+  .dash-meta-bar-fill.completa { background: #2e7d5e; }
+  .dash-card.meta-batida { border-color: var(--sage-light); }
+
   /* FLUXO DE CAIXA */
   .fluxo-cards {
     display: grid;
@@ -759,6 +804,40 @@
     color: var(--text-muted);
     font-size: 14px;
   }
+  /* Células editáveis */
+  .fluxo-cell { display: flex; flex-direction: column; gap: 5px; }
+  .fluxo-inp {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 4px 6px;
+    background: transparent;
+    color: var(--text);
+    width: 100%;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .fluxo-inp:hover { border-color: var(--border); background: var(--cream); }
+  .fluxo-inp:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--surface);
+  }
+  .fluxo-inp-data { max-width: 140px; font-size: 12px; color: var(--text-muted); }
+  .fluxo-inp-desc { font-weight: 500; }
+  .fluxo-val-wrap { justify-content: flex-end; }
+  .fluxo-inp-valor { text-align: right; font-variant-numeric: tabular-nums; }
+  .fluxo-table td.fluxo-val-in .fluxo-inp-valor { color: #1a5c40; }
+  .fluxo-table td.fluxo-val-out .fluxo-inp-valor { color: var(--red); }
+  .fluxo-desc-fixa { font-weight: 500; padding: 4px 6px; }
+  button.fluxo-pendente, button.fluxo-pago-btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.fluxo-pendente:hover { background: #f7e2bd; }
+  button.fluxo-pago-btn { color: #1a5c40; background: #eaf5f0; }
+  button.fluxo-pago-btn:hover { background: #d8ebe2; }
   @media (max-width: 720px) {
     .fluxo-table .fluxo-col-dia { width: 40px; }
     .fluxo-table td, .fluxo-table th { font-size: 12px; }
@@ -1890,6 +1969,17 @@
       <div class="dash-card-label">Saldo do Mês</div>
       <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
     </div>
+    <div class="dash-card dash-card-meta">
+      <div class="dash-card-label">Meta de Faturamento</div>
+      <div class="dash-meta-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" id="dash-meta-goal" class="dash-meta-input" min="0" step="100"
+               placeholder="0" title="Quanto você quer faturar neste mês"
+               oninput="onDashMetaGoal(this.value)">
+      </div>
+      <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
+      <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
+    </div>
     <div class="dash-card">
       <div class="dash-card-label">Objetivos Financeiros</div>
       <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
@@ -2912,12 +3002,16 @@ const BIZ_VARIABLE_DEFAULTS = [
 
 let rowId = 0;
 
-function createRow(type, name = '', value = 0, due = '', paid = false) {
+function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '') {
   const id = rowId++;
   const tbody = document.getElementById(type + '-body');
   const tr = document.createElement('tr');
   tr.id = 'row-' + id;
   tr.dataset.type = type;
+  // Data real do pagamento. Não aparece nas telas de orçamento (que trabalham com
+  // dia de vencimento), mas é editável pelo Fluxo de Caixa e manda no dia em que a
+  // conta entra no fluxo.
+  tr.dataset.dataPgto = dataPgto;
 
   const isVariable = type.includes('variable');
 
@@ -3474,6 +3568,10 @@ const FLUXO_SAIDA_ORIGENS = [
   { type: 'biz-variable',  label: 'PJ variável' },
 ];
 
+// Registro dos itens desenhados: cada célula editável do fluxo aponta de volta
+// para a linha de origem, para que a edição seja gravada onde o dado mora.
+let FLUXO_ITENS = [];
+
 function coletarEntradasFluxo() {
   const mesKey = getActiveMonthKey();
   const entradas = [];
@@ -3489,9 +3587,13 @@ function coletarEntradasFluxo() {
       if (!pago || valor <= 0 || !dataPgto.startsWith(mesKey)) return;
       entradas.push({
         dia: parseInt(dataPgto.slice(8, 10), 10),
+        data: dataPgto,
         desc: (kind === 'pacote' ? 'Pacote de ' : 'Sessão avulsa de ') + nome,
         valor,
         origem: 'Clientes',
+        fonte: 'sessao',
+        tr,
+        descEditavel: false, // o nome vem do bloco do cliente
       });
     });
   });
@@ -3503,9 +3605,13 @@ function coletarEntradasFluxo() {
     if (valor <= 0 || !data.startsWith(mesKey)) return;
     entradas.push({
       dia: parseInt(data.slice(8, 10), 10),
-      desc: tr.querySelector('.receita-cliente')?.value?.trim() || 'Entrada sem descrição',
+      data,
+      desc: tr.querySelector('.receita-cliente')?.value?.trim() || '',
       valor,
       origem: 'Avulsa',
+      fonte: 'receita',
+      tr,
+      descEditavel: true,
     });
   });
 
@@ -3513,20 +3619,33 @@ function coletarEntradasFluxo() {
 }
 
 function coletarSaidasFluxo() {
+  const mesKey = getActiveMonthKey();
   const saidas = [];
 
   const lerTabela = (type, origem) => {
     document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
-      const nome = tr.querySelector('input[type="text"]')?.value?.trim() || 'Conta sem nome';
+      const nome = tr.querySelector('input[type="text"]')?.value?.trim() || '';
       const valor = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
-      const diaRaw = parseInt(tr.querySelector('.due-input')?.value, 10);
+      const diaVenc = parseInt(tr.querySelector('.due-input')?.value, 10);
+      const dataPgto = tr.dataset.dataPgto || '';
       if (valor <= 0) return;
+
+      // Com data de pagamento preenchida, é ela que manda: a conta entra no dia
+      // em que o dinheiro saiu, e some do fluxo se foi paga em outro mês.
+      if (dataPgto) {
+        if (!dataPgto.startsWith(mesKey)) return;
+        saidas.push({
+          dia: parseInt(dataPgto.slice(8, 10), 10), data: dataPgto,
+          desc: nome, valor, pago: tr.querySelector('.paid-check')?.checked || false,
+          origem, fonte: 'conta', tr, descEditavel: true, noVencimento: false,
+        });
+        return;
+      }
       saidas.push({
-        dia: (diaRaw >= 1 && diaRaw <= 31) ? diaRaw : null,
-        desc: nome,
-        valor,
-        pago: tr.querySelector('.paid-check')?.checked || false,
-        origem,
+        dia: (diaVenc >= 1 && diaVenc <= 31) ? diaVenc : null,
+        data: (diaVenc >= 1 && diaVenc <= 31) ? mesKey + '-' + String(diaVenc).padStart(2, '0') : '',
+        desc: nome, valor, pago: tr.querySelector('.paid-check')?.checked || false,
+        origem, fonte: 'conta', tr, descEditavel: true, noVencimento: true,
       });
     });
   };
@@ -3540,32 +3659,146 @@ function coletarSaidasFluxo() {
   return saidas;
 }
 
+// ── Edição direta na tabela do fluxo ──────────────────────────
+// Grava na linha de origem. Não redesenha a tabela a cada tecla (perderia o
+// foco); o redesenho acontece no commit, quando o campo perde o foco.
+
+function fluxoItem(idx) { return FLUXO_ITENS[parseInt(idx, 10)]; }
+
+function onFluxoData(idx, valor) {
+  const it = fluxoItem(idx);
+  if (!it) return;
+  if (it.fonte === 'sessao') {
+    const inp = it.tr.querySelector('.sessao-data-pgto');
+    if (inp) inp.value = valor;
+  } else if (it.fonte === 'receita') {
+    const inp = it.tr.querySelector('.receita-data');
+    if (inp) inp.value = valor;
+  } else {
+    it.tr.dataset.dataPgto = valor;
+    // Registrar a data em que saiu o dinheiro equivale a dar a conta como paga.
+    const check = it.tr.querySelector('.paid-check');
+    if (check) check.checked = !!valor;
+    // Sem data de vencimento ainda, adota o dia informado.
+    const due = it.tr.querySelector('.due-input');
+    if (valor && due && !due.value) {
+      due.value = String(parseInt(valor.slice(8, 10), 10));
+      updateDueBadgeSilent(due);
+    }
+  }
+  aplicarEdicaoFluxo(it);
+}
+
+function onFluxoDesc(idx, valor) {
+  const it = fluxoItem(idx);
+  if (!it || !it.descEditavel) return;
+  const alvo = it.fonte === 'receita'
+    ? it.tr.querySelector('.receita-cliente')
+    : it.tr.querySelector('input[type="text"]');
+  if (alvo) alvo.value = valor;
+  aplicarEdicaoFluxo(it);
+}
+
+function onFluxoValor(idx, valor) {
+  const it = fluxoItem(idx);
+  if (!it) return;
+  const num = parseFloat(valor) || 0;
+  const alvo = it.fonte === 'sessao' ? it.tr.querySelector('.sessao-valor')
+             : it.fonte === 'receita' ? it.tr.querySelector('.receita-valor')
+             : it.tr.querySelector('input[type="number"]:not(.due-input)');
+  if (alvo) alvo.value = num;
+  aplicarEdicaoFluxo(it);
+}
+
+function onFluxoPago(idx) {
+  const it = fluxoItem(idx);
+  if (!it || it.fonte !== 'conta') return;
+  const check = it.tr.querySelector('.paid-check');
+  if (!check) return;
+  check.checked = !check.checked;
+  if (check.checked && !it.tr.dataset.dataPgto) {
+    it.tr.dataset.dataPgto = it.data || todayISO();
+  } else if (!check.checked) {
+    it.tr.dataset.dataPgto = '';
+  }
+  aplicarEdicaoFluxo(it);
+  renderFluxoCaixa();
+}
+
+// Recalcula os totais da origem sem redesenhar o fluxo.
+let fluxoEditando = false;
+function aplicarEdicaoFluxo(it) {
+  fluxoEditando = true;
+  try {
+    if (it.fonte === 'sessao') recalculateClientes();
+    else if (it.fonte === 'receita') recalculateReceita();
+    else recalculate();
+  } finally {
+    fluxoEditando = false;
+  }
+  atualizarTotaisFluxo();
+}
+
+function onFluxoCommit() {
+  renderFluxoCaixa();
+  saveData();
+}
+
+function updateDueBadgeSilent(input) {
+  const unit = input.parentElement?.querySelector('.due-label-unit');
+  if (unit) unit.style.display = input.value ? 'inline' : 'none';
+}
+
+function celulaFluxo(item, idx, lado) {
+  const dentro = lado === 'in';
+  const desc = item.descEditavel
+    ? `<input type="text" class="fluxo-inp fluxo-inp-desc" value="${escHtml(item.desc)}"
+         placeholder="${dentro ? 'Descrição da entrada' : 'Nome da conta'}"
+         oninput="onFluxoDesc(${idx}, this.value)" onchange="onFluxoCommit()">`
+    : `<span class="fluxo-desc-fixa" title="Para renomear, edite o nome do cliente na aba Clientes">${escHtml(item.desc)}</span>`;
+  const pendente = (!dentro && !item.pago)
+    ? `<button type="button" class="fluxo-pendente" onclick="onFluxoPago(${idx})" title="Marcar como paga">a pagar</button>`
+    : (!dentro ? `<button type="button" class="fluxo-origem fluxo-pago-btn" onclick="onFluxoPago(${idx})" title="Desmarcar pagamento">paga</button>` : '');
+  return `
+    <td class="${dentro ? '' : 'fluxo-sep'}">
+      <div class="fluxo-cell">
+        <input type="date" class="fluxo-inp fluxo-inp-data" value="${escHtml(item.data || '')}"
+          title="${dentro ? 'Data em que o dinheiro entrou' : 'Data em que a conta foi paga'}"
+          onchange="onFluxoData(${idx}, this.value); onFluxoCommit()">
+        <div class="fluxo-desc">${desc}<span class="fluxo-origem">${escHtml(item.origem)}</span>${pendente}</div>
+      </div>
+    </td>
+    <td class="fluxo-val ${dentro ? 'fluxo-val-in' : 'fluxo-val-out'}">
+      <div class="value-input-wrap fluxo-val-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="fluxo-inp fluxo-inp-valor" min="0" step="0.01" value="${item.valor}"
+          oninput="onFluxoValor(${idx}, this.value)" onchange="onFluxoCommit()">
+      </div>
+    </td>`;
+}
+
 function renderFluxoCaixa() {
   const tbody = document.getElementById('fluxo-body');
-  if (!tbody) return;
+  if (!tbody || fluxoEditando) return;
 
   const entradas = coletarEntradasFluxo();
   const saidas = coletarSaidasFluxo();
 
-  const totalEntradas = entradas.reduce((t, e) => t + e.valor, 0);
-  const totalSaidas = saidas.reduce((t, s) => t + s.valor, 0);
-  const saidasPagas = saidas.filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
-  const saidasPendentes = totalSaidas - saidasPagas;
-  const saldo = totalEntradas - totalSaidas;
+  FLUXO_ITENS = [...entradas, ...saidas];
+  entradas.forEach((e, i) => { e.idx = i; });
+  saidas.forEach((s, i) => { s.idx = entradas.length + i; });
 
-  // Agrupa por dia; itens sem dia de vencimento vão para o fim.
+  // Agrupa por dia; itens sem dia definido vão para o fim.
   const dias = new Map();
   const pegarDia = d => {
-    const chave = d == null ? 'sem-dia' : d;
+    const chave = d == null || isNaN(d) ? 'sem-dia' : d;
     if (!dias.has(chave)) dias.set(chave, { entradas: [], saidas: [] });
     return dias.get(chave);
   };
   entradas.forEach(e => pegarDia(e.dia).entradas.push(e));
   saidas.forEach(s => pegarDia(s.dia).saidas.push(s));
 
-  const chaves = [...dias.keys()]
-    .filter(k => k !== 'sem-dia')
-    .sort((a, b) => a - b);
+  const chaves = [...dias.keys()].filter(k => k !== 'sem-dia').sort((a, b) => a - b);
   if (dias.has('sem-dia')) chaves.push('sem-dia');
 
   if (!chaves.length) {
@@ -3583,28 +3816,31 @@ function renderFluxoCaixa() {
       for (let i = 0; i < linhas; i++) {
         const e = grupo.entradas[i];
         const s = grupo.saidas[i];
-        const ultima = i === linhas - 1;
-        html += `<tr class="${ultima ? 'fluxo-dia-fim' : ''}">`;
+        html += `<tr class="${i === linhas - 1 ? 'fluxo-dia-fim' : ''}">`;
         if (i === 0) {
-          html += `<td class="fluxo-dia" rowspan="${linhas}" title="${chave === 'sem-dia' ? 'Contas sem dia de vencimento' : 'Dia ' + diaLabel}">${diaLabel}</td>`;
+          html += `<td class="fluxo-dia" rowspan="${linhas}" title="${chave === 'sem-dia' ? 'Sem data definida' : 'Dia ' + diaLabel}">${diaLabel}</td>`;
         }
-        if (e) {
-          html += `<td><span class="fluxo-desc">${escHtml(e.desc)}<span class="fluxo-origem">${escHtml(e.origem)}</span></span></td>`;
-          html += `<td class="fluxo-val fluxo-val-in">${formatBRL(e.valor)}</td>`;
-        } else {
-          html += `<td class="fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
-        }
-        if (s) {
-          html += `<td class="fluxo-sep"><span class="fluxo-desc">${escHtml(s.desc)}<span class="fluxo-origem">${escHtml(s.origem)}</span>${s.pago ? '' : '<span class="fluxo-pendente">a pagar</span>'}</span></td>`;
-          html += `<td class="fluxo-val fluxo-val-out">${formatBRL(s.valor)}</td>`;
-        } else {
-          html += `<td class="fluxo-sep fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
-        }
+        html += e ? celulaFluxo(e, e.idx, 'in')
+                  : `<td class="fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
+        html += s ? celulaFluxo(s, s.idx, 'out')
+                  : `<td class="fluxo-sep fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
         html += `</tr>`;
       }
     });
     tbody.innerHTML = html;
   }
+
+  atualizarTotaisFluxo();
+}
+
+function atualizarTotaisFluxo() {
+  const entradas = coletarEntradasFluxo();
+  const saidas = coletarSaidasFluxo();
+  const totalEntradas = entradas.reduce((t, e) => t + e.valor, 0);
+  const totalSaidas = saidas.reduce((t, s) => t + s.valor, 0);
+  const saidasPagas = saidas.filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
+  const saidasPendentes = totalSaidas - saidasPagas;
+  const saldo = totalEntradas - totalSaidas;
 
   const el = id => document.getElementById(id);
   if (el('fluxo-mes-label')) el('fluxo-mes-label').textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
@@ -3696,6 +3932,8 @@ function calcMeta() {
     subEl.textContent = 'preencha os campos ao lado';
     box.className = 'meta-highlight meta-ok';
   }
+
+  atualizarDashMeta(recebido);
 }
 
 // ── NAVEGAÇÃO POR MÊS ────────────────────────────────────────
@@ -3744,7 +3982,7 @@ function loadMonthIntoDOM(monthData) {
   const tables = monthData.tables || {};
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     const rows = tables[type] || [];
-    rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+    rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
   });
   const receita = monthData.receita || [];
   receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
@@ -3799,6 +4037,7 @@ function updateDashboard() {
     const saldoCard = saldoValueEl.closest('.dash-card');
     if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
   }
+  atualizarDashMeta(receitaTotal);
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
   if (el('dash-previsao-mes')) el('dash-previsao-mes').textContent = previsao.monthLabel;
@@ -3821,6 +4060,52 @@ function updateDashboard() {
   ], 'Sem receita lançada ainda.');
 
   renderFluxoCaixa();
+}
+
+// Meta de faturamento no Dashboard — é o mesmo valor do campo "Meta do mês"
+// da aba Meta; editar em um lugar reflete no outro.
+function onDashMetaGoal(valor) {
+  const metaInput = document.getElementById('meta-goal');
+  if (metaInput) metaInput.value = valor;
+  calcMeta();
+  atualizarDashMeta();
+  saveData();
+}
+
+function atualizarDashMeta(receitaTotal) {
+  const dashInput = document.getElementById('dash-meta-goal');
+  const metaInput = document.getElementById('meta-goal');
+  if (!dashInput) return;
+
+  // Mantém os dois campos espelhados sem atrapalhar quem está digitando.
+  if (metaInput && document.activeElement !== dashInput) dashInput.value = metaInput.value;
+
+  const meta = parseFloat(metaInput?.value) || 0;
+  if (receitaTotal === undefined) {
+    const clientes = getClientesRecebidoMes();
+    let manual = 0;
+    document.querySelectorAll('#receita-body tr').forEach(tr => {
+      if (!isReceitaDoMes(tr.querySelector('.receita-data')?.value || '')) return;
+      manual += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
+    });
+    receitaTotal = manual + clientes.pacotes + clientes.avulsos;
+  }
+
+  const pct = meta > 0 ? Math.min(100, Math.round((receitaTotal / meta) * 100)) : 0;
+  const falta = Math.max(0, meta - receitaTotal);
+  const fill = document.getElementById('dash-meta-bar-fill');
+  if (fill) {
+    fill.style.width = pct + '%';
+    fill.classList.toggle('completa', meta > 0 && falta === 0);
+  }
+  const sub = document.getElementById('dash-meta-sub');
+  if (sub) {
+    if (meta <= 0) sub.textContent = 'defina sua meta do mês';
+    else if (falta === 0) sub.textContent = 'Meta atingida! ' + formatBRL(receitaTotal) + ' faturados';
+    else sub.textContent = pct + '% · faltam ' + formatBRL(falta);
+  }
+  const card = dashInput.closest('.dash-card');
+  if (card) card.classList.toggle('meta-batida', meta > 0 && falta === 0);
 }
 
 function renderDashDonut(donutId, legendId, cats, emptyMsg) {
@@ -5267,7 +5552,7 @@ function saveData() {
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      monthTables[type].push({ name, value, due, paid });
+      monthTables[type].push({ name, value, due, paid, dataPgto: tr.dataset.dataPgto || '' });
     });
   });
   const monthReceita = [];
@@ -5297,7 +5582,7 @@ function saveData() {
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      items.push({ name: iname, value, due, paid });
+      items.push({ name: iname, value, due, paid, dataPgto: tr.dataset.dataPgto || '' });
     });
     const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
     if (name.trim() === '' && !hasItems) return; // descarta caixas fantasmas sem nome e sem itens
@@ -5475,18 +5760,18 @@ async function loadData() {
     ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
       const rows = data.tables[type];
       if (!rows || !rows.length) return;
-      rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+      rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
     });
 
     if (data.cartoes && data.cartoes.length) {
       data.cartoes.slice(0, 30).forEach(c => {
         const id = addCartaoCard(c.name || '', c.id);
-        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
       });
     } else if (data.cartao && data.cartao.length) {
       // Migração do formato antigo (cartão único sem nome)
       const id = addCartaoCard('Cartão');
-      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false));
+      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
     }
 
     if (data.objetivos && data.objetivos.length) {
