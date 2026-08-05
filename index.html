@@ -671,6 +671,99 @@
   }
   .receita-alerta.visible { display: flex; }
 
+  /* FLUXO DE CAIXA */
+  .fluxo-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .fluxo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+  }
+  .fluxo-card-label {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .fluxo-card-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 26px;
+    margin-top: 4px;
+  }
+  .fluxo-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .fluxo-card.fluxo-in { border-left: 4px solid #2e7d5e; }
+  .fluxo-card.fluxo-in .fluxo-card-value { color: #1a5c40; }
+  .fluxo-card.fluxo-out { border-left: 4px solid var(--red); }
+  .fluxo-card.fluxo-out .fluxo-card-value { color: var(--red); }
+  .fluxo-card.fluxo-saldo { border-left: 4px solid var(--sage-dark); }
+  .fluxo-card.fluxo-saldo .fluxo-card-value { color: var(--sage-dark); }
+  .fluxo-card.fluxo-saldo.negative { border-left-color: var(--red); }
+  .fluxo-card.fluxo-saldo.negative .fluxo-card-value { color: var(--red); }
+
+  .fluxo-table th.fluxo-th-in {
+    text-align: left;
+    color: #1a5c40;
+    background: #eaf5f0;
+  }
+  .fluxo-table th.fluxo-th-out {
+    text-align: left;
+    color: #8c3226;
+    background: #fbecea;
+    border-left: 3px solid var(--border);
+  }
+  .fluxo-table .fluxo-col-dia { width: 60px; text-align: center; }
+  .fluxo-table td.fluxo-dia {
+    text-align: center;
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    color: var(--sage-dark);
+    background: var(--warm);
+    vertical-align: middle;
+  }
+  .fluxo-table td.fluxo-sep { border-left: 3px solid var(--border); }
+  .fluxo-table td.fluxo-val { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .fluxo-table td.fluxo-val-in { color: #1a5c40; }
+  .fluxo-table td.fluxo-val-out { color: var(--red); }
+  .fluxo-table td.fluxo-vazio { color: #c8c2b8; font-style: italic; }
+  .fluxo-table tr.fluxo-dia-fim td { border-bottom: 2px solid var(--border); }
+  .fluxo-desc { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .fluxo-origem {
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--warm);
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: nowrap;
+  }
+  .fluxo-pendente {
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: #a9761a;
+    background: #fdf1dc;
+    border-radius: 4px;
+    padding: 1px 5px;
+    white-space: nowrap;
+  }
+  .fluxo-empty {
+    padding: 28px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  @media (max-width: 720px) {
+    .fluxo-table .fluxo-col-dia { width: 40px; }
+    .fluxo-table td, .fluxo-table th { font-size: 12px; }
+  }
+
   /* UNDO TOAST */
   #undo-toast {
     position: fixed;
@@ -1739,7 +1832,7 @@
 <div class="view-nav">
   <button class="view-tab active" id="view-tab-orcamento" onclick="switchView('orcamento')">📊 Dashboard</button>
   <button class="view-tab" id="view-tab-clientes" onclick="switchView('clientes')">🧑‍💼 Clientes</button>
-  <button class="view-tab" id="view-tab-receita" onclick="switchView('receita')">💰 Receita</button>
+  <button class="view-tab" id="view-tab-receita" onclick="switchView('receita')">💰 Fluxo de Caixa</button>
   <button class="view-tab" id="view-tab-meta" onclick="switchView('meta')">🎯 Meta</button>
   <button class="view-tab" id="view-tab-cartao" onclick="switchView('cartao')">💳 Cartão</button>
   <button class="view-tab" id="view-tab-pj" onclick="switchView('pj')">Orçamento PJ</button>
@@ -2097,28 +2190,77 @@
 </div>
 <!-- /view-cartao -->
 
-<!-- VIEW: RECEITA -->
+<!-- VIEW: RECEITA (Fluxo de Caixa) -->
 <div id="view-receita" style="display:none">
 
-  <!-- RECEITA -->
+  <!-- FLUXO DE CAIXA -->
   <div class="section-header" style="margin-top:0">
-    <span class="section-pill receita">Receita</span>
-    <h2 class="section-title">Receitas do Mês</h2>
+    <span class="section-pill receita">Fluxo de Caixa</span>
+    <h2 class="section-title">Entradas e Saídas de <span id="fluxo-mes-label">—</span></h2>
   </div>
   <p class="receita-nota-mes">
-    Só entram no total os pagamentos com data dentro de <strong id="receita-mes-label">—</strong>.
-    Linhas sem data ou de outro mês ficam registradas, mas não são contabilizadas.
+    Montado automaticamente: as entradas vêm das baixas de pagamento da aba Clientes e das outras entradas
+    lançadas abaixo; as saídas vêm das contas de PF, PJ e cartões, no dia de vencimento de cada uma.
   </p>
   <div class="receita-alerta" id="receita-alerta-sem-data">
     <span>⚠️</span>
     <span id="receita-alerta-sem-data-texto"></span>
   </div>
 
+  <div class="fluxo-cards">
+    <div class="fluxo-card fluxo-in">
+      <div class="fluxo-card-label">Total de Entradas</div>
+      <div class="fluxo-card-value" id="fluxo-total-entradas">R$ 0,00</div>
+    </div>
+    <div class="fluxo-card fluxo-out">
+      <div class="fluxo-card-label">Total de Saídas</div>
+      <div class="fluxo-card-value" id="fluxo-total-saidas">R$ 0,00</div>
+      <div class="fluxo-card-sub" id="fluxo-saidas-pendentes">—</div>
+    </div>
+    <div class="fluxo-card fluxo-saldo" id="fluxo-card-saldo">
+      <div class="fluxo-card-label">Saldo do Mês</div>
+      <div class="fluxo-card-value" id="fluxo-saldo">R$ 0,00</div>
+      <div class="fluxo-card-sub" id="fluxo-saldo-realizado">—</div>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table class="fluxo-table">
+      <thead>
+        <tr>
+          <th class="fluxo-col-dia">Dia</th>
+          <th colspan="2" class="fluxo-th-in">Entradas</th>
+          <th colspan="2" class="fluxo-th-out">Saídas</th>
+        </tr>
+      </thead>
+      <tbody id="fluxo-body"></tbody>
+      <tfoot>
+        <tr class="total-row receita">
+          <td>Totais</td>
+          <td>Entradas</td>
+          <td class="fluxo-val"><span class="total-amount" id="fluxo-foot-entradas">R$ 0,00</span></td>
+          <td>Saídas</td>
+          <td class="fluxo-val"><span class="total-amount" id="fluxo-foot-saidas">R$ 0,00</span></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- OUTRAS ENTRADAS -->
+  <div class="section-header">
+    <span class="section-pill receita">Entradas</span>
+    <h2 class="section-title">Outras Entradas do Mês</h2>
+  </div>
+  <p class="receita-nota-mes">
+    Recebimentos que não vêm da aba Clientes. Só entram no fluxo os que tiverem data dentro de
+    <strong id="receita-mes-label">—</strong>.
+  </p>
+
   <div class="table-wrapper">
     <table>
       <thead>
         <tr>
-          <th>Cliente</th>
+          <th>Descrição</th>
           <th>Data do Pagamento</th>
           <th>Valor</th>
           <th class="th-pago">Nota Fiscal</th>
@@ -2129,7 +2271,7 @@
       <tbody id="receita-body"></tbody>
       <tfoot>
         <tr class="total-row receita">
-          <td>Total Recebido no Mês</td>
+          <td>Total no Mês</td>
           <td><span class="receita-fora-tag" id="receita-ignoradas" style="display:none"></span></td>
           <td><span class="total-amount" id="receita-monthly-total">R$ 0,00</span></td>
           <td></td>
@@ -2140,7 +2282,7 @@
     </table>
     <button class="btn-add-row" onclick="addReceitaRow()">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-      Adicionar cliente
+      Adicionar entrada
     </button>
   </div>
 
@@ -2148,7 +2290,7 @@
   <div class="summary-section">
     <div class="section-header" style="margin-top:0">
       <span class="section-pill receita">Resumo</span>
-      <h2 class="section-title">Resumo de Receitas</h2>
+      <h2 class="section-title">Resumo de Recebimentos</h2>
     </div>
     <div class="summary-grid">
       <div class="sum-card receita-total">
@@ -2809,6 +2951,8 @@ function createRow(type, name = '', value = 0, due = '', paid = false) {
 function updateDueBadge(input) {
   const unit = input.parentElement.querySelector('.due-label-unit');
   if (unit) unit.style.display = input.value ? 'inline' : 'none';
+  // O dia de vencimento posiciona a conta no Fluxo de Caixa.
+  renderFluxoCaixa();
 }
 
 let undoStack = null;
@@ -3203,7 +3347,7 @@ function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, em
     <td>
       <div class="td-label">
         <button class="btn-del" onclick="deleteReceitaRow('receita-${id}')" title="Remover">×</button>
-        <input type="text" class="receita-cliente" value="${cliente}" placeholder="Nome do cliente" oninput="recalculateReceita()" />
+        <input type="text" class="receita-cliente" value="${cliente}" placeholder="Ex: venda de curso, reembolso" oninput="recalculateReceita()" />
       </div>
     </td>
     <td style="text-align:center">
@@ -3316,6 +3460,169 @@ function recalculateReceita() {
 
   calcMeta();
   updateDashboard();
+}
+
+// ── FLUXO DE CAIXA ────────────────────────────────────────────
+// Visão derivada: nada é digitado aqui. As entradas vêm das baixas de
+// pagamento da aba Clientes e da tabela de Outras Entradas; as saídas vêm
+// das contas de PF, PJ e cartões, posicionadas no dia de vencimento.
+
+const FLUXO_SAIDA_ORIGENS = [
+  { type: 'fixed',         label: 'PF fixo' },
+  { type: 'variable',      label: 'PF variável' },
+  { type: 'biz-fixed',     label: 'PJ fixo' },
+  { type: 'biz-variable',  label: 'PJ variável' },
+];
+
+function coletarEntradasFluxo() {
+  const mesKey = getActiveMonthKey();
+  const entradas = [];
+
+  // 1) Baixas de pagamento da aba Clientes
+  document.querySelectorAll('.cliente-bloco').forEach(block => {
+    const kind = block.dataset.kind;
+    const nome = block.querySelector('.cliente-nome')?.value?.trim() || 'Cliente sem nome';
+    block.querySelectorAll('tbody tr').forEach(tr => {
+      const pago = tr.querySelector('.sessao-pago')?.checked || false;
+      const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
+      const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+      if (!pago || valor <= 0 || !dataPgto.startsWith(mesKey)) return;
+      entradas.push({
+        dia: parseInt(dataPgto.slice(8, 10), 10),
+        desc: (kind === 'pacote' ? 'Pacote de ' : 'Sessão avulsa de ') + nome,
+        valor,
+        origem: 'Clientes',
+      });
+    });
+  });
+
+  // 2) Outras entradas lançadas na própria aba
+  document.querySelectorAll('#receita-body tr').forEach(tr => {
+    const data = tr.querySelector('.receita-data')?.value || '';
+    const valor = parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
+    if (valor <= 0 || !data.startsWith(mesKey)) return;
+    entradas.push({
+      dia: parseInt(data.slice(8, 10), 10),
+      desc: tr.querySelector('.receita-cliente')?.value?.trim() || 'Entrada sem descrição',
+      valor,
+      origem: 'Avulsa',
+    });
+  });
+
+  return entradas;
+}
+
+function coletarSaidasFluxo() {
+  const saidas = [];
+
+  const lerTabela = (type, origem) => {
+    document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
+      const nome = tr.querySelector('input[type="text"]')?.value?.trim() || 'Conta sem nome';
+      const valor = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
+      const diaRaw = parseInt(tr.querySelector('.due-input')?.value, 10);
+      if (valor <= 0) return;
+      saidas.push({
+        dia: (diaRaw >= 1 && diaRaw <= 31) ? diaRaw : null,
+        desc: nome,
+        valor,
+        pago: tr.querySelector('.paid-check')?.checked || false,
+        origem,
+      });
+    });
+  };
+
+  FLUXO_SAIDA_ORIGENS.forEach(o => lerTabela(o.type, o.label));
+  document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
+    const nomeCartao = card.querySelector('.cartao-card-name')?.value?.trim() || 'Cartão';
+    lerTabela('cartao-' + card.dataset.cardId, nomeCartao);
+  });
+
+  return saidas;
+}
+
+function renderFluxoCaixa() {
+  const tbody = document.getElementById('fluxo-body');
+  if (!tbody) return;
+
+  const entradas = coletarEntradasFluxo();
+  const saidas = coletarSaidasFluxo();
+
+  const totalEntradas = entradas.reduce((t, e) => t + e.valor, 0);
+  const totalSaidas = saidas.reduce((t, s) => t + s.valor, 0);
+  const saidasPagas = saidas.filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
+  const saidasPendentes = totalSaidas - saidasPagas;
+  const saldo = totalEntradas - totalSaidas;
+
+  // Agrupa por dia; itens sem dia de vencimento vão para o fim.
+  const dias = new Map();
+  const pegarDia = d => {
+    const chave = d == null ? 'sem-dia' : d;
+    if (!dias.has(chave)) dias.set(chave, { entradas: [], saidas: [] });
+    return dias.get(chave);
+  };
+  entradas.forEach(e => pegarDia(e.dia).entradas.push(e));
+  saidas.forEach(s => pegarDia(s.dia).saidas.push(s));
+
+  const chaves = [...dias.keys()]
+    .filter(k => k !== 'sem-dia')
+    .sort((a, b) => a - b);
+  if (dias.has('sem-dia')) chaves.push('sem-dia');
+
+  if (!chaves.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="fluxo-empty">
+      Nenhum movimento neste mês ainda. As entradas aparecem quando você dá baixa de pagamento na aba Clientes,
+      e as saídas quando as contas de PF, PJ ou cartão têm dia de vencimento e valor preenchidos.
+    </td></tr>`;
+  } else {
+    let html = '';
+    chaves.forEach(chave => {
+      const grupo = dias.get(chave);
+      const linhas = Math.max(grupo.entradas.length, grupo.saidas.length, 1);
+      const diaLabel = chave === 'sem-dia' ? '—' : String(chave).padStart(2, '0');
+
+      for (let i = 0; i < linhas; i++) {
+        const e = grupo.entradas[i];
+        const s = grupo.saidas[i];
+        const ultima = i === linhas - 1;
+        html += `<tr class="${ultima ? 'fluxo-dia-fim' : ''}">`;
+        if (i === 0) {
+          html += `<td class="fluxo-dia" rowspan="${linhas}" title="${chave === 'sem-dia' ? 'Contas sem dia de vencimento' : 'Dia ' + diaLabel}">${diaLabel}</td>`;
+        }
+        if (e) {
+          html += `<td><span class="fluxo-desc">${escHtml(e.desc)}<span class="fluxo-origem">${escHtml(e.origem)}</span></span></td>`;
+          html += `<td class="fluxo-val fluxo-val-in">${formatBRL(e.valor)}</td>`;
+        } else {
+          html += `<td class="fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
+        }
+        if (s) {
+          html += `<td class="fluxo-sep"><span class="fluxo-desc">${escHtml(s.desc)}<span class="fluxo-origem">${escHtml(s.origem)}</span>${s.pago ? '' : '<span class="fluxo-pendente">a pagar</span>'}</span></td>`;
+          html += `<td class="fluxo-val fluxo-val-out">${formatBRL(s.valor)}</td>`;
+        } else {
+          html += `<td class="fluxo-sep fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
+        }
+        html += `</tr>`;
+      }
+    });
+    tbody.innerHTML = html;
+  }
+
+  const el = id => document.getElementById(id);
+  if (el('fluxo-mes-label')) el('fluxo-mes-label').textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
+  if (el('fluxo-total-entradas')) el('fluxo-total-entradas').textContent = formatBRL(totalEntradas);
+  if (el('fluxo-total-saidas')) el('fluxo-total-saidas').textContent = formatBRL(totalSaidas);
+  if (el('fluxo-foot-entradas')) el('fluxo-foot-entradas').textContent = formatBRL(totalEntradas);
+  if (el('fluxo-foot-saidas')) el('fluxo-foot-saidas').textContent = formatBRL(totalSaidas);
+  if (el('fluxo-saidas-pendentes')) {
+    el('fluxo-saidas-pendentes').textContent = saidasPendentes > 0
+      ? formatBRL(saidasPendentes) + ' ainda a pagar'
+      : 'tudo pago';
+  }
+  if (el('fluxo-saldo')) el('fluxo-saldo').textContent = formatBRL(saldo);
+  if (el('fluxo-saldo-realizado')) {
+    el('fluxo-saldo-realizado').textContent = 'Já movimentado: ' + formatBRL(totalEntradas - saidasPagas);
+  }
+  const cardSaldo = el('fluxo-card-saldo');
+  if (cardSaldo) cardSaldo.classList.toggle('negative', saldo < 0);
 }
 
 function calcMeta() {
@@ -3512,6 +3819,8 @@ function updateDashboard() {
     { label: 'Avulsos pagos', value: clientesRecebidoDash.avulsos, color: DASH_COLORS[1] },
     { label: 'Demais valores', value: receitaManual, color: DASH_COLORS[2] },
   ], 'Sem receita lançada ainda.');
+
+  renderFluxoCaixa();
 }
 
 function renderDashDonut(donutId, legendId, cats, emptyMsg) {
