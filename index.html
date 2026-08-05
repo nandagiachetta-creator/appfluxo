@@ -650,6 +650,26 @@
     color: var(--text-muted);
     margin: -4px 0 12px;
   }
+  /* Sessão marcada como paga sem data de pagamento: não entra em nenhum mês */
+  tr.sessao-sem-data-pgto .sessao-data-pgto {
+    border-color: var(--accent);
+    background: #fdf1dc;
+    box-shadow: 0 0 0 2px rgba(193,127,62,0.15);
+  }
+  .receita-alerta {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    background: #fdf1dc;
+    border: 1px solid var(--accent-light);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #7a5320;
+    margin: 0 0 16px;
+  }
+  .receita-alerta.visible { display: flex; }
 
   /* UNDO TOAST */
   #undo-toast {
@@ -2089,6 +2109,10 @@
     Só entram no total os pagamentos com data dentro de <strong id="receita-mes-label">—</strong>.
     Linhas sem data ou de outro mês ficam registradas, mas não são contabilizadas.
   </p>
+  <div class="receita-alerta" id="receita-alerta-sem-data">
+    <span>⚠️</span>
+    <span id="receita-alerta-sem-data-texto"></span>
+  </div>
 
   <div class="table-wrapper">
     <table>
@@ -2145,12 +2169,12 @@
       <div class="sum-card receita-total">
         <div class="sum-label">Receita de Pacotes</div>
         <div class="sum-value" id="receita-sum-pacotes">R$ 0</div>
-        <div class="sum-sub">Sessões pagas no mês</div>
+        <div class="sum-sub">Pagas com data neste mês</div>
       </div>
       <div class="sum-card receita-total">
         <div class="sum-label">Receita de Atendimentos Avulsos</div>
         <div class="sum-value" id="receita-sum-avulsos">R$ 0</div>
-        <div class="sum-sub">Sessões pagas no mês</div>
+        <div class="sum-sub">Pagas com data neste mês</div>
       </div>
     </div>
   </div>
@@ -3277,6 +3301,17 @@ function recalculateReceita() {
   if (clientesTotalPacotesEl) clientesTotalPacotesEl.textContent = formatBRL(clientesRecebido.pacotes);
   if (clientesTotalAvulsosEl) clientesTotalAvulsosEl.textContent = formatBRL(clientesRecebido.avulsos);
 
+  // Sessões marcadas como pagas mas sem data de pagamento: não entram em mês nenhum.
+  const alertaEl = document.getElementById('receita-alerta-sem-data');
+  const alertaTxtEl = document.getElementById('receita-alerta-sem-data-texto');
+  const semData = clientesRecebido.semDataPgto || 0;
+  if (alertaEl && alertaTxtEl) {
+    alertaEl.classList.toggle('visible', semData > 0);
+    alertaTxtEl.textContent = semData === 1
+      ? 'Há 1 sessão marcada como paga na aba Clientes sem data de pagamento — ela não entra em nenhum mês. Preencha a data para contabilizar.'
+      : 'Há ' + semData + ' sessões marcadas como pagas na aba Clientes sem data de pagamento — elas não entram em nenhum mês. Preencha as datas para contabilizar.';
+  }
+
   document.getElementById('receita-sum-total').textContent = formatBRL(total + clientesRecebido.pacotes + clientesRecebido.avulsos);
 
   calcMeta();
@@ -3645,7 +3680,7 @@ function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null, expa
       <div class="table-wrapper">
         <table>
           <thead>
-            <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago</th><th class="th-pago">Realizada</th><th></th></tr>
+            <tr><th>Data</th><th style="text-align:center">Horário</th><th>Valor</th><th class="th-pago">Pago</th><th style="text-align:center">Data do Pagamento</th><th class="th-pago">Realizada</th><th></th></tr>
           </thead>
           <tbody id="cliente-sessoes-${id}"></tbody>
         </table>
@@ -3691,7 +3726,7 @@ function deleteClienteBloco(id) {
   recalcAgenda();
 }
 
-function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false, realizada = false) {
+function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false, realizada = false, dataPgto = '') {
   const tbody = document.getElementById('cliente-sessoes-' + blocoId);
   if (!tbody) return;
   const tr = document.createElement('tr');
@@ -3704,11 +3739,31 @@ function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false,
         <input type="number" class="sessao-valor" min="0" step="0.01" value="${valor}" oninput="recalculateClientes()">
       </div>
     </td>
-    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" ${pago ? 'checked' : ''} onchange="recalculateClientes()"></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" ${pago ? 'checked' : ''} onchange="onSessaoPagoToggle(this)"></td>
+    <td style="text-align:center"><input type="date" class="sessao-data-pgto receita-data-input" value="${dataPgto}" oninput="recalculateClientes()"></td>
     <td style="text-align:center"><input type="checkbox" class="paid-check sessao-realizada" ${realizada ? 'checked' : ''} onchange="recalculateClientes()"></td>
     <td style="text-align:center"><button class="btn-del" onclick="this.closest('tr').remove(); recalculateClientes(); recalcAgenda();" title="Remover">×</button></td>
   `;
   tbody.appendChild(tr);
+}
+
+// Marcar "Pago" já sugere a data de hoje; desmarcar limpa a data.
+function onSessaoPagoToggle(checkbox) {
+  const tr = checkbox.closest('tr');
+  const dataPgtoInput = tr?.querySelector('.sessao-data-pgto');
+  if (dataPgtoInput) {
+    if (checkbox.checked) {
+      if (!dataPgtoInput.value) dataPgtoInput.value = todayISO();
+    } else {
+      dataPgtoInput.value = '';
+    }
+  }
+  recalculateClientes();
+}
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function addSessaoManual(blocoId) {
@@ -3750,8 +3805,16 @@ function recalculateClientes() {
     block.querySelectorAll('tbody tr').forEach(tr => {
       const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
       const pago = tr.querySelector('.sessao-pago')?.checked || false;
+      const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
       total += valor;
       if (pago) recebido += valor;
+      // Pago sem data de pagamento não entra em nenhum mês — destaca para preencher.
+      tr.classList.toggle('sessao-sem-data-pgto', pago && !dataPgto);
+      if (pago && !dataPgto) {
+        tr.title = 'Marque a data em que o dinheiro entrou para este valor contar no mês.';
+      } else {
+        tr.removeAttribute('title');
+      }
     });
     const subtotalEl = document.getElementById('cliente-subtotal-' + id);
     if (subtotalEl) subtotalEl.textContent = formatBRL(recebido) + ' / ' + formatBRL(total);
@@ -3764,21 +3827,24 @@ function recalculateClientes() {
   recalculateReceita();
 }
 
+// Só entra na receita do mês o que foi marcado como pago COM data de pagamento
+// dentro do mês vigente. A data da sessão não define mais o mês da entrada.
 function getClientesRecebidoMes() {
   const nowKey = getActiveMonthKey();
-  let pacotes = 0, avulsos = 0;
+  let pacotes = 0, avulsos = 0, semDataPgto = 0;
   document.querySelectorAll('.cliente-bloco').forEach(block => {
     const kind = block.dataset.kind;
     block.querySelectorAll('tbody tr').forEach(tr => {
-      const dataVal = tr.querySelector('.sessao-data')?.value || '';
       const pago = tr.querySelector('.sessao-pago')?.checked || false;
+      const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
       const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
-      if (pago && dataVal.startsWith(nowKey)) {
+      if (pago && !dataPgto) { if (valor > 0) semDataPgto++; }
+      if (pago && dataPgto.startsWith(nowKey)) {
         if (kind === 'pacote') pacotes += valor; else avulsos += valor;
       }
     });
   });
-  return { pacotes, avulsos };
+  return { pacotes, avulsos, semDataPgto };
 }
 
 // ── AGENDA: CALENDÁRIO DE VAGAS (mês atual + 2 próximos) ────────
@@ -4237,7 +4303,9 @@ async function exportWord() {
       xml += `<w:tr>${tc('Data',{w:w0,bold:true,bg:'F0EAD8'})}${tc('Horario',{w:w1,bold:true,bg:'F0EAD8',align:'center'})}${tc('Valor',{w:w2,bold:true,bg:'F0EAD8',align:'right'})}${tc('Pago',{w:w3,bold:true,bg:'F0EAD8',align:'center'})}${tc('Realizada',{w:w4,bold:true,bg:'F0EAD8',align:'center'})}</w:tr>`;
       rows.forEach(r => {
         const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
-        xml += `<w:tr>${tc(dataFmt,{w:w0})}${tc(r.hora||'-',{w:w1,align:'center'})}${tc(fBRL(r.valor),{w:w2,align:'right'})}${tc(r.pago?'Sim':'Nao',{w:w3,align:'center',color:r.pago?'3D5C42':'C0392B'})}${tc(r.realizada?'Sim':'Nao',{w:w4,align:'center',color:r.realizada?'3D5C42':'AAAAAA'})}</w:tr>`;
+        const pgtoFmt = r.dataPgto ? r.dataPgto.split('-').reverse().join('/') : '';
+        const pagoTxt = r.pago ? (pgtoFmt ? 'Sim ' + pgtoFmt : 'Sim (sem data)') : 'Nao';
+        xml += `<w:tr>${tc(dataFmt,{w:w0})}${tc(r.hora||'-',{w:w1,align:'center'})}${tc(fBRL(r.valor),{w:w2,align:'right'})}${tc(pagoTxt,{w:w3,align:'center',color:r.pago?'3D5C42':'C0392B'})}${tc(r.realizada?'Sim':'Nao',{w:w4,align:'center',color:r.realizada?'3D5C42':'AAAAAA'})}</w:tr>`;
       });
       xml += `</w:tbl>`;
       return xml;
@@ -4257,6 +4325,7 @@ async function exportWord() {
             hora: tr.querySelector('.sessao-hora')?.value || '',
             valor: parseFloat(tr.querySelector('.sessao-valor')?.value) || 0,
             pago: tr.querySelector('.sessao-pago')?.checked || false,
+            dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
             realizada: tr.querySelector('.sessao-realizada')?.checked || false,
           });
         });
@@ -4778,6 +4847,7 @@ async function exportExcel() {
             hora: tr.querySelector('.sessao-hora')?.value || '',
             valor: parseFloat(tr.querySelector('.sessao-valor')?.value) || 0,
             pago: tr.querySelector('.sessao-pago')?.checked || false,
+            dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
             realizada: tr.querySelector('.sessao-realizada')?.checked || false,
           });
         });
@@ -4786,10 +4856,11 @@ async function exportExcel() {
         rows.push(tit(nome));
         rows.push([`Valor/sessão: ${fBRL(valorSessao)}`, `Recebido: ${fBRL(recebido)} de ${fBRL(total)}`, `Realizadas: ${realizadas} de ${sessRows.length}`]);
         if (sessRows.length) {
-          rows.push(hdr('Data','Horário','Valor','Pago','Realizada'));
+          rows.push(hdr('Data','Horário','Valor','Pago','Data do Pagamento','Realizada'));
           sessRows.forEach(r => {
             const dataFmt = r.data ? r.data.split('-').reverse().join('/') : '-';
-            rows.push([dataFmt, r.hora||'-', fBRL(r.valor), r.pago?'Sim':'Não', r.realizada?'Sim':'Não']);
+            const pgtoFmt = r.dataPgto ? r.dataPgto.split('-').reverse().join('/') : '-';
+            rows.push([dataFmt, r.hora||'-', fBRL(r.valor), r.pago?'Sim':'Não', pgtoFmt, r.realizada?'Sim':'Não']);
           });
         } else {
           rows.push(['Nenhuma sessão cadastrada.']);
@@ -4952,6 +5023,7 @@ function saveData() {
           hora: tr.querySelector('.sessao-hora')?.value || '',
           valor: tr.querySelector('.sessao-valor')?.value || '0',
           pago: tr.querySelector('.sessao-pago')?.checked || false,
+          dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
           realizada: tr.querySelector('.sessao-realizada')?.checked || false,
         });
       });
@@ -5116,7 +5188,7 @@ async function loadData() {
     function loadClienteBlocos(kind, blocos) {
       (blocos || []).slice(0, 100).forEach(b => {
         const id = createClienteBloco(kind, b.cliente || '', parseFloat(b.valorSessao) || 0, b.id);
-        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false, s.realizada || false));
+        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false, s.realizada || false, s.dataPgto || ''));
       });
     }
     loadClienteBlocos('pacote', data.pacotes);
