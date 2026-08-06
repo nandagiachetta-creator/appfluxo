@@ -825,6 +825,26 @@
   }
   .fluxo-inp-data { max-width: 140px; font-size: 12px; color: var(--text-muted); }
   .fluxo-linha-topo { display: flex; align-items: center; gap: 4px; }
+  .fluxo-ocultos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .fluxo-reexibir {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--sage-dark);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .fluxo-reexibir:hover { background: var(--warm); border-color: var(--accent); }
   .fluxo-del { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
   .fluxo-table tr:hover .fluxo-del,
   .fluxo-del:focus { opacity: 1; }
@@ -2340,6 +2360,10 @@
       </tfoot>
     </table>
   </div>
+  <div class="fluxo-ocultos" id="fluxo-ocultos" style="display:none">
+    <span id="fluxo-ocultos-texto"></span>
+    <button type="button" class="fluxo-reexibir" onclick="reexibirFluxo()">Trazer de volta</button>
+  </div>
 
   <!-- OUTRAS ENTRADAS -->
   <div class="section-header">
@@ -3007,12 +3031,14 @@ const BIZ_VARIABLE_DEFAULTS = [
 
 let rowId = 0;
 
-function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '') {
+function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '', fluxoOculto = false) {
   const id = rowId++;
   const tbody = document.getElementById(type + '-body');
   const tr = document.createElement('tr');
   tr.id = 'row-' + id;
   tr.dataset.type = type;
+  // Removida da aba Fluxo de Caixa, mas mantida aqui no orçamento.
+  if (fluxoOculto) tr.dataset.fluxoOculto = '1';
   // Data real do pagamento. Não aparece nas telas de orçamento (que trabalham com
   // dia de vencimento), mas é editável pelo Fluxo de Caixa e manda no dia em que a
   // conta entra no fluxo.
@@ -3438,11 +3464,12 @@ function defaultReceitaDate() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 
-function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, emitida = false) {
+function createReceitaRow(cliente = '', valor = 0, dataPgto = '', nf = false, emitida = false, fluxoOculto = false) {
   const id = receitaRowId++;
   const tbody = document.getElementById('receita-body');
   const tr = document.createElement('tr');
   tr.id = 'receita-' + id;
+  if (fluxoOculto) tr.dataset.fluxoOculto = '1';
 
   tr.innerHTML = `
     <td>
@@ -3579,6 +3606,16 @@ const FLUXO_SAIDA_ORIGENS = [
 // para a linha de origem, para que a edição seja gravada onde o dado mora.
 let FLUXO_ITENS = [];
 
+// Linhas que a usuária removeu da aba Fluxo de Caixa. Continuam existindo na
+// aba de origem — só não são desenhadas nem somadas aqui.
+function fluxoOculto(tr) { return tr?.dataset?.fluxoOculto === '1'; }
+
+function contarOcultosFluxo() {
+  let n = 0;
+  document.querySelectorAll('[data-fluxo-oculto="1"]').forEach(() => n++);
+  return n;
+}
+
 function coletarEntradasFluxo() {
   const mesKey = getActiveMonthKey();
   const entradas = [];
@@ -3591,7 +3628,7 @@ function coletarEntradasFluxo() {
       const pago = tr.querySelector('.sessao-pago')?.checked || false;
       const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
       const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
-      if (!pago || valor <= 0 || !dataPgto.startsWith(mesKey)) return;
+      if (fluxoOculto(tr) || !pago || valor <= 0 || !dataPgto.startsWith(mesKey)) return;
       entradas.push({
         dia: parseInt(dataPgto.slice(8, 10), 10),
         data: dataPgto,
@@ -3609,7 +3646,7 @@ function coletarEntradasFluxo() {
   document.querySelectorAll('#receita-body tr').forEach(tr => {
     const data = tr.querySelector('.receita-data')?.value || '';
     const valor = parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
-    if (valor <= 0 || !data.startsWith(mesKey)) return;
+    if (fluxoOculto(tr) || valor <= 0 || !data.startsWith(mesKey)) return;
     entradas.push({
       dia: parseInt(data.slice(8, 10), 10),
       data,
@@ -3635,7 +3672,7 @@ function coletarSaidasFluxo() {
       const valor = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
       const diaVenc = parseInt(tr.querySelector('.due-input')?.value, 10);
       const dataPgto = tr.dataset.dataPgto || '';
-      if (valor <= 0) return;
+      if (fluxoOculto(tr) || valor <= 0) return;
 
       // Com data de pagamento preenchida, é ela que manda: a conta entra no dia
       // em que o dinheiro saiu, e some do fluxo se foi paga em outro mês.
@@ -3751,35 +3788,23 @@ function onFluxoCommit() {
   saveData();
 }
 
-// Exclui de vez o lançamento, apagando a linha na aba de origem.
+// Remove o lançamento apenas desta aba. A linha continua intacta na aba de
+// origem (cartão, orçamento, Clientes) — some só do fluxo e dos totais dele.
 function onFluxoExcluir(idx) {
   const it = fluxoItem(idx);
   if (!it || !it.tr) return;
+  it.tr.dataset.fluxoOculto = '1';
+  renderFluxoCaixa();
+  saveData();
+}
 
-  const nome = (it.desc || '').trim() || 'este lançamento';
-  const onde = it.fonte === 'sessao' ? 'da aba Clientes'
-             : it.fonte === 'receita' ? 'das Outras Entradas'
-             : 'de ' + it.origem;
-  if (!confirm(`Excluir "${nome}" (${formatBRL(it.valor)})?\n\nA linha será apagada ${onde}, não só do fluxo.`)) return;
-
-  if (it.fonte === 'conta') {
-    // Reaproveita a exclusão das abas de orçamento, que oferece "desfazer".
-    deleteRow(it.tr.id);
-    setTimeout(renderFluxoCaixa, 220);
-    return;
-  }
-
-  const tr = it.tr;
-  tr.style.opacity = '0';
-  tr.style.transform = 'translateX(-10px)';
-  tr.style.transition = 'all 0.2s';
-  setTimeout(() => {
-    tr.remove();
-    if (it.fonte === 'sessao') { recalculateClientes(); recalcAgenda(); }
-    else recalculateReceita();
-    renderFluxoCaixa();
-    saveData();
-  }, 200);
+// Traz de volta tudo que foi removido do fluxo.
+function reexibirFluxo() {
+  document.querySelectorAll('[data-fluxo-oculto="1"]').forEach(tr => {
+    delete tr.dataset.fluxoOculto;
+  });
+  renderFluxoCaixa();
+  saveData();
 }
 
 function updateDueBadgeSilent(input) {
@@ -3805,7 +3830,7 @@ function celulaFluxo(item, idx, lado) {
             title="${dentro ? 'Data em que o dinheiro entrou' : 'Data em que a conta foi paga'}"
             onchange="onFluxoData(${idx}, this.value); onFluxoCommit()">
           <button type="button" class="btn-del fluxo-del" onclick="onFluxoExcluir(${idx})"
-            title="Excluir este lançamento">×</button>
+            title="Remover do fluxo (continua na aba de origem)">×</button>
         </div>
         <div class="fluxo-desc">${desc}<span class="fluxo-origem">${escHtml(item.origem)}</span>${pendente}</div>
       </div>
@@ -3901,6 +3926,18 @@ function atualizarTotaisFluxo() {
   }
   const cardSaldo = el('fluxo-card-saldo');
   if (cardSaldo) cardSaldo.classList.toggle('negative', saldo < 0);
+
+  const ocultos = contarOcultosFluxo();
+  const barra = el('fluxo-ocultos');
+  if (barra) {
+    barra.style.display = ocultos > 0 ? '' : 'none';
+    const txt = el('fluxo-ocultos-texto');
+    if (txt) {
+      txt.textContent = ocultos === 1
+        ? '1 lançamento removido deste fluxo (continua na aba de origem).'
+        : ocultos + ' lançamentos removidos deste fluxo (continuam nas abas de origem).';
+    }
+  }
 }
 
 function calcMeta() {
@@ -4024,10 +4061,10 @@ function loadMonthIntoDOM(monthData) {
   const tables = monthData.tables || {};
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     const rows = tables[type] || [];
-    rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
+    rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
   });
   const receita = monthData.receita || [];
-  receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
+  receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false, r.fluxoOculto||false));
   recalculateReceita();
 }
 
@@ -4362,10 +4399,11 @@ function deleteClienteBloco(id) {
   recalcAgenda();
 }
 
-function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false, realizada = false, dataPgto = '') {
+function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false, realizada = false, dataPgto = '', fluxoOculto = false) {
   const tbody = document.getElementById('cliente-sessoes-' + blocoId);
   if (!tbody) return;
   const tr = document.createElement('tr');
+  if (fluxoOculto) tr.dataset.fluxoOculto = '1';
   tr.innerHTML = `
     <td><input type="date" class="sessao-data" value="${data}" oninput="recalculateClientes(); recalcAgenda();"></td>
     <td style="text-align:center"><input type="time" class="sessao-hora" value="${hora}" oninput="recalculateClientes(); recalcAgenda();"></td>
@@ -5594,7 +5632,7 @@ function saveData() {
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      monthTables[type].push({ name, value, due, paid, dataPgto: tr.dataset.dataPgto || '' });
+      monthTables[type].push({ name, value, due, paid, dataPgto: tr.dataset.dataPgto || '', fluxoOculto: tr.dataset.fluxoOculto === '1' });
     });
   });
   const monthReceita = [];
@@ -5604,7 +5642,7 @@ function saveData() {
     const dataPgto = tr.querySelector('.receita-data')?.value || '';
     const nf       = tr.querySelector('.receita-nf-check')?.checked || false;
     const emitida  = tr.querySelector('.receita-emitida-check')?.checked || false;
-    monthReceita.push({ cliente, valor, dataPgto, nf, emitida });
+    monthReceita.push({ cliente, valor, dataPgto, nf, emitida, fluxoOculto: tr.dataset.fluxoOculto === '1' });
   });
 
   // Always update pricing (global, not month-specific)
@@ -5624,7 +5662,7 @@ function saveData() {
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      items.push({ name: iname, value, due, paid, dataPgto: tr.dataset.dataPgto || '' });
+      items.push({ name: iname, value, due, paid, dataPgto: tr.dataset.dataPgto || '', fluxoOculto: tr.dataset.fluxoOculto === '1' });
     });
     const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
     if (name.trim() === '' && !hasItems) return; // descarta caixas fantasmas sem nome e sem itens
@@ -5661,6 +5699,7 @@ function saveData() {
           pago: tr.querySelector('.sessao-pago')?.checked || false,
           dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
           realizada: tr.querySelector('.sessao-realizada')?.checked || false,
+          fluxoOculto: tr.dataset.fluxoOculto === '1',
         });
       });
       blocos.push({ id, cliente, valorSessao, sessoes });
@@ -5802,18 +5841,18 @@ async function loadData() {
     ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
       const rows = data.tables[type];
       if (!rows || !rows.length) return;
-      rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
+      rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
     });
 
     if (data.cartoes && data.cartoes.length) {
       data.cartoes.slice(0, 30).forEach(c => {
         const id = addCartaoCard(c.name || '', c.id);
-        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
+        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
       });
     } else if (data.cartao && data.cartao.length) {
       // Migração do formato antigo (cartão único sem nome)
       const id = addCartaoCard('Cartão');
-      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||''));
+      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
     }
 
     if (data.objetivos && data.objetivos.length) {
@@ -5824,7 +5863,7 @@ async function loadData() {
     function loadClienteBlocos(kind, blocos) {
       (blocos || []).slice(0, 100).forEach(b => {
         const id = createClienteBloco(kind, b.cliente || '', parseFloat(b.valorSessao) || 0, b.id);
-        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false, s.realizada || false, s.dataPgto || ''));
+        (b.sessoes || []).slice(0, 500).forEach(s => createSessaoRow(id, s.data || '', s.hora || '', parseFloat(s.valor) || 0, s.pago || false, s.realizada || false, s.dataPgto || '', s.fluxoOculto || false));
       });
     }
     loadClienteBlocos('pacote', data.pacotes);
@@ -5854,7 +5893,7 @@ async function loadData() {
       });
     }
     if (data.receita && data.receita.length) {
-      data.receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false));
+      data.receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false, r.fluxoOculto||false));
     }
     recalculateReceita();
     return true;
