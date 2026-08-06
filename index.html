@@ -824,6 +824,11 @@
     background: var(--surface);
   }
   .fluxo-inp-data { max-width: 140px; font-size: 12px; color: var(--text-muted); }
+  .fluxo-linha-topo { display: flex; align-items: center; gap: 4px; }
+  .fluxo-del { opacity: 0; transition: opacity 0.15s; flex-shrink: 0; }
+  .fluxo-table tr:hover .fluxo-del,
+  .fluxo-del:focus { opacity: 1; }
+  @media (hover: none) { .fluxo-del { opacity: 1; } }
   .fluxo-inp-desc { font-weight: 500; }
   .fluxo-val-wrap { justify-content: flex-end; }
   .fluxo-inp-valor { text-align: right; font-variant-numeric: tabular-nums; }
@@ -3065,6 +3070,7 @@ function deleteRow(id) {
     value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)').value) || 0,
     due: tr.querySelector('.due-input') ? tr.querySelector('.due-input').value : '',
     paid: tr.querySelector('.paid-check')?.checked || false,
+    dataPgto: tr.dataset.dataPgto || '',
     nextSibling: tr.nextSibling,
     parentTbody: tr.parentElement,
   };
@@ -3115,6 +3121,7 @@ function undoDelete() {
   const tr = document.createElement('tr');
   tr.id = s.id;
   tr.dataset.type = s.type;
+  tr.dataset.dataPgto = s.dataPgto || '';
   tr.innerHTML = `
     <td>
       <div class="td-label">
@@ -3744,6 +3751,37 @@ function onFluxoCommit() {
   saveData();
 }
 
+// Exclui de vez o lançamento, apagando a linha na aba de origem.
+function onFluxoExcluir(idx) {
+  const it = fluxoItem(idx);
+  if (!it || !it.tr) return;
+
+  const nome = (it.desc || '').trim() || 'este lançamento';
+  const onde = it.fonte === 'sessao' ? 'da aba Clientes'
+             : it.fonte === 'receita' ? 'das Outras Entradas'
+             : 'de ' + it.origem;
+  if (!confirm(`Excluir "${nome}" (${formatBRL(it.valor)})?\n\nA linha será apagada ${onde}, não só do fluxo.`)) return;
+
+  if (it.fonte === 'conta') {
+    // Reaproveita a exclusão das abas de orçamento, que oferece "desfazer".
+    deleteRow(it.tr.id);
+    setTimeout(renderFluxoCaixa, 220);
+    return;
+  }
+
+  const tr = it.tr;
+  tr.style.opacity = '0';
+  tr.style.transform = 'translateX(-10px)';
+  tr.style.transition = 'all 0.2s';
+  setTimeout(() => {
+    tr.remove();
+    if (it.fonte === 'sessao') { recalculateClientes(); recalcAgenda(); }
+    else recalculateReceita();
+    renderFluxoCaixa();
+    saveData();
+  }, 200);
+}
+
 function updateDueBadgeSilent(input) {
   const unit = input.parentElement?.querySelector('.due-label-unit');
   if (unit) unit.style.display = input.value ? 'inline' : 'none';
@@ -3762,9 +3800,13 @@ function celulaFluxo(item, idx, lado) {
   return `
     <td class="${dentro ? '' : 'fluxo-sep'}">
       <div class="fluxo-cell">
-        <input type="date" class="fluxo-inp fluxo-inp-data" value="${escHtml(item.data || '')}"
-          title="${dentro ? 'Data em que o dinheiro entrou' : 'Data em que a conta foi paga'}"
-          onchange="onFluxoData(${idx}, this.value); onFluxoCommit()">
+        <div class="fluxo-linha-topo">
+          <input type="date" class="fluxo-inp fluxo-inp-data" value="${escHtml(item.data || '')}"
+            title="${dentro ? 'Data em que o dinheiro entrou' : 'Data em que a conta foi paga'}"
+            onchange="onFluxoData(${idx}, this.value); onFluxoCommit()">
+          <button type="button" class="btn-del fluxo-del" onclick="onFluxoExcluir(${idx})"
+            title="Excluir este lançamento">×</button>
+        </div>
         <div class="fluxo-desc">${desc}<span class="fluxo-origem">${escHtml(item.origem)}</span>${pendente}</div>
       </div>
     </td>
