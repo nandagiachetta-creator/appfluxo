@@ -823,8 +823,68 @@
     border-color: var(--accent);
     background: var(--surface);
   }
-  .fluxo-inp-data { max-width: 140px; font-size: 12px; color: var(--text-muted); }
   .fluxo-linha-topo { display: flex; align-items: center; gap: 4px; }
+  /* Alça de arrastar */
+  .fluxo-drag {
+    border: none;
+    background: transparent;
+    color: #c8c2b8;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 3px;
+    cursor: grab;
+    flex-shrink: 0;
+    touch-action: none;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .fluxo-table tr:hover .fluxo-drag, .fluxo-drag:focus { opacity: 1; }
+  .fluxo-drag:hover { color: var(--accent); }
+  @media (hover: none) { .fluxo-drag { opacity: 1; } }
+  body.fluxo-arrastando { cursor: grabbing; user-select: none; }
+  body.fluxo-arrastando .fluxo-drag { cursor: grabbing; }
+  .fluxo-fantasma {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    transform: translate(12px, 12px);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    max-width: 260px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fluxo-table tr.fluxo-alvo td { background: #eaf5f0; }
+  .fluxo-table tr.fluxo-alvo td.fluxo-dia { background: var(--sage-light); color: #1a3d24; }
+  /* Dia sem movimento e dia de hoje */
+  .fluxo-table tr.fluxo-dia-vazio td { background: transparent; }
+  .fluxo-table tr.fluxo-dia-vazio td.fluxo-dia { color: #bdb6aa; }
+  .fluxo-table tr.fluxo-hoje td.fluxo-dia {
+    background: var(--sage-dark);
+    color: var(--cream);
+  }
+  /* Botão de incluir lançamento no dia */
+  .fluxo-add {
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .fluxo-table tr:hover .fluxo-add, .fluxo-add:focus { opacity: 1; }
+  .fluxo-add:hover { border-color: var(--accent); color: var(--accent); }
+  @media (hover: none) { .fluxo-add { opacity: 0.7; } }
   .fluxo-ocultos {
     display: flex;
     align-items: center;
@@ -3606,6 +3666,28 @@ const FLUXO_SAIDA_ORIGENS = [
 // para a linha de origem, para que a edição seja gravada onde o dado mora.
 let FLUXO_ITENS = [];
 
+// Lançamentos criados direto no Fluxo de Caixa: não vêm de nenhuma outra aba,
+// moram aqui mesmo. { id, tipo: 'entrada'|'saida', data, desc, valor, pago }
+let FLUXO_MANUAL = [];
+let fluxoManualSeq = 0;
+
+function novoLancamentoFluxo(tipo, dia) {
+  const mesKey = getActiveMonthKey();
+  const data = dia ? mesKey + '-' + String(dia).padStart(2, '0') : '';
+  FLUXO_MANUAL.push({
+    id: 'fm' + (fluxoManualSeq++),
+    tipo, data, desc: '', valor: 0,
+    pago: tipo === 'entrada',
+  });
+  renderFluxoCaixa();
+  saveData();
+  // Já deixa o cursor na descrição do lançamento recém-criado.
+  const campo = document.querySelector('#fluxo-body .fluxo-inp-desc[data-novo="1"]');
+  if (campo) { campo.focus(); campo.removeAttribute('data-novo'); }
+}
+
+function fluxoManualPorId(id) { return FLUXO_MANUAL.find(m => m.id === id); }
+
 // Linhas que a usuária removeu da aba Fluxo de Caixa. Continuam existindo na
 // aba de origem — só não são desenhadas nem somadas aqui.
 function fluxoOculto(tr) { return tr?.dataset?.fluxoOculto === '1'; }
@@ -3659,6 +3741,16 @@ function coletarEntradasFluxo() {
     });
   });
 
+  // 3) Lançamentos criados aqui mesmo
+  FLUXO_MANUAL.filter(m => m.tipo === 'entrada').forEach(m => {
+    if (m.data && !m.data.startsWith(mesKey)) return;
+    entradas.push({
+      dia: m.data ? parseInt(m.data.slice(8, 10), 10) : null,
+      data: m.data, desc: m.desc, valor: parseFloat(m.valor) || 0,
+      origem: 'Manual', fonte: 'manual', manualId: m.id, descEditavel: true,
+    });
+  });
+
   return entradas;
 }
 
@@ -3700,6 +3792,17 @@ function coletarSaidasFluxo() {
     lerTabela('cartao-' + card.dataset.cardId, nomeCartao);
   });
 
+  // Contas lançadas direto no fluxo
+  FLUXO_MANUAL.filter(m => m.tipo === 'saida').forEach(m => {
+    if (m.data && !m.data.startsWith(mesKey)) return;
+    saidas.push({
+      dia: m.data ? parseInt(m.data.slice(8, 10), 10) : null,
+      data: m.data, desc: m.desc, valor: parseFloat(m.valor) || 0,
+      pago: !!m.pago, origem: 'Manual', fonte: 'manual', manualId: m.id,
+      descEditavel: true, noVencimento: false,
+    });
+  });
+
   return saidas;
 }
 
@@ -3712,6 +3815,12 @@ function fluxoItem(idx) { return FLUXO_ITENS[parseInt(idx, 10)]; }
 function onFluxoData(idx, valor) {
   const it = fluxoItem(idx);
   if (!it) return;
+  if (it.fonte === 'manual') {
+    const m = fluxoManualPorId(it.manualId);
+    if (m) m.data = valor;
+    atualizarTotaisFluxo();
+    return;
+  }
   if (it.fonte === 'sessao') {
     const inp = it.tr.querySelector('.sessao-data-pgto');
     if (inp) inp.value = valor;
@@ -3736,6 +3845,11 @@ function onFluxoData(idx, valor) {
 function onFluxoDesc(idx, valor) {
   const it = fluxoItem(idx);
   if (!it || !it.descEditavel) return;
+  if (it.fonte === 'manual') {
+    const m = fluxoManualPorId(it.manualId);
+    if (m) m.desc = valor;
+    return;
+  }
   const alvo = it.fonte === 'receita'
     ? it.tr.querySelector('.receita-cliente')
     : it.tr.querySelector('input[type="text"]');
@@ -3747,6 +3861,12 @@ function onFluxoValor(idx, valor) {
   const it = fluxoItem(idx);
   if (!it) return;
   const num = parseFloat(valor) || 0;
+  if (it.fonte === 'manual') {
+    const m = fluxoManualPorId(it.manualId);
+    if (m) m.valor = num;
+    atualizarTotaisFluxo();
+    return;
+  }
   const alvo = it.fonte === 'sessao' ? it.tr.querySelector('.sessao-valor')
              : it.fonte === 'receita' ? it.tr.querySelector('.receita-valor')
              : it.tr.querySelector('input[type="number"]:not(.due-input)');
@@ -3756,7 +3876,15 @@ function onFluxoValor(idx, valor) {
 
 function onFluxoPago(idx) {
   const it = fluxoItem(idx);
-  if (!it || it.fonte !== 'conta') return;
+  if (!it) return;
+  if (it.fonte === 'manual') {
+    const m = fluxoManualPorId(it.manualId);
+    if (m) m.pago = !m.pago;
+    renderFluxoCaixa();
+    saveData();
+    return;
+  }
+  if (it.fonte !== 'conta') return;
   const check = it.tr.querySelector('.paid-check');
   if (!check) return;
   check.checked = !check.checked;
@@ -3792,8 +3920,14 @@ function onFluxoCommit() {
 // origem (cartão, orçamento, Clientes) — some só do fluxo e dos totais dele.
 function onFluxoExcluir(idx) {
   const it = fluxoItem(idx);
-  if (!it || !it.tr) return;
-  it.tr.dataset.fluxoOculto = '1';
+  if (!it) return;
+  if (it.fonte === 'manual') {
+    // Este lançamento só existe aqui, então some de vez.
+    FLUXO_MANUAL = FLUXO_MANUAL.filter(m => m.id !== it.manualId);
+  } else {
+    if (!it.tr) return;
+    it.tr.dataset.fluxoOculto = '1';
+  }
   renderFluxoCaixa();
   saveData();
 }
@@ -3814,25 +3948,29 @@ function updateDueBadgeSilent(input) {
 
 function celulaFluxo(item, idx, lado) {
   const dentro = lado === 'in';
+  const novo = item.fonte === 'manual' && !item.desc ? ' data-novo="1"' : '';
   const desc = item.descEditavel
-    ? `<input type="text" class="fluxo-inp fluxo-inp-desc" value="${escHtml(item.desc)}"
+    ? `<input type="text" class="fluxo-inp fluxo-inp-desc"${novo} value="${escHtml(item.desc)}"
          placeholder="${dentro ? 'Descrição da entrada' : 'Nome da conta'}"
          oninput="onFluxoDesc(${idx}, this.value)" onchange="onFluxoCommit()">`
     : `<span class="fluxo-desc-fixa" title="Para renomear, edite o nome do cliente na aba Clientes">${escHtml(item.desc)}</span>`;
   const pendente = (!dentro && !item.pago)
     ? `<button type="button" class="fluxo-pendente" onclick="onFluxoPago(${idx})" title="Marcar como paga">a pagar</button>`
     : (!dentro ? `<button type="button" class="fluxo-origem fluxo-pago-btn" onclick="onFluxoPago(${idx})" title="Desmarcar pagamento">paga</button>` : '');
+  const tituloDel = item.fonte === 'manual'
+    ? 'Excluir este lançamento'
+    : 'Remover do fluxo (continua na aba de origem)';
   return `
     <td class="${dentro ? '' : 'fluxo-sep'}">
       <div class="fluxo-cell">
         <div class="fluxo-linha-topo">
-          <input type="date" class="fluxo-inp fluxo-inp-data" value="${escHtml(item.data || '')}"
-            title="${dentro ? 'Data em que o dinheiro entrou' : 'Data em que a conta foi paga'}"
-            onchange="onFluxoData(${idx}, this.value); onFluxoCommit()">
+          <button type="button" class="fluxo-drag" data-fluxo-drag="${idx}"
+            title="Arraste para mover para outro dia">⠿</button>
+          ${desc}
           <button type="button" class="btn-del fluxo-del" onclick="onFluxoExcluir(${idx})"
-            title="Remover do fluxo (continua na aba de origem)">×</button>
+            title="${tituloDel}">×</button>
         </div>
-        <div class="fluxo-desc">${desc}<span class="fluxo-origem">${escHtml(item.origem)}</span>${pendente}</div>
+        <div class="fluxo-desc"><span class="fluxo-origem">${escHtml(item.origem)}</span>${pendente}</div>
       </div>
     </td>
     <td class="fluxo-val ${dentro ? 'fluxo-val-in' : 'fluxo-val-out'}">
@@ -3865,40 +4003,131 @@ function renderFluxoCaixa() {
   entradas.forEach(e => pegarDia(e.dia).entradas.push(e));
   saidas.forEach(s => pegarDia(s.dia).saidas.push(s));
 
-  const chaves = [...dias.keys()].filter(k => k !== 'sem-dia').sort((a, b) => a - b);
+  // Todos os dias do mês, tenham movimento ou não. Lançamentos sem data caem
+  // num grupo "—" logo no fim.
+  const base = getActiveMonthDate();
+  const diasNoMes = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+  const chaves = [];
+  for (let d = 1; d <= diasNoMes; d++) chaves.push(d);
   if (dias.has('sem-dia')) chaves.push('sem-dia');
 
-  if (!chaves.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="fluxo-empty">
-      Nenhum movimento neste mês ainda. As entradas aparecem quando você dá baixa de pagamento na aba Clientes,
-      e as saídas quando as contas de PF, PJ ou cartão têm dia de vencimento e valor preenchidos.
-    </td></tr>`;
-  } else {
-    let html = '';
-    chaves.forEach(chave => {
-      const grupo = dias.get(chave);
-      const linhas = Math.max(grupo.entradas.length, grupo.saidas.length, 1);
-      const diaLabel = chave === 'sem-dia' ? '—' : String(chave).padStart(2, '0');
+  const hoje = new Date();
+  const diaHoje = (activeMonth === 'current'
+    && hoje.getFullYear() === base.getFullYear()
+    && hoje.getMonth() === base.getMonth()) ? hoje.getDate() : -1;
 
-      for (let i = 0; i < linhas; i++) {
-        const e = grupo.entradas[i];
-        const s = grupo.saidas[i];
-        html += `<tr class="${i === linhas - 1 ? 'fluxo-dia-fim' : ''}">`;
-        if (i === 0) {
-          html += `<td class="fluxo-dia" rowspan="${linhas}" title="${chave === 'sem-dia' ? 'Sem data definida' : 'Dia ' + diaLabel}">${diaLabel}</td>`;
-        }
-        html += e ? celulaFluxo(e, e.idx, 'in')
-                  : `<td class="fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
-        html += s ? celulaFluxo(s, s.idx, 'out')
-                  : `<td class="fluxo-sep fluxo-vazio">—</td><td class="fluxo-val fluxo-vazio">—</td>`;
-        html += `</tr>`;
+  const celulaVazia = (idx, dia, lado) => {
+    const dentro = lado === 'in';
+    const rotulo = dentro ? 'entrada' : 'conta';
+    return `
+      <td class="${dentro ? '' : 'fluxo-sep'} fluxo-vazio">
+        <button type="button" class="fluxo-add" onclick="novoLancamentoFluxo('${dentro ? 'entrada' : 'saida'}', ${dia})"
+          title="Incluir ${rotulo} no dia ${String(dia).padStart(2,'0')}">+ ${rotulo}</button>
+      </td>
+      <td class="fluxo-val fluxo-vazio">—</td>`;
+  };
+
+  let html = '';
+  chaves.forEach(chave => {
+    const grupo = dias.get(chave) || { entradas: [], saidas: [] };
+    const linhas = Math.max(grupo.entradas.length, grupo.saidas.length, 1);
+    const semDia = chave === 'sem-dia';
+    const diaLabel = semDia ? '—' : String(chave).padStart(2, '0');
+    const vazio = !grupo.entradas.length && !grupo.saidas.length;
+
+    for (let i = 0; i < linhas; i++) {
+      const e = grupo.entradas[i];
+      const s = grupo.saidas[i];
+      const classes = [];
+      if (i === linhas - 1) classes.push('fluxo-dia-fim');
+      if (vazio) classes.push('fluxo-dia-vazio');
+      if (chave === diaHoje) classes.push('fluxo-hoje');
+      html += `<tr class="${classes.join(' ')}"${semDia ? '' : ` data-dia="${chave}"`}>`;
+      if (i === 0) {
+        html += `<td class="fluxo-dia" rowspan="${linhas}" title="${semDia ? 'Sem data definida — arraste para um dia' : 'Dia ' + diaLabel}">${diaLabel}</td>`;
       }
-    });
-    tbody.innerHTML = html;
-  }
+      html += e ? celulaFluxo(e, e.idx, 'in')  : celulaVazia(i, semDia ? '' : chave, 'in');
+      html += s ? celulaFluxo(s, s.idx, 'out') : celulaVazia(i, semDia ? '' : chave, 'out');
+      html += `</tr>`;
+    }
+  });
+  tbody.innerHTML = html;
 
   atualizarTotaisFluxo();
 }
+
+// ── Arrastar um lançamento de um dia para o outro ──────────────
+// Pointer events em vez do drag-and-drop nativo, que não funciona no celular.
+let fluxoArraste = null;
+
+function moverLancamentoFluxo(idx, dia) {
+  const it = fluxoItem(idx);
+  if (!it) return;
+  const data = dia ? getActiveMonthKey() + '-' + String(dia).padStart(2, '0') : '';
+  onFluxoData(idx, data);
+  renderFluxoCaixa();
+  saveData();
+}
+
+function linhaDoPonto(x, y) {
+  const el = document.elementFromPoint(x, y);
+  const tr = el?.closest?.('#fluxo-body tr[data-dia]');
+  return tr || null;
+}
+
+function iniciarArrasteFluxo(ev) {
+  const alca = ev.target.closest?.('[data-fluxo-drag]');
+  if (!alca) return;
+  ev.preventDefault();
+  const idx = parseInt(alca.dataset.fluxoDrag, 10);
+  const it = fluxoItem(idx);
+  if (!it) return;
+
+  const fantasma = document.createElement('div');
+  fantasma.className = 'fluxo-fantasma';
+  fantasma.textContent = (it.desc || 'lançamento') + ' · ' + formatBRL(it.valor);
+  document.body.appendChild(fantasma);
+
+  fluxoArraste = { idx, fantasma, alvo: null };
+  alca.setPointerCapture?.(ev.pointerId);
+  document.body.classList.add('fluxo-arrastando');
+  moverFantasma(ev.clientX, ev.clientY);
+}
+
+function moverFantasma(x, y) {
+  if (!fluxoArraste) return;
+  fluxoArraste.fantasma.style.left = x + 'px';
+  fluxoArraste.fantasma.style.top = y + 'px';
+  const tr = linhaDoPonto(x, y);
+  if (fluxoArraste.alvo && fluxoArraste.alvo !== tr) {
+    marcarAlvo(fluxoArraste.alvo, false);
+  }
+  fluxoArraste.alvo = tr;
+  if (tr) marcarAlvo(tr, true);
+}
+
+// Realça o grupo inteiro do dia, não só a linha sob o cursor.
+function marcarAlvo(tr, ligado) {
+  const dia = tr.dataset.dia;
+  document.querySelectorAll(`#fluxo-body tr[data-dia="${dia}"]`).forEach(l => {
+    l.classList.toggle('fluxo-alvo', ligado);
+  });
+}
+
+document.addEventListener('pointerdown', iniciarArrasteFluxo);
+document.addEventListener('pointermove', ev => {
+  if (fluxoArraste) { ev.preventDefault(); moverFantasma(ev.clientX, ev.clientY); }
+});
+document.addEventListener('pointerup', ev => {
+  if (!fluxoArraste) return;
+  const { idx, fantasma, alvo } = fluxoArraste;
+  if (alvo) marcarAlvo(alvo, false);
+  fantasma.remove();
+  document.body.classList.remove('fluxo-arrastando');
+  fluxoArraste = null;
+  const destino = alvo || linhaDoPonto(ev.clientX, ev.clientY);
+  if (destino) moverLancamentoFluxo(idx, parseInt(destino.dataset.dia, 10));
+});
 
 function atualizarTotaisFluxo() {
   const entradas = coletarEntradasFluxo();
@@ -4057,7 +4286,17 @@ function clearAllTables() {
   if (receitaTbody) receitaTbody.innerHTML = '';
 }
 
+function carregarFluxoManual(monthData) {
+  FLUXO_MANUAL = Array.isArray(monthData?.fluxoManual) ? monthData.fluxoManual.slice(0, 300) : [];
+  FLUXO_MANUAL.forEach(m => {
+    if (!m.id) m.id = 'fm' + (fluxoManualSeq++);
+    const n = parseInt(String(m.id).replace('fm', ''), 10);
+    if (!isNaN(n) && n >= fluxoManualSeq) fluxoManualSeq = n + 1;
+  });
+}
+
 function loadMonthIntoDOM(monthData) {
+  carregarFluxoManual(monthData);
   const tables = monthData.tables || {};
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     const rows = tables[type] || [];
@@ -5720,12 +5959,14 @@ function saveData() {
   if (activeMonth === 'current') {
     data.tables = monthTables;
     data.receita = monthReceita;
+    data.fluxoManual = FLUXO_MANUAL;
     data.savedAt = new Date().toISOString();
     archiveToHistory(data);
   } else {
     if (!data.nextMonth) data.nextMonth = {};
     data.nextMonth.tables = monthTables;
     data.nextMonth.receita = monthReceita;
+    data.nextMonth.fluxoManual = FLUXO_MANUAL;
   }
 
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
@@ -5895,6 +6136,7 @@ async function loadData() {
     if (data.receita && data.receita.length) {
       data.receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false, r.fluxoOculto||false));
     }
+    carregarFluxoManual(data);
     recalculateReceita();
     return true;
   } catch(e) { return false; }
