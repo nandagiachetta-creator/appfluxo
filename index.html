@@ -742,6 +742,30 @@
     margin-top: 4px;
   }
   .fluxo-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .fluxo-card.fluxo-abertura { border-left: 4px solid #5a6e8c; }
+  .fluxo-saldo-anterior-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .fluxo-saldo-anterior-wrap .currency-sym { font-size: 15px; color: #5a6e8c; font-weight: 600; }
+  .fluxo-saldo-anterior-wrap input {
+    border: 1px solid var(--border);
+    background: var(--cream);
+    border-radius: 8px;
+    padding: 4px 8px;
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: #40506a;
+    text-align: left;
+    width: 100%;
+    min-width: 0;
+    -moz-appearance: textfield;
+    transition: all 0.2s;
+  }
+  .fluxo-saldo-anterior-wrap input::-webkit-inner-spin-button,
+  .fluxo-saldo-anterior-wrap input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .fluxo-saldo-anterior-wrap input:focus { outline: none; border-color: #5a6e8c; background: white; }
   .fluxo-card.fluxo-in { border-left: 4px solid #2e7d5e; }
   .fluxo-card.fluxo-in .fluxo-card-value { color: #1a5c40; }
   .fluxo-card.fluxo-out { border-left: 4px solid var(--red); }
@@ -1439,6 +1463,47 @@
     font-size: 20px;
   }
   .cartao-summary-total strong { color: #a6763f; }
+  .cartao-summary-sub-title {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+  }
+  .cartao-summary-sub-title.espaco { margin-top: 20px; }
+  .cartao-summary-item.mes-ativo {
+    border-color: #a6763f;
+    background: #f7efe4;
+  }
+  .cartao-summary-item.mes-ativo strong { color: #8a5f31; }
+  .cartao-mes-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #a6763f;
+    background: rgba(166,118,63,0.14);
+    border-radius: 4px;
+    padding: 2px 5px;
+    white-space: nowrap;
+  }
+  .cartao-mes-input {
+    border: 1px solid var(--border);
+    background: var(--cream);
+    border-radius: 7px;
+    padding: 5px 8px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    width: 150px;
+    max-width: 100%;
+    transition: all 0.2s;
+  }
+  .cartao-mes-input:focus { outline: none; border-color: #a6763f; background: white; }
+  .cartao-th-mes { width: 168px; }
+  .cartao-mes-input.sem-mes { border-color: var(--red); background: #fdf1ef; }
   .cartao-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -2043,7 +2108,7 @@
       <div class="dash-card-value" id="dash-pj-total">R$ 0,00</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Total em Cartões</div>
+      <div class="dash-card-label">Cartões do Mês</div>
       <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
     </div>
     <div class="dash-card">
@@ -2346,11 +2411,19 @@
     <h2 class="section-title">Meus Cartões</h2>
   </div>
 
-  <!-- RESUMO POR CARTÃO -->
+  <p class="receita-nota-mes">
+    Cada item tem o seu mês. Lance as faturas de todos os meses aqui mesmo — o resumo abaixo separa
+    o total de cada mês, e o Fluxo de Caixa puxa só os itens do mês que estiver aberto.
+  </p>
+
+  <!-- RESUMO POR CARTÃO E POR MÊS -->
   <div class="cartao-summary-box">
+    <p class="cartao-summary-sub-title">Total por cartão</p>
     <div id="cartao-summary-list" class="cartao-summary-list"></div>
+    <p class="cartao-summary-sub-title espaco">Total por mês</p>
+    <div id="cartao-mes-list" class="cartao-summary-list"></div>
     <div class="cartao-summary-total">
-      <span>Total em Cartões / mês</span>
+      <span>Total geral em cartões</span>
       <strong id="cartao-grand-total">R$ 0,00</strong>
     </div>
   </div>
@@ -2383,6 +2456,16 @@
   </div>
 
   <div class="fluxo-cards">
+    <div class="fluxo-card fluxo-abertura">
+      <div class="fluxo-card-label">Saldo do Mês Anterior</div>
+      <div class="fluxo-saldo-anterior-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" step="0.01" id="fluxo-saldo-anterior" placeholder="0,00"
+               title="O que estava no caixa quando o mês começou"
+               oninput="onSaldoAnterior()" />
+      </div>
+      <div class="fluxo-card-sub">O que sobrou no caixa do mês passado</div>
+    </div>
     <div class="fluxo-card fluxo-in">
       <div class="fluxo-card-label">Total de Entradas</div>
       <div class="fluxo-card-value" id="fluxo-total-entradas">R$ 0,00</div>
@@ -2395,6 +2478,7 @@
     <div class="fluxo-card fluxo-saldo" id="fluxo-card-saldo">
       <div class="fluxo-card-label">Saldo do Mês</div>
       <div class="fluxo-card-value" id="fluxo-saldo">R$ 0,00</div>
+      <div class="fluxo-card-sub" id="fluxo-saldo-conta">—</div>
       <div class="fluxo-card-sub" id="fluxo-saldo-realizado">—</div>
     </div>
   </div>
@@ -3091,7 +3175,47 @@ const BIZ_VARIABLE_DEFAULTS = [
 
 let rowId = 0;
 
-function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '', fluxoOculto = false) {
+// ── MÊS DOS ITENS DE CARTÃO ──────────────────────────────────
+// A aba Cartão guarda a fatura de vários meses ao mesmo tempo. Cada item
+// carrega o mês a que pertence ("2026-08"), e é isso que separa os totais e
+// decide o que o Fluxo de Caixa puxa.
+
+function ehTipoCartao(type) {
+  return String(type).startsWith('cartao-');
+}
+
+function cartaoMesDaLinha(tr) {
+  return tr?.querySelector('.cartao-mes-input')?.value || '';
+}
+
+function onCartaoMes(input) {
+  input.classList.toggle('sem-mes', !input.value);
+  recalculate();
+}
+
+// Todos os itens lançados nos cartões, com o cartão e o mês de cada um.
+function coletarItensCartao() {
+  const itens = [];
+  document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
+    const cardId = card.dataset.cardId;
+    const cardNome = card.querySelector('.cartao-card-name')?.value?.trim() || 'Cartão sem nome';
+    document.querySelectorAll(`#cartao-${cardId}-body tr`).forEach(tr => {
+      itens.push({
+        cardId, cardNome, tr,
+        mes: cartaoMesDaLinha(tr),
+        valor: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+      });
+    });
+  });
+  return itens;
+}
+
+// Quanto os cartões pesam num mês específico ("2026-08").
+function totalCartaoNoMes(mes) {
+  return coletarItensCartao().reduce((t, it) => t + (it.mes === mes ? it.valor : 0), 0);
+}
+
+function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '', fluxoOculto = false, mes = '') {
   const id = rowId++;
   const tbody = document.getElementById(type + '-body');
   const tr = document.createElement('tr');
@@ -3105,6 +3229,9 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
   tr.dataset.dataPgto = dataPgto;
 
   const isVariable = type.includes('variable');
+  // Itens de cartão ganham uma coluna de mês: a mesma aba guarda a fatura de
+  // vários meses e o resumo separa o total de cada um.
+  const isCartao = ehTipoCartao(type);
 
   tr.innerHTML = `
     <td>
@@ -3113,6 +3240,9 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
         <input type="text" value="${name}" placeholder="Nome do custo" oninput="recalculate()" />
       </div>
     </td>
+    ${isCartao ? `<td>
+      <input type="month" class="cartao-mes-input ${mes ? '' : 'sem-mes'}" value="${mes}" title="Mês da fatura" onchange="onCartaoMes(this)" />
+    </td>` : ''}
     <td style="text-align:center">
       <div class="due-wrap">
         <input type="number" class="due-input" min="1" max="31" value="${due}" placeholder="dia" title="Dia de vencimento" oninput="updateDueBadge(this)" />
@@ -3157,6 +3287,8 @@ function deleteRow(id) {
     due: tr.querySelector('.due-input') ? tr.querySelector('.due-input').value : '',
     paid: tr.querySelector('.paid-check')?.checked || false,
     dataPgto: tr.dataset.dataPgto || '',
+    mes: cartaoMesDaLinha(tr),
+    fluxoOculto: tr.dataset.fluxoOculto === '1',
     nextSibling: tr.nextSibling,
     parentTbody: tr.parentElement,
   };
@@ -3204,33 +3336,11 @@ function undoDelete() {
   clearTimeout(undoTimer);
 
   const s = undoStack;
-  const tr = document.createElement('tr');
-  tr.id = s.id;
-  tr.dataset.type = s.type;
-  tr.dataset.dataPgto = s.dataPgto || '';
-  tr.innerHTML = `
-    <td>
-      <div class="td-label">
-        <button class="btn-del" onclick="deleteRow('${s.id}')" title="Remover">×</button>
-        <input type="text" value="${s.name}" placeholder="Nome do custo" oninput="recalculate()" />
-      </div>
-    </td>
-    <td style="text-align:center">
-      <div class="due-wrap">
-        <input type="number" class="due-input" min="1" max="31" value="${s.due}" placeholder="dia" title="Dia de vencimento" oninput="updateDueBadge(this)" />
-        <span class="due-label-unit" style="display:${s.due ? 'inline' : 'none'}">°</span>
-      </div>
-    </td>
-    <td>
-      <div class="value-input-wrap">
-        <span class="currency-sym">R$</span>
-        <input type="number" min="0" step="0.01" value="${s.value}" oninput="recalculate();" />
-      </div>
-    </td>
-    <td style="text-align:center">
-      <input type="checkbox" class="paid-check" ${s.paid ? 'checked' : ''} onchange="recalculate()" />
-    </td>
-  `;
+  // Reconstrói pela mesma função que desenha as linhas normais, para a coluna
+  // de mês dos cartões voltar junto.
+  createRow(s.type, s.name, s.value, s.due, s.paid, s.dataPgto, s.fluxoOculto, s.mes);
+  const tbody = document.getElementById(s.type + '-body');
+  const tr = tbody.lastElementChild;
 
   if (s.nextSibling && s.nextSibling.parentElement === s.parentTbody) {
     s.parentTbody.insertBefore(tr, s.nextSibling);
@@ -3287,7 +3397,8 @@ function sortByDue(type) {
 }
 
 function addRow(type) {
-  createRow(type, '', 0);
+  // Item novo de cartão já nasce no mês que está aberto no app.
+  createRow(type, '', 0, '', false, '', false, ehTipoCartao(type) ? getActiveMonthKey() : '');
   const tbody = document.getElementById(type + '-body');
   const lastInput = tbody.lastElementChild.querySelector('input[type="text"]');
   if (lastInput) lastInput.focus();
@@ -3344,25 +3455,52 @@ function recalculate() {
   document.getElementById('biz-sum-pago').textContent = formatBRL(bizPago);
   document.getElementById('biz-sum-aberto').textContent = formatBRL(bizAberto);
 
-  // Cartão (aba separada) — múltiplos cartões
+  // Cartão (aba separada) — múltiplos cartões, cada item com o seu mês
   const summaryList = document.getElementById('cartao-summary-list');
   if (summaryList) {
-    summaryList.innerHTML = '';
-    let cartaoGrandTotal = 0;
+    const itensCartao = coletarItensCartao();
     const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
+    let cartaoGrandTotal = 0;
+
+    // Total por cartão, somando todos os meses lançados nele
+    summaryList.innerHTML = '';
     cards.forEach(card => {
       const id = card.dataset.cardId;
       const name = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
-      const subtotal = sumType('cartao-' + id);
+      const subtotal = itensCartao.reduce((t, it) => t + (it.cardId === id ? it.valor : 0), 0);
       cartaoGrandTotal += subtotal;
       const subtotalEl = document.getElementById('cartao-subtotal-' + id);
       if (subtotalEl) subtotalEl.textContent = formatBRL(subtotal);
       const item = document.createElement('div');
       item.className = 'cartao-summary-item';
-      item.innerHTML = `<div class="cartao-summary-info"><span>${name}</span><strong>${formatBRL(subtotal)}</strong></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
+      item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><strong>${formatBRL(subtotal)}</strong></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
       summaryList.appendChild(item);
     });
     if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum cartão cadastrado ainda.</span>';
+
+    // Total por mês, na ordem do calendário; itens sem mês ficam por último
+    const mesList = document.getElementById('cartao-mes-list');
+    if (mesList) {
+      const porMes = new Map();
+      itensCartao.forEach(it => {
+        const chave = it.mes || 'sem-mes';
+        porMes.set(chave, (porMes.get(chave) || 0) + it.valor);
+      });
+      const chaves = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
+      if (porMes.has('sem-mes')) chaves.push('sem-mes');
+      const mesAtivo = getActiveMonthKey();
+      mesList.innerHTML = '';
+      chaves.forEach(chave => {
+        const div = document.createElement('div');
+        div.className = 'cartao-summary-item' + (chave === mesAtivo ? ' mes-ativo' : '');
+        const rotulo = chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave);
+        const tag = chave === mesAtivo ? '<span class="cartao-mes-tag">mês aberto</span>' : '';
+        div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><strong>${formatBRL(porMes.get(chave))}</strong></div>`;
+        mesList.appendChild(div);
+      });
+      if (!chaves.length) mesList.innerHTML = '<span class="cartao-summary-empty">Nenhum item lançado ainda.</span>';
+    }
+
     const grandTotalEl = document.getElementById('cartao-grand-total');
     if (grandTotalEl) grandTotalEl.textContent = formatBRL(cartaoGrandTotal);
   }
@@ -3396,6 +3534,7 @@ function addCartaoCard(name = '', id = null) {
         <thead>
           <tr>
             <th>Item</th>
+            <th class="cartao-th-mes">Mês</th>
             <th style="text-align:right">Dia</th>
             <th>Valor</th>
             <th class="th-pago">Pago</th>
@@ -3688,6 +3827,24 @@ function novoLancamentoFluxo(tipo, dia) {
 
 function fluxoManualPorId(id) { return FLUXO_MANUAL.find(m => m.id === id); }
 
+// ── SALDO DO MÊS ANTERIOR ────────────────────────────────────
+// O que estava no caixa quando o mês começou. É por mês: o valor de agosto
+// não é o de setembro, então mora no mesmo slot que as tabelas do mês.
+
+function getSaldoAnterior() {
+  return parseFloat(document.getElementById('fluxo-saldo-anterior')?.value) || 0;
+}
+
+function setSaldoAnterior(valor) {
+  const el = document.getElementById('fluxo-saldo-anterior');
+  if (el) el.value = (valor === undefined || valor === null) ? '' : valor;
+}
+
+function onSaldoAnterior() {
+  atualizarTotaisFluxo();
+  saveData();
+}
+
 // Linhas que a usuária removeu da aba Fluxo de Caixa. Continuam existindo na
 // aba de origem — só não são desenhadas nem somadas aqui.
 function fluxoOculto(tr) { return tr?.dataset?.fluxoOculto === '1'; }
@@ -3758,7 +3915,7 @@ function coletarSaidasFluxo() {
   const mesKey = getActiveMonthKey();
   const saidas = [];
 
-  const lerTabela = (type, origem) => {
+  const lerTabela = (type, origem, opts = {}) => {
     document.querySelectorAll(`#${type}-body tr`).forEach(tr => {
       const nome = tr.querySelector('input[type="text"]')?.value?.trim() || '';
       const valor = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
@@ -3777,6 +3934,11 @@ function coletarSaidasFluxo() {
         });
         return;
       }
+
+      // Item de cartão sem data de pagamento entra pelo mês da fatura: a de
+      // setembro não polui o fluxo de agosto.
+      if (opts.porMesDoItem && cartaoMesDaLinha(tr) !== mesKey) return;
+
       saidas.push({
         dia: (diaVenc >= 1 && diaVenc <= 31) ? diaVenc : null,
         data: (diaVenc >= 1 && diaVenc <= 31) ? mesKey + '-' + String(diaVenc).padStart(2, '0') : '',
@@ -3789,7 +3951,7 @@ function coletarSaidasFluxo() {
   FLUXO_SAIDA_ORIGENS.forEach(o => lerTabela(o.type, o.label));
   document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
     const nomeCartao = card.querySelector('.cartao-card-name')?.value?.trim() || 'Cartão';
-    lerTabela('cartao-' + card.dataset.cardId, nomeCartao);
+    lerTabela('cartao-' + card.dataset.cardId, nomeCartao, { porMesDoItem: true });
   });
 
   // Contas lançadas direto no fluxo
@@ -4136,7 +4298,8 @@ function atualizarTotaisFluxo() {
   const totalSaidas = saidas.reduce((t, s) => t + s.valor, 0);
   const saidasPagas = saidas.filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
   const saidasPendentes = totalSaidas - saidasPagas;
-  const saldo = totalEntradas - totalSaidas;
+  const saldoAnterior = getSaldoAnterior();
+  const saldo = saldoAnterior + totalEntradas - totalSaidas;
 
   const el = id => document.getElementById(id);
   if (el('fluxo-mes-label')) el('fluxo-mes-label').textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
@@ -4150,8 +4313,13 @@ function atualizarTotaisFluxo() {
       : 'tudo pago';
   }
   if (el('fluxo-saldo')) el('fluxo-saldo').textContent = formatBRL(saldo);
+  if (el('fluxo-saldo-conta')) {
+    el('fluxo-saldo-conta').textContent = saldoAnterior !== 0
+      ? `${formatBRL(saldoAnterior)} anterior + ${formatBRL(totalEntradas)} entradas − ${formatBRL(totalSaidas)} saídas`
+      : 'Entradas − saídas do mês';
+  }
   if (el('fluxo-saldo-realizado')) {
-    el('fluxo-saldo-realizado').textContent = 'Já movimentado: ' + formatBRL(totalEntradas - saidasPagas);
+    el('fluxo-saldo-realizado').textContent = 'Em caixa hoje: ' + formatBRL(saldoAnterior + totalEntradas - saidasPagas);
   }
   const cardSaldo = el('fluxo-card-saldo');
   if (cardSaldo) cardSaldo.classList.toggle('negative', saldo < 0);
@@ -4284,6 +4452,7 @@ function clearAllTables() {
   });
   const receitaTbody = document.getElementById('receita-body');
   if (receitaTbody) receitaTbody.innerHTML = '';
+  setSaldoAnterior('');
 }
 
 function carregarFluxoManual(monthData) {
@@ -4297,6 +4466,7 @@ function carregarFluxoManual(monthData) {
 
 function loadMonthIntoDOM(monthData) {
   carregarFluxoManual(monthData);
+  setSaldoAnterior(monthData.saldoAnterior || '');
   const tables = monthData.tables || {};
   ['fixed','variable','biz-fixed','biz-variable'].forEach(type => {
     const rows = tables[type] || [];
@@ -4320,10 +4490,8 @@ function updateDashboard() {
   const pfTotal = sumType('fixed') + sumType('variable');
   const pjTotal = sumType('biz-fixed') + sumType('biz-variable');
 
-  let cartaoTotal = 0;
-  document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
-    cartaoTotal += sumType('cartao-' + card.dataset.cardId);
-  });
+  // Só a fatura do mês que está aberto; os demais meses ficam na aba Cartão.
+  const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
 
   let receitaManual = 0;
   document.querySelectorAll('#receita-body tr').forEach(tr => {
@@ -5116,11 +5284,8 @@ async function exportWord() {
     const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
     const profit     = goal - custoMensalTotal;
 
-    // Cartões
-    let cartaoTotal = 0;
-    document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
-      cartaoTotal += sumType('cartao-' + card.dataset.cardId);
-    });
+    // Cartões — só a fatura do mês exportado
+    const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
 
     // Receita manual (tabela "Receitas do Mês")
     const receitaRows = [];
@@ -5252,7 +5417,7 @@ async function exportWord() {
       xml += summaryTable([
         ['Orcamento PF (mensal)', fBRL(pessoalM)],
         ['Orcamento PJ (mensal)', fBRL(empresaM)],
-        ['Total em Cartoes', fBRL(cartaoTotal)],
+        ['Cartoes do mes', fBRL(cartaoTotal)],
         ['Receita do Mes', fBRL(receitaTotalGeral)],
         ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
         ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
@@ -5270,7 +5435,24 @@ async function exportWord() {
       const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
       if (!cards.length) return '';
       let xml = par('CARTOES', {bold:true, size:26, color:'A6763F', spBefore:560, spAfter:160});
-      const w0=3200,w1=1200,w2=2960,w3=2000;
+      const w0=2800,w1=1760,w2=1000,w3=2200,w4=1600;
+
+      // Fecha o total de cada mes antes de detalhar cartao por cartao.
+      const porMes = new Map();
+      coletarItensCartao().forEach(it => {
+        const chave = it.mes || 'sem-mes';
+        porMes.set(chave, (porMes.get(chave) || 0) + it.valor);
+      });
+      const chavesMes = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
+      if (porMes.has('sem-mes')) chavesMes.push('sem-mes');
+      if (chavesMes.length) {
+        xml += par('Total por mes', {bold:true, size:22, color:'A6763F', spBefore:120, spAfter:60});
+        chavesMes.forEach(chave => {
+          const rotulo = chave === 'sem-mes' ? 'Sem mes definido' : ptMonthName(chave);
+          xml += par(`${rotulo}: ${fBRL(porMes.get(chave))}`, {size:18, color:'7A7A7A', spAfter:40});
+        });
+      }
+
       cards.forEach(card => {
         const nome = card.querySelector('.cartao-card-name')?.value || 'Cartao sem nome';
         const cid = card.dataset.cardId;
@@ -5278,19 +5460,21 @@ async function exportWord() {
         document.querySelectorAll(`#cartao-${cid}-body tr`).forEach(tr => {
           itemRows.push({
             name: tr.querySelector('input[type="text"]')?.value || '',
+            mes: cartaoMesDaLinha(tr),
             due: tr.querySelector('.due-input')?.value || '',
             value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
             paid: tr.querySelector('.paid-check')?.checked || false,
           });
         });
+        itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
         const subtotal = itemRows.reduce((s,r)=>s+r.value,0);
         xml += par(nome, {bold:true, size:22, color:'A6763F', spBefore:200, spAfter:40});
         xml += par(`Total no cartao: ${fBRL(subtotal)}`, {size:18, color:'7A7A7A', spAfter:80});
         if (!itemRows.length) { xml += par('Nenhum item cadastrado.', {size:18, color:'AAAAAA', spAfter:120}); return; }
-        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/></w:tblGrid>`;
-        xml += `<w:tr>${tc('Item',{w:w0,bold:true,bg:'F0E6D8'})}${tc('Dia',{w:w1,bold:true,bg:'F0E6D8',align:'center'})}${tc('Valor',{w:w2,bold:true,bg:'F0E6D8',align:'right'})}${tc('Pago',{w:w3,bold:true,bg:'F0E6D8',align:'center'})}</w:tr>`;
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Item',{w:w0,bold:true,bg:'F0E6D8'})}${tc('Mes',{w:w1,bold:true,bg:'F0E6D8',align:'center'})}${tc('Dia',{w:w2,bold:true,bg:'F0E6D8',align:'center'})}${tc('Valor',{w:w3,bold:true,bg:'F0E6D8',align:'right'})}${tc('Pago',{w:w4,bold:true,bg:'F0E6D8',align:'center'})}</w:tr>`;
         itemRows.forEach(r => {
-          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.due?r.due+'o':'-',{w:w1,align:'center'})}${tc(fBRL(r.value),{w:w2,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w3,align:'center',color:r.paid?'3D5C42':'C0392B'})}</w:tr>`;
+          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.mes?ptMonthName(r.mes):'-',{w:w1,align:'center'})}${tc(r.due?r.due+'o':'-',{w:w2,align:'center'})}${tc(fBRL(r.value),{w:w3,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w4,align:'center',color:r.paid?'3D5C42':'C0392B'})}</w:tr>`;
         });
         xml += `</w:tbl>`;
       });
@@ -5503,10 +5687,7 @@ async function exportExcel() {
     const sessDay    = workDays > 0 ? (sessNeeded / workDays).toFixed(1) : 0;
     const profit     = goal - custoMensalTotal;
 
-    let cartaoTotal = 0;
-    document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
-      cartaoTotal += sumType('cartao-' + card.dataset.cardId);
-    });
+    const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
 
     const receitaRows = [];
     document.querySelectorAll('#receita-body tr').forEach(tr => {
@@ -5587,7 +5768,7 @@ async function exportExcel() {
       [],
       ['Orçamento PF (mensal)', fBRL(pessoalM)],
       ['Orçamento PJ (mensal)', fBRL(empresaM)],
-      ['Total em Cartões', fBRL(cartaoTotal)],
+      ['Cartões do mês', fBRL(cartaoTotal)],
       ['Receita do Mês', fBRL(receitaTotalGeral)],
       [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
       ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
@@ -5640,6 +5821,24 @@ async function exportExcel() {
     const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
     if (cards.length) {
       const cartaoRows = [tit('CARTÕES'), []];
+
+      // Fecha o total de cada mês antes de detalhar cartão por cartão.
+      const porMesExp = new Map();
+      coletarItensCartao().forEach(it => {
+        const chave = it.mes || 'sem-mes';
+        porMesExp.set(chave, (porMesExp.get(chave) || 0) + it.valor);
+      });
+      const chavesMesExp = Array.from(porMesExp.keys()).filter(k => k !== 'sem-mes').sort();
+      if (porMesExp.has('sem-mes')) chavesMesExp.push('sem-mes');
+      if (chavesMesExp.length) {
+        cartaoRows.push(tit('Total por mês'));
+        cartaoRows.push(hdr('Mês', 'Total'));
+        chavesMesExp.forEach(chave => {
+          cartaoRows.push([chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave), fBRL(porMesExp.get(chave))]);
+        });
+        cartaoRows.push([]);
+      }
+
       cards.forEach(card => {
         const nome = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
         const cid = card.dataset.cardId;
@@ -5647,17 +5846,19 @@ async function exportExcel() {
         document.querySelectorAll(`#cartao-${cid}-body tr`).forEach(tr => {
           itemRows.push({
             name: tr.querySelector('input[type="text"]')?.value || '',
+            mes: cartaoMesDaLinha(tr),
             due: tr.querySelector('.due-input')?.value || '',
             value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
             paid: tr.querySelector('.paid-check')?.checked || false,
           });
         });
+        itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
         const subtotal = itemRows.reduce((s,r)=>s+r.value,0);
         cartaoRows.push(tit(nome));
         cartaoRows.push(['Total no cartão', fBRL(subtotal)]);
         if (itemRows.length) {
-          cartaoRows.push(hdr('Item','Dia','Valor','Pago'));
-          itemRows.forEach(r => cartaoRows.push([r.name, r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não']));
+          cartaoRows.push(hdr('Item','Mês','Dia','Valor','Pago'));
+          itemRows.forEach(r => cartaoRows.push([r.name, r.mes?ptMonthName(r.mes):'-', r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não']));
         } else {
           cartaoRows.push(['Nenhum item cadastrado.']);
         }
@@ -5901,7 +6102,7 @@ function saveData() {
       const value = tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0';
       const due   = tr.querySelector('.due-input')?.value || '';
       const paid  = tr.querySelector('.paid-check')?.checked || false;
-      items.push({ name: iname, value, due, paid, dataPgto: tr.dataset.dataPgto || '', fluxoOculto: tr.dataset.fluxoOculto === '1' });
+      items.push({ name: iname, value, due, paid, mes: cartaoMesDaLinha(tr), dataPgto: tr.dataset.dataPgto || '', fluxoOculto: tr.dataset.fluxoOculto === '1' });
     });
     const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
     if (name.trim() === '' && !hasItems) return; // descarta caixas fantasmas sem nome e sem itens
@@ -5956,10 +6157,12 @@ function saveData() {
   };
 
   // Save to correct slot
+  const saldoAnteriorVal = document.getElementById('fluxo-saldo-anterior')?.value || '';
   if (activeMonth === 'current') {
     data.tables = monthTables;
     data.receita = monthReceita;
     data.fluxoManual = FLUXO_MANUAL;
+    data.saldoAnterior = saldoAnteriorVal;
     data.savedAt = new Date().toISOString();
     archiveToHistory(data);
   } else {
@@ -5967,6 +6170,7 @@ function saveData() {
     data.nextMonth.tables = monthTables;
     data.nextMonth.receita = monthReceita;
     data.nextMonth.fluxoManual = FLUXO_MANUAL;
+    data.nextMonth.saldoAnterior = saldoAnteriorVal;
   }
 
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
@@ -6071,6 +6275,8 @@ async function loadData() {
         if (data.nextMonth && data.nextMonth.tables) {
           data.tables = data.nextMonth.tables;
           data.receita = data.nextMonth.receita || [];
+          data.fluxoManual = data.nextMonth.fluxoManual || [];
+          data.saldoAnterior = data.nextMonth.saldoAnterior || '';
           delete data.nextMonth;
           data.savedAt = new Date().toISOString();
           try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
@@ -6085,15 +6291,18 @@ async function loadData() {
       rows.forEach(r => createRow(type, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
     });
 
+    // Itens salvos antes da coluna de mês não têm mês nenhum: caem no mês
+    // corrente, que é onde eles estavam sendo contados até agora.
+    const mesPadraoCartao = monthKey();
     if (data.cartoes && data.cartoes.length) {
       data.cartoes.slice(0, 30).forEach(c => {
         const id = addCartaoCard(c.name || '', c.id);
-        (c.items || []).slice(0, 100).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
+        (c.items || []).slice(0, 400).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false, r.mes || mesPadraoCartao));
       });
     } else if (data.cartao && data.cartao.length) {
       // Migração do formato antigo (cartão único sem nome)
       const id = addCartaoCard('Cartão');
-      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false));
+      data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false, r.mes || mesPadraoCartao));
     }
 
     if (data.objetivos && data.objetivos.length) {
@@ -6137,6 +6346,7 @@ async function loadData() {
       data.receita.forEach(r => createReceitaRow(r.cliente||'', parseFloat(r.valor)||0, r.dataPgto||'', r.nf||false, r.emitida||false, r.fluxoOculto||false));
     }
     carregarFluxoManual(data);
+    setSaldoAnterior(data.saldoAnterior || '');
     recalculateReceita();
     return true;
   } catch(e) { return false; }
