@@ -1451,6 +1451,24 @@
   .cartao-summary-item span { color: var(--text-muted); }
   .cartao-summary-item strong { color: var(--text); }
   .cartao-summary-item .btn-del { width: 22px; height: 22px; font-size: 12px; }
+  .cartao-summary-valores { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.3; }
+  .cartao-summary-pago {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    opacity: 0.85;
+  }
+  .cartao-summary-total-pago {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .cartao-summary-total-pago strong { color: var(--text-muted); font-weight: 700; }
   .cartao-summary-empty { font-size: 13px; color: var(--text-muted); }
   .cartao-summary-total {
     display: flex;
@@ -2108,8 +2126,9 @@
       <div class="dash-card-value" id="dash-pj-total">R$ 0,00</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Cartões do Mês</div>
+      <div class="dash-card-label">Cartões do Mês · em aberto</div>
       <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-cartao-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita do Mês</div>
@@ -2412,19 +2431,24 @@
   </div>
 
   <p class="receita-nota-mes">
-    Cada item tem o seu mês. Lance as faturas de todos os meses aqui mesmo — o resumo abaixo separa
-    o total de cada mês, e o Fluxo de Caixa puxa só os itens do mês que estiver aberto.
+    Cada item tem o seu mês. Lance as faturas de todos os meses aqui mesmo — o resumo abaixo soma
+    só o que ainda está <strong>em aberto</strong> (o que já foi marcado como pago aparece à parte),
+    e o Fluxo de Caixa puxa só os itens do mês que estiver aberto.
   </p>
 
   <!-- RESUMO POR CARTÃO E POR MÊS -->
   <div class="cartao-summary-box">
-    <p class="cartao-summary-sub-title">Total por cartão</p>
+    <p class="cartao-summary-sub-title">Em aberto por cartão</p>
     <div id="cartao-summary-list" class="cartao-summary-list"></div>
-    <p class="cartao-summary-sub-title espaco">Total por mês</p>
+    <p class="cartao-summary-sub-title espaco">Em aberto por mês</p>
     <div id="cartao-mes-list" class="cartao-summary-list"></div>
     <div class="cartao-summary-total">
-      <span>Total geral em cartões</span>
+      <span>Total em aberto em cartões</span>
       <strong id="cartao-grand-total">R$ 0,00</strong>
+    </div>
+    <div class="cartao-summary-total-pago">
+      <span>Já pago (não entra no total acima)</span>
+      <strong id="cartao-grand-pago">R$ 0,00</strong>
     </div>
   </div>
 
@@ -3204,6 +3228,7 @@ function coletarItensCartao() {
         cardId, cardNome, tr,
         mes: cartaoMesDaLinha(tr),
         valor: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+        pago: tr.querySelector('.paid-check')?.checked || false,
       });
     });
   });
@@ -3213,6 +3238,16 @@ function coletarItensCartao() {
 // Quanto os cartões pesam num mês específico ("2026-08").
 function totalCartaoNoMes(mes) {
   return coletarItensCartao().reduce((t, it) => t + (it.mes === mes ? it.valor : 0), 0);
+}
+
+// Mesmo mês, separando o que ainda falta pagar do que já foi quitado.
+function cartaoAbertoPagoNoMes(mes) {
+  let aberto = 0, pago = 0;
+  coletarItensCartao().forEach(it => {
+    if (it.mes !== mes) return;
+    if (it.pago) pago += it.valor; else aberto += it.valor;
+  });
+  return { aberto, pago, total: aberto + pago };
 }
 
 function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '', fluxoOculto = false, mes = '') {
@@ -3460,20 +3495,26 @@ function recalculate() {
   if (summaryList) {
     const itensCartao = coletarItensCartao();
     const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
-    let cartaoGrandTotal = 0;
+    // O resumo de cima mostra só o que ainda falta pagar. O que já está quitado
+    // aparece separado, nunca somado junto com o que está em aberto.
+    let cartaoGrandAberto = 0, cartaoGrandPago = 0;
 
     // Total por cartão, somando todos os meses lançados nele
     summaryList.innerHTML = '';
     cards.forEach(card => {
       const id = card.dataset.cardId;
       const name = card.querySelector('.cartao-card-name')?.value || 'Cartão sem nome';
-      const subtotal = itensCartao.reduce((t, it) => t + (it.cardId === id ? it.valor : 0), 0);
-      cartaoGrandTotal += subtotal;
+      const doCartao = itensCartao.filter(it => it.cardId === id);
+      const aberto = doCartao.reduce((t, it) => t + (it.pago ? 0 : it.valor), 0);
+      const pago = doCartao.reduce((t, it) => t + (it.pago ? it.valor : 0), 0);
+      cartaoGrandAberto += aberto;
+      cartaoGrandPago += pago;
       const subtotalEl = document.getElementById('cartao-subtotal-' + id);
-      if (subtotalEl) subtotalEl.textContent = formatBRL(subtotal);
+      if (subtotalEl) subtotalEl.textContent = formatBRL(aberto);
       const item = document.createElement('div');
       item.className = 'cartao-summary-item';
-      item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><strong>${formatBRL(subtotal)}</strong></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
+      const notaPago = pago ? `<small class="cartao-summary-pago">pago ${formatBRL(pago)}</small>` : '';
+      item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
       summaryList.appendChild(item);
     });
     if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum cartão cadastrado ainda.</span>';
@@ -3484,25 +3525,32 @@ function recalculate() {
       const porMes = new Map();
       itensCartao.forEach(it => {
         const chave = it.mes || 'sem-mes';
-        porMes.set(chave, (porMes.get(chave) || 0) + it.valor);
+        const acc = porMes.get(chave) || { aberto: 0, pago: 0 };
+        if (it.pago) acc.pago += it.valor; else acc.aberto += it.valor;
+        porMes.set(chave, acc);
       });
       const chaves = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
       if (porMes.has('sem-mes')) chaves.push('sem-mes');
       const mesAtivo = getActiveMonthKey();
       mesList.innerHTML = '';
       chaves.forEach(chave => {
+        const { aberto, pago } = porMes.get(chave);
         const div = document.createElement('div');
         div.className = 'cartao-summary-item' + (chave === mesAtivo ? ' mes-ativo' : '');
         const rotulo = chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave);
         const tag = chave === mesAtivo ? '<span class="cartao-mes-tag">mês aberto</span>' : '';
-        div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><strong>${formatBRL(porMes.get(chave))}</strong></div>`;
+        // Mês todo quitado some do "em aberto" e fica marcado como pago.
+        const notaPago = pago ? `<small class="cartao-summary-pago">${aberto ? 'pago ' : 'tudo pago · '}${formatBRL(pago)}</small>` : '';
+        div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div>`;
         mesList.appendChild(div);
       });
       if (!chaves.length) mesList.innerHTML = '<span class="cartao-summary-empty">Nenhum item lançado ainda.</span>';
     }
 
     const grandTotalEl = document.getElementById('cartao-grand-total');
-    if (grandTotalEl) grandTotalEl.textContent = formatBRL(cartaoGrandTotal);
+    if (grandTotalEl) grandTotalEl.textContent = formatBRL(cartaoGrandAberto);
+    const grandPagoEl = document.getElementById('cartao-grand-pago');
+    if (grandPagoEl) grandPagoEl.textContent = formatBRL(cartaoGrandPago);
   }
 
   calcPricing();
@@ -4491,7 +4539,9 @@ function updateDashboard() {
   const pjTotal = sumType('biz-fixed') + sumType('biz-variable');
 
   // Só a fatura do mês que está aberto; os demais meses ficam na aba Cartão.
-  const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
+  // O card mostra o que ainda falta pagar; o que já foi quitado vai na linha de baixo.
+  const cartaoMes = cartaoAbertoPagoNoMes(getActiveMonthKey());
+  const cartaoTotal = cartaoMes.total;
 
   let receitaManual = 0;
   document.querySelectorAll('#receita-body tr').forEach(tr => {
@@ -4515,7 +4565,12 @@ function updateDashboard() {
   const el = id => document.getElementById(id);
   if (el('dash-pf-total')) el('dash-pf-total').textContent = formatBRL(pfTotal);
   if (el('dash-pj-total')) el('dash-pj-total').textContent = formatBRL(pjTotal);
-  if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoTotal);
+  if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoMes.aberto);
+  if (el('dash-cartao-sub')) {
+    el('dash-cartao-sub').textContent = cartaoMes.pago
+      ? formatBRL(cartaoMes.pago) + ' já pagos'
+      : 'nada pago ainda neste mês';
+  }
   if (el('dash-receita-total')) el('dash-receita-total').textContent = formatBRL(receitaTotal);
   const saldoValueEl = el('dash-saldo');
   if (saldoValueEl) {
