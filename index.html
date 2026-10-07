@@ -2085,6 +2085,7 @@
   <button class="view-tab" id="view-tab-pj" onclick="switchView('pj')">Orçamento PJ</button>
   <button class="view-tab" id="view-tab-pf" onclick="switchView('pf')">Orçamento PF</button>
   <button class="view-tab" id="view-tab-objetivo" onclick="switchView('objetivo')">🏆 Objetivo Financeiro</button>
+  <button class="view-tab" id="view-tab-briefing" onclick="switchView('briefing')">📝 Briefing e Debriefing</button>
 </div>
 
 <div id="view-orcamento">
@@ -3000,6 +3001,65 @@
 </div>
 <!-- /view-clientes -->
 
+<!-- VIEW: BRIEFING E DEBRIEFING -->
+<div id="view-briefing" style="display:none">
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#3d7a8c">Mês</span>
+    <h2 class="section-title">Briefing e Debriefing</h2>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+    <button id="save-btn-briefing" onclick="doManualSave('save-btn-briefing','save-status-briefing','💾 Salvar')" class="btn-gerar" type="button">💾 Salvar</button>
+    <span id="save-status-briefing" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+
+  <div class="cartao-summary-box" style="margin-bottom:16px">
+    <div class="cartao-summary-list">
+      <div class="cartao-summary-item"><span style="font-weight:700">BRIEFING</span><strong id="briefing-total">R$ 0,00</strong></div>
+      <div class="cartao-summary-item" style="font-size:12px"><span>Soma de Pacotes + Sessões Avulsas (previsto)</span></div>
+    </div>
+  </div>
+
+  <div class="cartao-summary-box" style="margin-bottom:32px">
+    <div class="cartao-summary-list">
+      <div class="cartao-summary-item"><span style="font-weight:700">DEBRIEFING</span><strong id="debriefing-total">R$ 0,00</strong></div>
+      <div class="cartao-summary-item" style="font-size:12px"><span>Total recebido na aba Clientes no mês (pacotes + avulsos)</span></div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-pill" style="background:#3d7a8c">Pacotes</span>
+    <h2 class="section-title" style="font-size:20px">Pacotes</h2>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:32px">
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Quantidade
+      <input type="number" id="briefing-pac-qtd" min="0" step="1" placeholder="0" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:120px;font-family:inherit">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Valor do pacote (R$)
+      <input type="number" id="briefing-pac-valor" min="0" step="0.01" placeholder="0,00" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:160px;font-family:inherit">
+    </label>
+    <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Total de pacotes
+      <strong id="briefing-pac-total" style="font-size:20px;color:var(--text,#333)">R$ 0,00</strong>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-pill" style="background:#8c6b3d">Avulso</span>
+    <h2 class="section-title" style="font-size:20px">Sessões Avulsas</h2>
+  </div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:32px">
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Quantidade
+      <input type="number" id="briefing-av-qtd" min="0" step="1" placeholder="0" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:120px;font-family:inherit">
+    </label>
+    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Valor da sessão (R$)
+      <input type="number" id="briefing-av-valor" min="0" step="0.01" placeholder="0,00" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:160px;font-family:inherit">
+    </label>
+    <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Total de sessões avulsas
+      <strong id="briefing-av-total" style="font-size:20px;color:var(--text,#333)">R$ 0,00</strong>
+    </div>
+  </div>
+</div>
+<!-- /view-briefing -->
+
 </main>
 
 <!-- HISTORY MODAL -->
@@ -3810,6 +3870,7 @@ function recalculateReceita() {
   document.getElementById('receita-sum-sem-nf-sub').textContent = semNfCount + (semNfCount === 1 ? ' pendente de NF' : ' pendentes de NF');
 
   // Receita de Pacotes / Avulsos (Clientes) — sessões pagas dentro do mês atual real
+  renderBriefing();
   const clientesRecebido = getClientesRecebidoMes();
   const pacotesEl = document.getElementById('receita-sum-pacotes');
   const avulsosEl = document.getElementById('receita-sum-avulsos');
@@ -4526,11 +4587,43 @@ function loadMonthIntoDOM(monthData) {
 }
 
 function switchView(view) {
-  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo', 'clientes'].forEach(v => {
+  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo', 'clientes', 'briefing'].forEach(v => {
     document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
     document.getElementById('view-tab-' + v).classList.toggle('active', v === view);
   });
   if (view === 'clientes') recalcAgenda();
+  if (view === 'briefing') renderBriefing();
+}
+
+// ── BRIEFING E DEBRIEFING (por mês) ────────
+let BRIEFING_DATA = {}; // { 'YYYY-MM': { pacQtd, pacValor, avQtd, avValor } }
+let BRIEFING_SHOWN_KEY = null;
+const BRIEFING_FIELDS = { pacQtd: 'briefing-pac-qtd', pacValor: 'briefing-pac-valor', avQtd: 'briefing-av-qtd', avValor: 'briefing-av-valor' };
+
+function syncBriefingFromDom() {
+  if (!BRIEFING_SHOWN_KEY || !document.getElementById('briefing-pac-qtd')) return;
+  const d = {};
+  Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { d[k] = document.getElementById(id).value; });
+  BRIEFING_DATA[BRIEFING_SHOWN_KEY] = d;
+}
+
+function renderBriefing() {
+  if (!document.getElementById('briefing-pac-qtd')) return;
+  const key = getActiveMonthKey();
+  if (key !== BRIEFING_SHOWN_KEY) {
+    syncBriefingFromDom();
+    const d = BRIEFING_DATA[key] || {};
+    Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { document.getElementById(id).value = d[k] || ''; });
+    BRIEFING_SHOWN_KEY = key;
+  }
+  const num = id => parseFloat(document.getElementById(id).value) || 0;
+  const pacTotal = num('briefing-pac-qtd') * num('briefing-pac-valor');
+  const avTotal = num('briefing-av-qtd') * num('briefing-av-valor');
+  const rec = getClientesRecebidoMes();
+  document.getElementById('briefing-pac-total').textContent = formatBRL(pacTotal);
+  document.getElementById('briefing-av-total').textContent = formatBRL(avTotal);
+  document.getElementById('briefing-total').textContent = formatBRL(pacTotal + avTotal);
+  document.getElementById('debriefing-total').textContent = formatBRL(rec.pacotes + rec.avulsos);
 }
 
 const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f'];
@@ -6203,6 +6296,8 @@ function saveData() {
   }
   data.pacotes = collectClienteBlocos('pacote');
   data.avulsos = collectClienteBlocos('avulso');
+  syncBriefingFromDom();
+  if (BRIEFING_SHOWN_KEY) data.briefing = BRIEFING_DATA;
   data.agendaHoras = AGENDA_HORAS;
   data.agendaConfig = {
     duracao: document.getElementById('agenda-duracao')?.value || '50',
@@ -6375,6 +6470,9 @@ async function loadData() {
     loadClienteBlocos('avulso', data.avulsos);
     if ((data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
 
+    BRIEFING_DATA = data.briefing || {};
+    BRIEFING_SHOWN_KEY = null;
+    renderBriefing();
     AGENDA_HORAS = data.agendaHoras || {};
     if (data.agendaConfig) {
       const durEl = document.getElementById('agenda-duracao');
