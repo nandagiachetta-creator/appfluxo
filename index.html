@@ -1653,6 +1653,10 @@
   .dash-card.highlight.negative { background: var(--red); border-color: var(--red); }
   .dash-card.highlight.negative .dash-card-label { color: #f2c6c0; }
 
+  @media (max-width: 600px) {
+    .dashboard-cards { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .dash-card-meta .dash-meta-input { width: 100%; min-width: 0; }
+  }
   .dashboard-charts-grid {
     display: flex;
     gap: 24px;
