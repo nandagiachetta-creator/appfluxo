@@ -1555,6 +1555,17 @@
     white-space: nowrap;
   }
   .cartao-card .table-wrapper, .emprestimo-card .table-wrapper { box-shadow: none; }
+  .emp-resumo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 16px;
+    padding: 0 4px;
+  }
+  .emp-resumo strong { color: var(--text); font-weight: 700; }
+  .emp-resumo-dif strong { color: #a6763f; }
 
   /* DASHBOARD */
   .dashboard-cards {
@@ -3487,6 +3498,29 @@ function addEmprestimoCard(name = '', id = null) {
       <span class="cartao-card-subtotal" id="emprestimo-subtotal-${id}">R$ 0,00</span>
       <button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>
     </div>
+    <div class="cliente-gerar-row">
+      <label>Valor total que peguei
+        <input type="number" class="emp-total-pego" min="0" step="0.01" placeholder="0,00" oninput="recalculate()">
+      </label>
+      <label>Qtd parcelas
+        <input type="number" class="emp-qtd" min="1" step="1" value="1">
+      </label>
+      <label>Valor de cada parcela
+        <input type="number" class="emp-valor-parcela" min="0" step="0.01" placeholder="0,00">
+      </label>
+      <label>Já pagas
+        <input type="number" class="emp-ja-pagas" min="0" step="1" value="0">
+      </label>
+      <label>Data da 1ª parcela
+        <input type="date" class="emp-data-inicial">
+      </label>
+      <button class="btn-gerar" type="button" onclick="gerarParcelasEmprestimo('${id}')">Gerar parcelas</button>
+    </div>
+    <div class="emp-resumo" id="emprestimo-resumo-${id}">
+      <span>Total que peguei: <strong class="emp-resumo-pego">R$ 0,00</strong></span>
+      <span>Soma das parcelas: <strong class="emp-resumo-soma">R$ 0,00</strong></span>
+      <span class="emp-resumo-dif"></span>
+    </div>
     <div class="table-wrapper">
       <table>
         <thead>
@@ -3510,6 +3544,31 @@ function addEmprestimoCard(name = '', id = null) {
   card.querySelector('.cartao-card-name').value = name;
   container.appendChild(card);
   return id;
+}
+
+function gerarParcelasEmprestimo(id) {
+  const card = document.getElementById('emprestimo-card-' + id);
+  if (!card) return;
+  const valorParcela = parseFloat(card.querySelector('.emp-valor-parcela').value) || 0;
+  const qtd = parseInt(card.querySelector('.emp-qtd').value, 10) || 0;
+  const jaPagas = parseInt(card.querySelector('.emp-ja-pagas').value, 10) || 0;
+  const dataInicial = card.querySelector('.emp-data-inicial').value;
+  if (!dataInicial || qtd <= 0 || valorParcela <= 0) {
+    alert('Preencha a quantidade de parcelas, o valor de cada parcela e a data da 1ª parcela.');
+    return;
+  }
+  if (!confirm(`Gerar ${qtd} parcelas mensais de ${formatBRL(valorParcela)} a partir de ${dataInicial}?\n\nAs parcelas já existentes desse empréstimo não são apagadas.`)) return;
+  const [y, m, d] = dataInicial.split('-').map(Number);
+  for (let i = 0; i < qtd; i++) {
+    // Mesmo dia em cada mês; em meses mais curtos cai no último dia.
+    const ultimo = new Date(y, m - 1 + i + 1, 0).getDate();
+    const dt = new Date(y, m - 1 + i, Math.min(d, ultimo));
+    const mes = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0');
+    const dataStr = mes + '-' + String(dt.getDate()).padStart(2, '0');
+    const pago = i < jaPagas;
+    createRow('emp-' + id, `Parcela ${i + 1}/${qtd}`, valorParcela, String(dt.getDate()), pago, pago ? dataStr : '', false, mes);
+  }
+  recalculate();
 }
 
 function deleteEmprestimoCard(id) {
@@ -3537,6 +3596,15 @@ function renderResumoEmprestimos() {
     grandPago += pago;
     const subtotalEl = document.getElementById('emprestimo-subtotal-' + id);
     if (subtotalEl) subtotalEl.textContent = formatBRL(aberto);
+    const soma = aberto + pago;
+    const pego = parseFloat(card.querySelector('.emp-total-pego')?.value) || 0;
+    const resumo = document.getElementById('emprestimo-resumo-' + id);
+    if (resumo) {
+      resumo.querySelector('.emp-resumo-pego').textContent = formatBRL(pego);
+      resumo.querySelector('.emp-resumo-soma').textContent = formatBRL(soma);
+      const difEl = resumo.querySelector('.emp-resumo-dif');
+      difEl.innerHTML = pego > 0 && soma > 0 ? `Diferença (juros/taxas): <strong>${formatBRL(soma - pego)}</strong>` : '';
+    }
     const item = document.createElement('div');
     item.className = 'cartao-summary-item';
     const notaPago = pago ? `<small class="cartao-summary-pago">pago ${formatBRL(pago)}</small>` : '';
@@ -6782,8 +6850,15 @@ function saveData() {
       });
     });
     const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
-    if (name.trim() === '' && !hasItems) return;
-    emprestimos.push({ id, name, items });
+    const cfg = {
+      totalPego: card.querySelector('.emp-total-pego')?.value || '',
+      qtd: card.querySelector('.emp-qtd')?.value || '',
+      valorParcela: card.querySelector('.emp-valor-parcela')?.value || '',
+      jaPagas: card.querySelector('.emp-ja-pagas')?.value || '',
+      dataInicial: card.querySelector('.emp-data-inicial')?.value || '',
+    };
+    if (name.trim() === '' && !hasItems && !cfg.totalPego) return;
+    emprestimos.push({ id, name, items, cfg });
   });
   data.emprestimos = emprestimos;
 
@@ -6998,6 +7073,15 @@ async function loadData() {
 
     (data.emprestimos || []).slice(0, 30).forEach(c => {
       const id = addEmprestimoCard(c.name || '', c.id);
+      const cardEl = document.getElementById('emprestimo-card-' + id);
+      const cfg = c.cfg || {};
+      if (cardEl) {
+        cardEl.querySelector('.emp-total-pego').value = cfg.totalPego || '';
+        if (cfg.qtd) cardEl.querySelector('.emp-qtd').value = cfg.qtd;
+        cardEl.querySelector('.emp-valor-parcela').value = cfg.valorParcela || '';
+        if (cfg.jaPagas) cardEl.querySelector('.emp-ja-pagas').value = cfg.jaPagas;
+        cardEl.querySelector('.emp-data-inicial').value = cfg.dataInicial || '';
+      }
       (c.items || []).slice(0, 400).forEach(r => createRow('emp-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false, r.mes || mesPadraoCartao));
     });
     if (data.emprestimos && data.emprestimos.length) recalculate();
