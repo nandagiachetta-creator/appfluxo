@@ -6517,6 +6517,60 @@ async function exportWord() {
       return xml;
     }
 
+    function emprestimoSection() {
+      const cards = document.querySelectorAll('.emprestimo-card');
+      if (!cards.length) return '';
+      let xml = par('EMPRESTIMOS', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
+      const w0=2400,w1=1700,w2=800,w3=1800,w4=1200,w5=1460;
+
+      const porMes = new Map();
+      coletarItensEmprestimo().forEach(it => {
+        const chave = it.mes || 'sem-mes';
+        porMes.set(chave, (porMes.get(chave) || 0) + it.valor);
+      });
+      const chavesMes = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
+      if (porMes.has('sem-mes')) chavesMes.push('sem-mes');
+      if (chavesMes.length) {
+        xml += par('Total por mes', {bold:true, size:22, color:'5A6E8C', spBefore:120, spAfter:60});
+        chavesMes.forEach(chave => {
+          const rotulo = chave === 'sem-mes' ? 'Sem mes definido' : ptMonthName(chave);
+          xml += par(`${rotulo}: ${fBRL(porMes.get(chave))}`, {size:18, color:'7A7A7A', spAfter:40});
+        });
+      }
+
+      cards.forEach(card => {
+        const nome = card.querySelector('.cartao-card-name')?.value || 'Emprestimo sem nome';
+        const cid = card.dataset.cardId;
+        const pego = parseFloat(card.querySelector('.emp-total-pego')?.value) || 0;
+        const itemRows = [];
+        document.querySelectorAll(`#emp-${cid}-body tr`).forEach(tr => {
+          itemRows.push({
+            name: tr.querySelector('input[type="text"]')?.value || '',
+            mes: cartaoMesDaLinha(tr),
+            due: tr.querySelector('.due-input')?.value || '',
+            value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+            paid: tr.querySelector('.paid-check')?.checked || false,
+            dataPgto: tr.dataset.dataPgto || '',
+          });
+        });
+        itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
+        const soma = itemRows.reduce((s,r)=>s+r.value,0);
+        const pago = itemRows.reduce((s,r)=>s+(r.paid?r.value:0),0);
+        xml += par(nome, {bold:true, size:22, color:'5A6E8C', spBefore:200, spAfter:40});
+        xml += par(`Total que peguei: ${fBRL(pego)}  |  Soma das parcelas: ${fBRL(soma)}  |  Diferenca: ${fBRL(soma - pego)}`, {size:18, color:'7A7A7A', spAfter:40});
+        xml += par(`Ja pago: ${fBRL(pago)}  |  Em aberto: ${fBRL(soma - pago)}`, {size:18, color:'7A7A7A', spAfter:80});
+        if (!itemRows.length) { xml += par('Nenhuma parcela cadastrada.', {size:18, color:'AAAAAA', spAfter:120}); return; }
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/><w:gridCol w:w="${w5}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Parcela',{w:w0,bold:true,bg:'EAF0F8'})}${tc('Mes',{w:w1,bold:true,bg:'EAF0F8',align:'center'})}${tc('Dia',{w:w2,bold:true,bg:'EAF0F8',align:'center'})}${tc('Valor',{w:w3,bold:true,bg:'EAF0F8',align:'right'})}${tc('Pago',{w:w4,bold:true,bg:'EAF0F8',align:'center'})}${tc('Data pgto',{w:w5,bold:true,bg:'EAF0F8',align:'center'})}</w:tr>`;
+        itemRows.forEach(r => {
+          const dp = r.dataPgto ? r.dataPgto.split('-').reverse().join('/') : '-';
+          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.mes?ptMonthName(r.mes):'-',{w:w1,align:'center'})}${tc(r.due?r.due+'o':'-',{w:w2,align:'center'})}${tc(fBRL(r.value),{w:w3,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w4,align:'center',color:r.paid?'3D5C42':'C0392B'})}${tc(dp,{w:w5,align:'center'})}</w:tr>`;
+        });
+        xml += `</w:tbl>`;
+      });
+      return xml;
+    }
+
     function receitaSection() {
       let xml = par('RECEITA', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
       xml += par('Receitas do Mes', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80});
@@ -6605,6 +6659,7 @@ async function exportWord() {
         ['Custo Mensal da Empresa', fBRL(empresaM), 'CCD8EE'],
       ]) +
       cartaoSection() +
+      emprestimoSection() +
       receitaSection() +
       par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
       par('Valor da Hora', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80}) +
@@ -6905,6 +6960,60 @@ async function exportExcel() {
         cartaoRows.push([]);
       });
       sheets.push({ name: 'Cartoes', rows: cartaoRows });
+    }
+
+    // EMPRÉSTIMOS
+    const cardsEmp = document.querySelectorAll('.emprestimo-card');
+    if (cardsEmp.length) {
+      const empRows = [tit('EMPRÉSTIMOS'), []];
+      const porMesEmp = new Map();
+      coletarItensEmprestimo().forEach(it => {
+        const chave = it.mes || 'sem-mes';
+        porMesEmp.set(chave, (porMesEmp.get(chave) || 0) + it.valor);
+      });
+      const chavesEmp = Array.from(porMesEmp.keys()).filter(k => k !== 'sem-mes').sort();
+      if (porMesEmp.has('sem-mes')) chavesEmp.push('sem-mes');
+      if (chavesEmp.length) {
+        empRows.push(tit('Total por mês'));
+        empRows.push(hdr('Mês', 'Total'));
+        chavesEmp.forEach(chave => {
+          empRows.push([chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave), fBRL(porMesEmp.get(chave))]);
+        });
+        empRows.push([]);
+      }
+      cardsEmp.forEach(card => {
+        const nome = card.querySelector('.cartao-card-name')?.value || 'Empréstimo sem nome';
+        const cid = card.dataset.cardId;
+        const pego = parseFloat(card.querySelector('.emp-total-pego')?.value) || 0;
+        const itemRows = [];
+        document.querySelectorAll(`#emp-${cid}-body tr`).forEach(tr => {
+          itemRows.push({
+            name: tr.querySelector('input[type="text"]')?.value || '',
+            mes: cartaoMesDaLinha(tr),
+            due: tr.querySelector('.due-input')?.value || '',
+            value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+            paid: tr.querySelector('.paid-check')?.checked || false,
+            dataPgto: tr.dataset.dataPgto || '',
+          });
+        });
+        itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
+        const soma = itemRows.reduce((s,r)=>s+r.value,0);
+        const pago = itemRows.reduce((s,r)=>s+(r.paid?r.value:0),0);
+        empRows.push(tit(nome));
+        empRows.push(['Total que peguei', fBRL(pego)]);
+        empRows.push(['Soma das parcelas', fBRL(soma)]);
+        empRows.push(['Diferença (juros/taxas)', fBRL(soma - pego)]);
+        empRows.push(['Já pago', fBRL(pago)]);
+        empRows.push(['Em aberto', fBRL(soma - pago)]);
+        if (itemRows.length) {
+          empRows.push(hdr('Parcela','Mês','Dia','Valor','Pago','Data pgto'));
+          itemRows.forEach(r => empRows.push([r.name, r.mes?ptMonthName(r.mes):'-', r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não', r.dataPgto ? r.dataPgto.split('-').reverse().join('/') : '-']));
+        } else {
+          empRows.push(['Nenhuma parcela cadastrada.']);
+        }
+        empRows.push([]);
+      });
+      sheets.push({ name: 'Emprestimos', rows: empRows });
     }
 
     // RECEITA
