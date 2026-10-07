@@ -3386,12 +3386,22 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
       </div>
     </td>
     <td style="text-align:center">
-      <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="recalculate()" />
+      <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="${isCartao ? 'onCartaoPago(this);' : ''}recalculate()" />
     </td>
   `;
   tbody.appendChild(tr);
 }
 
+
+// Ao confirmar o pagamento de uma fatura, grava a data em que ela foi paga.
+// Sem isso o Fluxo de Caixa só mostra a fatura no mês dela, e quem paga a
+// fatura de um mês no mês seguinte não via o pagamento no fluxo.
+function onCartaoPago(check) {
+  const tr = check.closest('tr');
+  if (!tr) return;
+  if (check.checked) { if (!tr.dataset.dataPgto) tr.dataset.dataPgto = todayISO(); }
+  else tr.dataset.dataPgto = '';
+}
 
 function updateDueBadge(input) {
   const unit = input.parentElement.querySelector('.due-label-unit');
