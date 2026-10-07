@@ -1564,6 +1564,18 @@
     margin: 0 0 16px;
     padding: 0 4px;
   }
+  .emp-toggle {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-muted);
+    width: 24px;
+    flex-shrink: 0;
+    padding: 4px;
+    border-radius: 6px;
+  }
+  .emp-toggle:hover { background: var(--warm); color: var(--accent); }
   .emp-resumo strong { color: var(--text); font-weight: 700; }
   .emp-resumo-dif strong { color: #a6763f; }
 
@@ -2545,6 +2557,11 @@
     e o Fluxo de Caixa puxa só as parcelas do mês que estiver aberto.
   </p>
 
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+    <button id="save-btn-emprestimo" onclick="doManualSave('save-btn-emprestimo','save-status-emprestimo','💾 Salvar')" class="btn-gerar" type="button">💾 Salvar</button>
+    <span id="save-status-emprestimo" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
+
   <div class="cartao-summary-box">
     <p class="cartao-summary-sub-title">Em aberto por empréstimo</p>
     <div id="emprestimo-summary-list" class="cartao-summary-list"></div>
@@ -3494,10 +3511,12 @@ function addEmprestimoCard(name = '', id = null) {
   card.dataset.cardId = id;
   card.innerHTML = `
     <div class="cartao-card-header">
+      <button class="emp-toggle" type="button" id="emprestimo-toggle-${id}" onclick="toggleEmprestimoCard('${id}')" title="Mostrar ou esconder as parcelas">▾</button>
       <input type="text" class="cartao-card-name" placeholder="Nome do empréstimo (ex: Banco X)" oninput="recalculate()" />
       <span class="cartao-card-subtotal" id="emprestimo-subtotal-${id}">R$ 0,00</span>
       <button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>
     </div>
+    <div class="emprestimo-body" id="emprestimo-body-${id}">
     <div class="cliente-gerar-row">
       <label>Valor total que peguei
         <input type="number" class="emp-total-pego" min="0" step="0.01" placeholder="0,00" oninput="recalculate()">
@@ -3540,10 +3559,20 @@ function addEmprestimoCard(name = '', id = null) {
         Adicionar parcela
       </button>
     </div>
+    </div>
   `;
   card.querySelector('.cartao-card-name').value = name;
   container.appendChild(card);
   return id;
+}
+
+function toggleEmprestimoCard(id) {
+  const body = document.getElementById('emprestimo-body-' + id);
+  const btn = document.getElementById('emprestimo-toggle-' + id);
+  if (!body) return;
+  const abrir = body.style.display === 'none';
+  body.style.display = abrir ? '' : 'none';
+  if (btn) btn.textContent = abrir ? '▾' : '▸';
 }
 
 function gerarParcelasEmprestimo(id) {
