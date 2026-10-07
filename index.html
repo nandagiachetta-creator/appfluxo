@@ -1555,6 +1555,37 @@
     white-space: nowrap;
   }
   .cartao-card .table-wrapper, .emprestimo-card .table-wrapper { box-shadow: none; }
+  .bd-lista td { padding-top: 14px; padding-bottom: 14px; }
+  .bd-lista input[type="text"], .bd-lista input[type="number"] {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--cream);
+    color: var(--text);
+  }
+  .bd-lista .bi-nome { width: 100%; min-width: 280px; }
+  .bd-lista .bi-sessoes { width: 110px; text-align: center; }
+  .bd-lista .bi-vsessao, .bd-lista .bi-valor, .bd-lista .bd-mes-input { width: 150px; text-align: right; }
+  .bd-lista .bd-mes-label { font-weight: 700; white-space: nowrap; }
+  .bd-plan { font-size: 16px !important; padding: 12px 14px !important; width: 170px; }
+  .bd-estrategia-box { margin-bottom: 20px; }
+  .bd-estrategia-box textarea {
+    width: 100%;
+    min-height: 150px;
+    resize: vertical;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    background: var(--cream);
+    color: var(--text);
+  }
+  .bd-estrategia-box textarea:focus { outline: none; border-color: var(--accent); background: white; }
+  .bd-estrategia-cab { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
   .emp-resumo {
     display: flex;
     flex-wrap: wrap;
@@ -3176,39 +3207,40 @@
     <span id="save-status-briefing" style="font-size:12px;color:var(--text-muted);"></span>
   </div>
 
-  <div class="cartao-summary-box" style="margin-bottom:16px">
-    <div class="cartao-summary-list">
-      <div class="cartao-summary-item"><span style="font-weight:700">BRIEFING</span><span style="display:flex;align-items:center;gap:6px"><input type="number" id="briefing-total" min="0" step="0.01" oninput="renderBriefing()" style="padding:6px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:170px;font-family:inherit;font-size:16px;font-weight:700;text-align:right"><button type="button" title="Voltar ao valor automático" onclick="document.getElementById('briefing-total').value='';renderBriefing();saveData()" style="border:none;background:none;cursor:pointer;font-size:16px">↺</button></span></div>
-      <div class="cartao-summary-item" style="font-size:12px"><span>Automático: Pacotes + Sessões Avulsas. Digite para editar; ↺ volta ao automático.</span></div>
-    </div>
+  <!-- B&DB POR MÊS (mês aberto + 2 anteriores) -->
+  <div class="table-wrapper bd-lista" style="margin-bottom:12px">
+    <table>
+      <thead>
+        <tr><th></th><th>BRIEFING</th><th>DEBRIEFING</th></tr>
+      </thead>
+      <tbody id="bd-meses-body"></tbody>
+    </table>
   </div>
-
-  <div class="cartao-summary-box" style="margin-bottom:32px">
-    <div class="cartao-summary-list">
-      <div class="cartao-summary-item"><span style="font-weight:700">DEBRIEFING</span><span style="display:flex;align-items:center;gap:6px"><input type="number" id="debriefing-total" min="0" step="0.01" oninput="renderBriefing()" style="padding:6px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:170px;font-family:inherit;font-size:16px;font-weight:700;text-align:right"><button type="button" title="Voltar ao valor automático" onclick="document.getElementById('debriefing-total').value='';renderBriefing();saveData()" style="border:none;background:none;cursor:pointer;font-size:16px">↺</button></span></div>
-      <div class="cartao-summary-item" style="font-size:12px"><span>Automático: total recebido na aba Clientes no mês. Digite para editar; ↺ volta ao automático.</span></div>
-    </div>
-  </div>
+  <p class="receita-nota-mes" style="margin-bottom:36px">
+    Mostra o mês aberto e os dois anteriores, sempre memorizados. Em cinza está o valor automático
+    (Briefing = pacotes + avulsas planejados; Debriefing = recebido na aba Clientes). Digite para trocar por outro valor; apague para voltar ao automático.
+  </p>
 
   <div class="section-header">
     <span class="section-pill" style="background:#3d7a8c">Pacotes</span>
     <h2 class="section-title" style="font-size:20px">Pacotes</h2>
   </div>
-  <div class="table-wrapper" style="margin-bottom:32px">
+  <div class="table-wrapper bd-lista" style="margin-bottom:32px">
     <table>
       <thead>
-        <tr><th>Nome do pacote</th><th style="text-align:center">Qtd. de sessões</th><th>Valor total do pacote</th></tr>
+        <tr><th>Nome do pacote</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th>Valor total do pacote</th></tr>
       </thead>
       <tbody id="briefing-pac-body"></tbody>
       <tfoot>
         <tr class="total-row">
           <td>Total de pacotes</td>
           <td style="text-align:center"><span class="total-amount" id="briefing-pac-sessoes">0</span></td>
+          <td></td>
           <td><span class="total-amount" id="briefing-pac-total">R$ 0,00</span></td>
         </tr>
       </tfoot>
     </table>
-    <button class="btn-add-row" type="button" onclick="addBriefingPacote()">
+    <button class="btn-add-row" type="button" onclick="addBriefingItem('pac')">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
       Adicionar pacote
     </button>
@@ -3218,17 +3250,54 @@
     <span class="section-pill" style="background:#8c6b3d">Avulso</span>
     <h2 class="section-title" style="font-size:20px">Sessões Avulsas</h2>
   </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:32px">
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Quantidade
-      <input type="number" id="briefing-av-qtd" min="0" step="1" placeholder="0" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:120px;font-family:inherit">
-    </label>
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Valor da sessão (R$)
-      <input type="number" id="briefing-av-valor" min="0" step="0.01" placeholder="0,00" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:160px;font-family:inherit">
-    </label>
-    <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Total de sessões avulsas
-      <strong id="briefing-av-total" style="font-size:20px;color:var(--text,#333)">R$ 0,00</strong>
-    </div>
+  <div class="table-wrapper bd-lista" style="margin-bottom:32px">
+    <table>
+      <thead>
+        <tr><th>Nome / descrição</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th>Valor total</th></tr>
+      </thead>
+      <tbody id="briefing-av-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Total de sessões avulsas</td>
+          <td style="text-align:center"><span class="total-amount" id="briefing-av-sessoes">0</span></td>
+          <td></td>
+          <td><span class="total-amount" id="briefing-av-total">R$ 0,00</span></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" type="button" onclick="addBriefingItem('av')">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar sessão avulsa
+    </button>
   </div>
+
+  <!-- PLAN B&DB -->
+  <div class="section-header" style="margin-top:56px">
+    <span class="section-pill" style="background:#6b8f71">Plan</span>
+    <h2 class="section-title" style="font-size:20px">Plan B&amp;DB Mês atual <small id="plan-mes-label" style="font-size:13px;color:var(--text-muted);font-family:'DM Sans',sans-serif"></small></h2>
+  </div>
+  <div class="cliente-gerar-row" style="margin-bottom:40px">
+    <label>Pacotes que quero vender
+      <input type="number" id="plan-pacotes" class="bd-plan" min="0" step="1" placeholder="0">
+    </label>
+    <label>Sessões de avaliação
+      <input type="number" id="plan-avaliacao" class="bd-plan" min="0" step="1" placeholder="0">
+    </label>
+    <label>Sessões avulso
+      <input type="number" id="plan-avulso" class="bd-plan" min="0" step="1" placeholder="0">
+    </label>
+  </div>
+
+  <!-- ESTRATÉGIAS -->
+  <div class="section-header">
+    <span class="section-pill" style="background:#5a6e8c">Estratégias</span>
+    <h2 class="section-title">Estratégias</h2>
+  </div>
+  <div id="bd-estrategias"></div>
+  <button class="btn-add-row" type="button" onclick="addBriefingEstrategia()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar campo de estratégia
+  </button>
 </div>
 <!-- /view-briefing -->
 
@@ -5049,46 +5118,124 @@ function switchView(view) {
 }
 
 // ── BRIEFING E DEBRIEFING (por mês) ────────
-let BRIEFING_DATA = {}; // { 'YYYY-MM': { pacQtd, pacValor, avQtd, avValor } }
+// BRIEFING_DATA[mes] = { briefingManual, debriefingManual, pacotes:[], avulsos:[], plan:{}, estrategias:[] }
+let BRIEFING_DATA = {};
 let BRIEFING_SHOWN_KEY = null;
-const BRIEFING_FIELDS = { avQtd: 'briefing-av-qtd', avValor: 'briefing-av-valor', briefingManual: 'briefing-total', debriefingManual: 'debriefing-total' };
+const BRIEFING_TIPOS = { pac: 'pacotes', av: 'avulsos' };
 
-function createBriefingPacoteRow(nome = '', sessoes = '', valor = '') {
-  const tbody = document.getElementById('briefing-pac-body');
+function bdMesesVisiveis() {
+  const base = getActiveMonthDate();
+  return [2, 1, 0].map(n => monthKey(new Date(base.getFullYear(), base.getMonth() - n, 1)));
+}
+
+function bdRotuloMes(key) {
+  const [y, m] = key.split('-').map(Number);
+  let nome = new Date(y, m - 1, 1).toLocaleString('pt-BR', { month: 'short' });
+  nome = nome.charAt(0).toUpperCase() + nome.slice(1);
+  if (!nome.endsWith('.')) nome += '.';
+  return 'B&DB ' + nome;
+}
+
+const bdNum = v => parseFloat(v) || 0;
+const bdRound = v => Math.round(v * 100) / 100;
+
+function createBriefingItemRow(tipo, nome = '', sessoes = '', vsessao = '', valor = '') {
+  const tbody = document.getElementById('briefing-' + tipo + '-body');
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><div class="td-label">
       <button class="btn-del" title="Remover" type="button">×</button>
-      <input type="text" class="bpac-nome" placeholder="Nome do pacote" />
+      <input type="text" class="bi-nome" placeholder="${tipo === 'pac' ? 'Nome do pacote' : 'Nome / descrição'}" />
     </div></td>
-    <td style="text-align:center"><input type="number" class="bpac-sessoes" min="0" step="1" placeholder="0" style="width:90px;text-align:center" /></td>
-    <td><div class="value-input-wrap">
-      <span class="currency-sym">R$</span>
-      <input type="number" class="bpac-valor" min="0" step="0.01" />
-    </div></td>`;
-  tr.querySelector('.bpac-nome').value = nome;
-  tr.querySelector('.bpac-sessoes').value = sessoes;
-  tr.querySelector('.bpac-valor').value = valor;
-  tr.querySelectorAll('input').forEach(i => i.addEventListener('input', renderBriefing));
-  tr.querySelector('.btn-del').addEventListener('click', () => { tr.remove(); renderBriefing(); saveData(); });
+    <td style="text-align:center"><input type="number" class="bi-sessoes" min="0" step="1" placeholder="0" /></td>
+    <td><input type="number" class="bi-vsessao" min="0" step="0.01" placeholder="0,00" /></td>
+    <td><input type="number" class="bi-valor" min="0" step="0.01" placeholder="0,00" /></td>`;
+  const q = sel => tr.querySelector(sel);
+  q('.bi-nome').value = nome;
+  q('.bi-sessoes').value = sessoes;
+  q('.bi-vsessao').value = vsessao;
+  q('.bi-valor').value = valor;
+  // Qtd × valor por sessão = total; editar o total refaz o valor por sessão.
+  const recalcTotal = () => { if (q('.bi-vsessao').value !== '') q('.bi-valor').value = bdRound(bdNum(q('.bi-sessoes').value) * bdNum(q('.bi-vsessao').value)); };
+  q('.bi-sessoes').addEventListener('input', () => { recalcTotal(); renderBriefing(); });
+  q('.bi-vsessao').addEventListener('input', () => { recalcTotal(); renderBriefing(); });
+  q('.bi-valor').addEventListener('input', () => {
+    const n = bdNum(q('.bi-sessoes').value);
+    if (n > 0 && q('.bi-valor').value !== '') q('.bi-vsessao').value = bdRound(bdNum(q('.bi-valor').value) / n);
+    renderBriefing();
+  });
+  q('.bi-nome').addEventListener('input', renderBriefing);
+  q('.btn-del').addEventListener('click', () => { tr.remove(); renderBriefing(); saveData(); });
   tbody.appendChild(tr);
 }
 
-function addBriefingPacote() { createBriefingPacoteRow(); }
+function addBriefingItem(tipo) { createBriefingItemRow(tipo); }
+
+function createBriefingEstrategia(texto = '') {
+  const box = document.createElement('div');
+  box.className = 'bd-estrategia-box';
+  const n = document.querySelectorAll('#bd-estrategias .bd-estrategia-box').length + 1;
+  box.innerHTML = `
+    <div class="bd-estrategia-cab"><span>Estratégia ${n}</span><span><span class="bd-contador">0</span>/900 · <button class="btn-del" type="button" title="Remover" style="width:22px;height:22px;font-size:12px">×</button></span></div>
+    <textarea class="bd-estrategia" maxlength="900" placeholder="Escreva aqui a estratégia (até 900 caracteres)"></textarea>`;
+  const ta = box.querySelector('textarea');
+  ta.value = texto;
+  const cont = box.querySelector('.bd-contador');
+  const atualiza = () => { cont.textContent = ta.value.length; };
+  ta.addEventListener('input', atualiza);
+  atualiza();
+  box.querySelector('.btn-del').addEventListener('click', () => {
+    box.remove();
+    document.querySelectorAll('#bd-estrategias .bd-estrategia-box').forEach((b, i) => { b.querySelector('.bd-estrategia-cab span').textContent = 'Estratégia ' + (i + 1); });
+    saveData();
+  });
+  document.getElementById('bd-estrategias').appendChild(box);
+}
+
+function addBriefingEstrategia() { createBriefingEstrategia(); }
+
+function lerItensBriefing(tipo) {
+  return Array.from(document.querySelectorAll('#briefing-' + tipo + '-body tr')).map(tr => ({
+    nome: tr.querySelector('.bi-nome')?.value || '',
+    sessoes: tr.querySelector('.bi-sessoes')?.value || '',
+    vsessao: tr.querySelector('.bi-vsessao')?.value || '',
+    valor: tr.querySelector('.bi-valor')?.value || '',
+  }));
+}
 
 function syncBriefingFromDom() {
   if (!BRIEFING_SHOWN_KEY || !document.getElementById('briefing-pac-body')) return;
-  const d = {};
-  Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { d[k] = document.getElementById(id).value; });
-  d.pacotes = [];
-  document.querySelectorAll('#briefing-pac-body tr').forEach(tr => {
-    d.pacotes.push({
-      nome: tr.querySelector('.bpac-nome')?.value || '',
-      sessoes: tr.querySelector('.bpac-sessoes')?.value || '',
-      valor: tr.querySelector('.bpac-valor')?.value || '',
-    });
-  });
+  const d = BRIEFING_DATA[BRIEFING_SHOWN_KEY] || {};
+  d.pacotes = lerItensBriefing('pac');
+  d.avulsos = lerItensBriefing('av');
+  d.plan = {
+    pacotes: document.getElementById('plan-pacotes').value,
+    avaliacao: document.getElementById('plan-avaliacao').value,
+    avulso: document.getElementById('plan-avulso').value,
+  };
+  d.estrategias = Array.from(document.querySelectorAll('#bd-estrategias textarea')).map(t => t.value);
   BRIEFING_DATA[BRIEFING_SHOWN_KEY] = d;
+}
+
+// Valor digitado nas linhas do quadro mensal (por mês, vazio = automático).
+function onBdMesInput(input) {
+  const key = input.dataset.key;
+  const d = BRIEFING_DATA[key] || (BRIEFING_DATA[key] = {});
+  d[input.dataset.campo] = input.value;
+  saveData();
+}
+
+function bdTotaisDoMes(key, ativo) {
+  const d = BRIEFING_DATA[key] || {};
+  let pac, av;
+  if (ativo) {
+    pac = lerItensBriefing('pac'); av = lerItensBriefing('av');
+  } else {
+    pac = d.pacotes || []; av = d.avulsos || [];
+  }
+  const soma = lista => lista.reduce((t, r) => t + bdNum(r.valor), 0);
+  const rec = getClientesRecebidoMes(key);
+  return { briefing: soma(pac) + soma(av), debriefing: rec.pacotes + rec.avulsos, pacTotal: soma(pac), avTotal: soma(av) };
 }
 
 function renderBriefing() {
@@ -5097,29 +5244,69 @@ function renderBriefing() {
   if (key !== BRIEFING_SHOWN_KEY) {
     syncBriefingFromDom();
     const d = BRIEFING_DATA[key] || {};
-    Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { document.getElementById(id).value = d[k] || ''; });
-    document.getElementById('briefing-pac-body').innerHTML = '';
+    ['pac', 'av'].forEach(t => { document.getElementById('briefing-' + t + '-body').innerHTML = ''; });
     let pacotes = Array.isArray(d.pacotes) ? d.pacotes : [];
     // Formato antigo: quantidade × valor do pacote vira uma linha só.
     if (!pacotes.length && (parseFloat(d.pacQtd) || parseFloat(d.pacValor))) {
-      pacotes = [{ nome: 'Pacotes', sessoes: d.pacQtd || '', valor: String((parseFloat(d.pacQtd) || 0) * (parseFloat(d.pacValor) || 0)) }];
+      pacotes = [{ nome: 'Pacotes', sessoes: d.pacQtd || '', vsessao: d.pacValor || '', valor: String(bdNum(d.pacQtd) * bdNum(d.pacValor)) }];
     }
-    pacotes.forEach(p => createBriefingPacoteRow(p.nome || '', p.sessoes || '', p.valor || ''));
+    let avulsos = Array.isArray(d.avulsos) ? d.avulsos : [];
+    if (!avulsos.length && (parseFloat(d.avQtd) || parseFloat(d.avValor))) {
+      avulsos = [{ nome: 'Sessões avulsas', sessoes: d.avQtd || '', vsessao: d.avValor || '', valor: String(bdNum(d.avQtd) * bdNum(d.avValor)) }];
+    }
+    const vs = r => r.vsessao !== undefined && r.vsessao !== '' ? r.vsessao : (bdNum(r.sessoes) > 0 && r.valor !== '' ? bdRound(bdNum(r.valor) / bdNum(r.sessoes)) : '');
+    pacotes.forEach(r => createBriefingItemRow('pac', r.nome || '', r.sessoes || '', vs(r), r.valor || ''));
+    avulsos.forEach(r => createBriefingItemRow('av', r.nome || '', r.sessoes || '', vs(r), r.valor || ''));
+    const plan = d.plan || {};
+    document.getElementById('plan-pacotes').value = plan.pacotes || '';
+    document.getElementById('plan-avaliacao').value = plan.avaliacao || '';
+    document.getElementById('plan-avulso').value = plan.avulso || '';
+    document.getElementById('plan-mes-label').textContent = '· ' + ptMonthName(key);
+    const est = document.getElementById('bd-estrategias');
+    est.innerHTML = '';
+    const textos = Array.isArray(d.estrategias) && d.estrategias.length ? d.estrategias : ['', '', ''];
+    textos.forEach(t => createBriefingEstrategia(t));
     BRIEFING_SHOWN_KEY = key;
+
+    // Quadro mensal: mês aberto + dois anteriores
+    const tb = document.getElementById('bd-meses-body');
+    tb.innerHTML = '';
+    bdMesesVisiveis().forEach(k => {
+      const dm = BRIEFING_DATA[k] || {};
+      const tr = document.createElement('tr');
+      tr.dataset.key = k;
+      tr.innerHTML = `
+        <td class="bd-mes-label">${bdRotuloMes(k)}</td>
+        <td><input type="number" class="bd-mes-input" data-key="${k}" data-campo="briefingManual" min="0" step="0.01"></td>
+        <td><input type="number" class="bd-mes-input" data-key="${k}" data-campo="debriefingManual" min="0" step="0.01"></td>`;
+      tr.querySelector('[data-campo="briefingManual"]').value = dm.briefingManual || '';
+      tr.querySelector('[data-campo="debriefingManual"]').value = dm.debriefingManual || '';
+      tr.querySelectorAll('input').forEach(i => i.addEventListener('input', () => onBdMesInput(i)));
+      tb.appendChild(tr);
+    });
   }
-  const num = id => parseFloat(document.getElementById(id).value) || 0;
-  let pacTotal = 0, pacSessoes = 0;
+
+  let pacTotal = 0, pacSessoes = 0, avTotal = 0, avSessoes = 0;
   document.querySelectorAll('#briefing-pac-body tr').forEach(tr => {
-    pacTotal += parseFloat(tr.querySelector('.bpac-valor')?.value) || 0;
-    pacSessoes += parseFloat(tr.querySelector('.bpac-sessoes')?.value) || 0;
+    pacTotal += bdNum(tr.querySelector('.bi-valor')?.value);
+    pacSessoes += bdNum(tr.querySelector('.bi-sessoes')?.value);
   });
-  const avTotal = num('briefing-av-qtd') * num('briefing-av-valor');
-  const rec = getClientesRecebidoMes();
+  document.querySelectorAll('#briefing-av-body tr').forEach(tr => {
+    avTotal += bdNum(tr.querySelector('.bi-valor')?.value);
+    avSessoes += bdNum(tr.querySelector('.bi-sessoes')?.value);
+  });
   document.getElementById('briefing-pac-sessoes').textContent = pacSessoes;
   document.getElementById('briefing-pac-total').textContent = formatBRL(pacTotal);
+  document.getElementById('briefing-av-sessoes').textContent = avSessoes;
   document.getElementById('briefing-av-total').textContent = formatBRL(avTotal);
-  document.getElementById('briefing-total').placeholder = formatBRL(pacTotal + avTotal);
-  document.getElementById('debriefing-total').placeholder = formatBRL(rec.pacotes + rec.avulsos);
+
+  // Valores automáticos (placeholder) de cada linha do quadro mensal
+  document.querySelectorAll('#bd-meses-body tr').forEach(tr => {
+    const k = tr.dataset.key;
+    const t = bdTotaisDoMes(k, k === BRIEFING_SHOWN_KEY);
+    tr.querySelector('[data-campo="briefingManual"]').placeholder = formatBRL(t.briefing);
+    tr.querySelector('[data-campo="debriefingManual"]').placeholder = formatBRL(t.debriefing);
+  });
 }
 
 // ── OUTRAS RECEITAS (Orçamento PF, por mês) ────────
@@ -5672,8 +5859,8 @@ function recalculateClientes() {
 
 // Só entra na receita do mês o que foi marcado como pago COM data de pagamento
 // dentro do mês vigente. A data da sessão não define mais o mês da entrada.
-function getClientesRecebidoMes() {
-  const nowKey = getActiveMonthKey();
+function getClientesRecebidoMes(chaveMes) {
+  const nowKey = chaveMes || getActiveMonthKey();
   let pacotes = 0, avulsos = 0, semDataPgto = 0;
   document.querySelectorAll('.cliente-bloco').forEach(block => {
     const kind = block.dataset.kind;
