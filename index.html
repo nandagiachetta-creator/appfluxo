@@ -2149,6 +2149,11 @@
       <div class="dash-card-sub" id="dash-emp-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
+      <div class="dash-card-label">Total de Custos do Mês</div>
+      <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
+      <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos</div>
+    </div>
+    <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
       <div class="dash-card-value" id="dash-receita-clientes">R$ 0,00</div>
       <div class="dash-card-sub">Entradas da aba Clientes</div>
@@ -5070,7 +5075,8 @@ function updateDashboard() {
   const receitaTotal = receitaClientes + receitaOutras;
 
   const empMes = emprestimoAbertoPagoNoMes(getActiveMonthKey());
-  const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal + empMes.total);
+  const custosTotal = pfTotal + pjTotal + cartaoTotal + empMes.total;
+  const saldo = receitaTotal - custosTotal;
 
   const previsao = getPrevisaoProximoMes();
 
@@ -5084,6 +5090,7 @@ function updateDashboard() {
   const el = id => document.getElementById(id);
   if (el('dash-pf-total')) el('dash-pf-total').textContent = formatBRL(pfTotal);
   if (el('dash-pj-total')) el('dash-pj-total').textContent = formatBRL(pjTotal);
+  if (el('dash-custos-total')) el('dash-custos-total').textContent = formatBRL(custosTotal);
   if (el('dash-emp-total')) el('dash-emp-total').textContent = formatBRL(empMes.aberto);
   if (el('dash-emp-sub')) el('dash-emp-sub').textContent = empMes.pago ? formatBRL(empMes.pago) + ' já pagos' : 'nada pago ainda neste mês';
   if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoMes.aberto);
@@ -5927,6 +5934,7 @@ async function exportWord() {
 
     // Cartões — só a fatura do mês exportado
     const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
+    const empTotal = emprestimoAbertoPagoNoMes(getActiveMonthKey()).total;
 
     // Receita manual (tabela "Receitas do Mês")
     const receitaRows = [];
@@ -5960,10 +5968,10 @@ async function exportWord() {
     const objGuardadoTotal = objetivoRows.reduce((s,r)=>s+r.guardado,0);
 
     // Dashboard
-    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal);
+    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal + empTotal);
     const fixosTotalDash = fixedM + bizFM;
     const variaveisTotalDash = varM + bizVM;
-    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal;
+    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal + empTotal;
     const pct = (v) => chartTotalDash > 0 ? Math.round((v/chartTotalDash)*100) : 0;
 
     // Meta Semanal (calculadora) — lê os resultados já calculados na tela
@@ -6059,6 +6067,8 @@ async function exportWord() {
         ['Orcamento PF (mensal)', fBRL(pessoalM)],
         ['Orcamento PJ (mensal)', fBRL(empresaM)],
         ['Cartoes do mes', fBRL(cartaoTotal)],
+        ['Emprestimos do mes', fBRL(empTotal)],
+        ['TOTAL DE CUSTOS', fBRL(pessoalM + empresaM + cartaoTotal + empTotal)],
         ['Receita do Mes', fBRL(receitaTotalGeral)],
         ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
         ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
@@ -6068,6 +6078,7 @@ async function exportWord() {
         ['Fixos', fBRL(fixosTotalDash) + ' (' + pct(fixosTotalDash) + '%)'],
         ['Variaveis', fBRL(variaveisTotalDash) + ' (' + pct(variaveisTotalDash) + '%)'],
         ['Cartoes', fBRL(cartaoTotal) + ' (' + pct(cartaoTotal) + '%)'],
+        ['Emprestimos', fBRL(empTotal) + ' (' + pct(empTotal) + '%)'],
       ]);
       return xml;
     }
@@ -6329,6 +6340,7 @@ async function exportExcel() {
     const profit     = goal - custoMensalTotal;
 
     const cartaoTotal = totalCartaoNoMes(getActiveMonthKey());
+    const empTotal = emprestimoAbertoPagoNoMes(getActiveMonthKey()).total;
 
     const receitaRows = [];
     document.querySelectorAll('#receita-body tr').forEach(tr => {
@@ -6359,10 +6371,10 @@ async function exportExcel() {
     const objNecessarioTotal = objetivoRows.reduce((s,r)=>s+r.necessario,0);
     const objGuardadoTotal = objetivoRows.reduce((s,r)=>s+r.guardado,0);
 
-    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal);
+    const saldoMes = receitaTotalGeral - (pessoalM + empresaM + cartaoTotal + empTotal);
     const fixosTotalDash = fixedM + bizFM;
     const variaveisTotalDash = varM + bizVM;
-    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal;
+    const chartTotalDash = fixosTotalDash + variaveisTotalDash + cartaoTotal + empTotal;
     const pct = (v) => chartTotalDash > 0 ? Math.round((v/chartTotalDash)*100) : 0;
 
     const metaTextos = {};
@@ -6410,6 +6422,8 @@ async function exportExcel() {
       ['Orçamento PF (mensal)', fBRL(pessoalM)],
       ['Orçamento PJ (mensal)', fBRL(empresaM)],
       ['Cartões do mês', fBRL(cartaoTotal)],
+      ['Empréstimos do mês', fBRL(empTotal)],
+      [{v:'TOTAL DE CUSTOS',bold:true}, {v:fBRL(pessoalM + empresaM + cartaoTotal + empTotal),bold:true}],
       ['Receita do Mês', fBRL(receitaTotalGeral)],
       [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
       ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
@@ -6418,6 +6432,7 @@ async function exportExcel() {
       ['Fixos', fBRL(fixosTotalDash) + ' (' + pct(fixosTotalDash) + '%)'],
       ['Variáveis', fBRL(variaveisTotalDash) + ' (' + pct(variaveisTotalDash) + '%)'],
       ['Cartões', fBRL(cartaoTotal) + ' (' + pct(cartaoTotal) + '%)'],
+      ['Empréstimos', fBRL(empTotal) + ' (' + pct(empTotal) + '%)'],
     ]});
 
     // ORÇAMENTO PESSOAL
