@@ -3065,16 +3065,24 @@
     <span class="section-pill" style="background:#3d7a8c">Pacotes</span>
     <h2 class="section-title" style="font-size:20px">Pacotes</h2>
   </div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:32px">
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Quantidade
-      <input type="number" id="briefing-pac-qtd" min="0" step="1" placeholder="0" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:120px;font-family:inherit">
-    </label>
-    <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Valor do pacote (R$)
-      <input type="number" id="briefing-pac-valor" min="0" step="0.01" placeholder="0,00" oninput="renderBriefing()" style="padding:8px 10px;border:1px solid var(--border,#ddd);border-radius:8px;width:160px;font-family:inherit">
-    </label>
-    <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--text-muted)">Total de pacotes
-      <strong id="briefing-pac-total" style="font-size:20px;color:var(--text,#333)">R$ 0,00</strong>
-    </div>
+  <div class="table-wrapper" style="margin-bottom:32px">
+    <table>
+      <thead>
+        <tr><th>Nome do pacote</th><th style="text-align:center">Qtd. de sessões</th><th>Valor total do pacote</th></tr>
+      </thead>
+      <tbody id="briefing-pac-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Total de pacotes</td>
+          <td style="text-align:center"><span class="total-amount" id="briefing-pac-sessoes">0</span></td>
+          <td><span class="total-amount" id="briefing-pac-total">R$ 0,00</span></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" type="button" onclick="addBriefingPacote()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      + Adicionar pacote
+    </button>
   </div>
 
   <div class="section-header">
@@ -4666,28 +4674,71 @@ function switchView(view) {
 // ── BRIEFING E DEBRIEFING (por mês) ────────
 let BRIEFING_DATA = {}; // { 'YYYY-MM': { pacQtd, pacValor, avQtd, avValor } }
 let BRIEFING_SHOWN_KEY = null;
-const BRIEFING_FIELDS = { pacQtd: 'briefing-pac-qtd', pacValor: 'briefing-pac-valor', avQtd: 'briefing-av-qtd', avValor: 'briefing-av-valor', briefingManual: 'briefing-total', debriefingManual: 'debriefing-total' };
+const BRIEFING_FIELDS = { avQtd: 'briefing-av-qtd', avValor: 'briefing-av-valor', briefingManual: 'briefing-total', debriefingManual: 'debriefing-total' };
+
+function createBriefingPacoteRow(nome = '', sessoes = '', valor = '') {
+  const tbody = document.getElementById('briefing-pac-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><div class="td-label">
+      <button class="btn-del" title="Remover" type="button">×</button>
+      <input type="text" class="bpac-nome" placeholder="Nome do pacote" />
+    </div></td>
+    <td style="text-align:center"><input type="number" class="bpac-sessoes" min="0" step="1" placeholder="0" style="width:90px;text-align:center" /></td>
+    <td><div class="value-input-wrap">
+      <span class="currency-sym">R$</span>
+      <input type="number" class="bpac-valor" min="0" step="0.01" />
+    </div></td>`;
+  tr.querySelector('.bpac-nome').value = nome;
+  tr.querySelector('.bpac-sessoes').value = sessoes;
+  tr.querySelector('.bpac-valor').value = valor;
+  tr.querySelectorAll('input').forEach(i => i.addEventListener('input', renderBriefing));
+  tr.querySelector('.btn-del').addEventListener('click', () => { tr.remove(); renderBriefing(); saveData(); });
+  tbody.appendChild(tr);
+}
+
+function addBriefingPacote() { createBriefingPacoteRow(); }
 
 function syncBriefingFromDom() {
-  if (!BRIEFING_SHOWN_KEY || !document.getElementById('briefing-pac-qtd')) return;
+  if (!BRIEFING_SHOWN_KEY || !document.getElementById('briefing-pac-body')) return;
   const d = {};
   Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { d[k] = document.getElementById(id).value; });
+  d.pacotes = [];
+  document.querySelectorAll('#briefing-pac-body tr').forEach(tr => {
+    d.pacotes.push({
+      nome: tr.querySelector('.bpac-nome')?.value || '',
+      sessoes: tr.querySelector('.bpac-sessoes')?.value || '',
+      valor: tr.querySelector('.bpac-valor')?.value || '',
+    });
+  });
   BRIEFING_DATA[BRIEFING_SHOWN_KEY] = d;
 }
 
 function renderBriefing() {
-  if (!document.getElementById('briefing-pac-qtd')) return;
+  if (!document.getElementById('briefing-pac-body')) return;
   const key = getActiveMonthKey();
   if (key !== BRIEFING_SHOWN_KEY) {
     syncBriefingFromDom();
     const d = BRIEFING_DATA[key] || {};
     Object.entries(BRIEFING_FIELDS).forEach(([k, id]) => { document.getElementById(id).value = d[k] || ''; });
+    document.getElementById('briefing-pac-body').innerHTML = '';
+    let pacotes = Array.isArray(d.pacotes) ? d.pacotes : [];
+    // Formato antigo: quantidade × valor do pacote vira uma linha só.
+    if (!pacotes.length && (parseFloat(d.pacQtd) || parseFloat(d.pacValor))) {
+      pacotes = [{ nome: 'Pacotes', sessoes: d.pacQtd || '', valor: String((parseFloat(d.pacQtd) || 0) * (parseFloat(d.pacValor) || 0)) }];
+    }
+    pacotes.forEach(p => createBriefingPacoteRow(p.nome || '', p.sessoes || '', p.valor || ''));
     BRIEFING_SHOWN_KEY = key;
   }
   const num = id => parseFloat(document.getElementById(id).value) || 0;
-  const pacTotal = num('briefing-pac-qtd') * num('briefing-pac-valor');
+  let pacTotal = 0, pacSessoes = 0;
+  document.querySelectorAll('#briefing-pac-body tr').forEach(tr => {
+    pacTotal += parseFloat(tr.querySelector('.bpac-valor')?.value) || 0;
+    pacSessoes += parseFloat(tr.querySelector('.bpac-sessoes')?.value) || 0;
+  });
   const avTotal = num('briefing-av-qtd') * num('briefing-av-valor');
   const rec = getClientesRecebidoMes();
+  document.getElementById('briefing-pac-sessoes').textContent = pacSessoes;
   document.getElementById('briefing-pac-total').textContent = formatBRL(pacTotal);
   document.getElementById('briefing-av-total').textContent = formatBRL(avTotal);
   document.getElementById('briefing-total').placeholder = formatBRL(pacTotal + avTotal);
