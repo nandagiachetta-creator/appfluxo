@@ -3388,6 +3388,9 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
     <td style="text-align:center">
       <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="${isCartao ? 'onCartaoPago(this);' : ''}recalculate()" />
     </td>
+    ${isCartao ? `<td style="text-align:center">
+      <input type="date" class="cartao-data-pgto" value="${dataPgto}" title="Data em que a fatura foi paga" onchange="onCartaoDataPgto(this)" />
+    </td>` : ''}
   `;
   tbody.appendChild(tr);
 }
@@ -3401,6 +3404,24 @@ function onCartaoPago(check) {
   if (!tr) return;
   if (check.checked) { if (!tr.dataset.dataPgto) tr.dataset.dataPgto = todayISO(); }
   else tr.dataset.dataPgto = '';
+  sincronizarDataPgtoCartao(tr);
+}
+
+// Preencher a data de pagamento da fatura marca o item como pago.
+function onCartaoDataPgto(input) {
+  const tr = input.closest('tr');
+  if (!tr) return;
+  tr.dataset.dataPgto = input.value;
+  const check = tr.querySelector('.paid-check');
+  if (input.value && check && !check.checked) check.checked = true;
+  recalculate();
+  saveData();
+}
+
+// Mantém o campo visível igual à data guardada na linha (o Fluxo de Caixa também a altera).
+function sincronizarDataPgtoCartao(tr) {
+  const inp = tr.querySelector('.cartao-data-pgto');
+  if (inp && inp.value !== (tr.dataset.dataPgto || '')) inp.value = tr.dataset.dataPgto || '';
 }
 
 function updateDueBadge(input) {
@@ -3546,6 +3567,7 @@ function addRow(type) {
 }
 
 function recalculate() {
+  document.querySelectorAll('.cartao-data-pgto').forEach(i => sincronizarDataPgtoCartao(i.closest('tr')));
   // Personal
   const fixedMonthly = sumType('fixed');
   const variableMonthly = sumType('variable');
@@ -3691,6 +3713,7 @@ function addCartaoCard(name = '', id = null) {
             <th style="text-align:right">Dia</th>
             <th>Valor</th>
             <th class="th-pago">Pago</th>
+            <th class="th-pago">Data pgto</th>
           </tr>
         </thead>
         <tbody id="cartao-${id}-body"></tbody>
