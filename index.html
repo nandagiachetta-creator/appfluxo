@@ -4977,14 +4977,10 @@ function calcMeta() {
   const todayDayRaw  = document.getElementById('meta-today')?.value;
   const todayDay     = parseFloat(todayDayRaw) || new Date().getDate();
 
-  // Já recebido (tabela de receitas + pacotes/avulsos pagos no mês)
-  let recebido = 0;
-  document.querySelectorAll('#receita-body tr').forEach(tr => {
-    if (!isReceitaDoMes(tr.querySelector('.receita-data')?.value || '')) return;
-    recebido += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
-  });
+  // Já recebido: só o que entrou de clientes (pacotes/avulsos pagos no mês).
+  // Outras receitas não abatem a meta de faturamento.
   const clientesRecebidoMeta = getClientesRecebidoMes();
-  recebido += clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos + getOutrasReceitasPF();
+  const recebido = clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos;
 
   // --- Planejamento mensal ---
   const semanasMes   = 4.3;
@@ -5425,7 +5421,7 @@ function updateDashboard() {
     const saldoCard = saldoValueEl.closest('.dash-card');
     if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
   }
-  atualizarDashMeta(receitaTotal);
+  atualizarDashMeta(receitaClientes);
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
   if (el('dash-previsao-mes')) el('dash-previsao-mes').textContent = previsao.monthLabel;
@@ -5471,12 +5467,7 @@ function atualizarDashMeta(receitaTotal) {
   const meta = parseFloat(metaInput?.value) || 0;
   if (receitaTotal === undefined) {
     const clientes = getClientesRecebidoMes();
-    let manual = 0;
-    document.querySelectorAll('#receita-body tr').forEach(tr => {
-      if (!isReceitaDoMes(tr.querySelector('.receita-data')?.value || '')) return;
-      manual += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
-    });
-    receitaTotal = manual + clientes.pacotes + clientes.avulsos;
+    receitaTotal = clientes.pacotes + clientes.avulsos;
   }
 
   const pct = meta > 0 ? Math.min(100, Math.round((receitaTotal / meta) * 100)) : 0;
