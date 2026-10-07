@@ -5122,7 +5122,7 @@ const BRIEFING_TIPOS = { pac: 'pacotes', av: 'avulsos' };
 
 function bdMesesVisiveis() {
   const base = getActiveMonthDate();
-  return [2, 1, 0].map(n => monthKey(new Date(base.getFullYear(), base.getMonth() - n, 1)));
+  return [0, 1, 2].map(n => monthKey(new Date(base.getFullYear(), base.getMonth() - n, 1)));
 }
 
 function bdRotuloMes(key) {
