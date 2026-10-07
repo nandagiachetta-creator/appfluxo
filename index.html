@@ -1522,7 +1522,7 @@
   .cartao-mes-input:focus { outline: none; border-color: #a6763f; background: white; }
   .cartao-th-mes { width: 168px; }
   .cartao-mes-input.sem-mes { border-color: var(--red); background: #fdf1ef; }
-  .cartao-card {
+  .cartao-card, .emprestimo-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -1554,7 +1554,7 @@
     color: #a6763f;
     white-space: nowrap;
   }
-  .cartao-card .table-wrapper { box-shadow: none; }
+  .cartao-card .table-wrapper, .emprestimo-card .table-wrapper { box-shadow: none; }
 
   /* DASHBOARD */
   .dashboard-cards {
@@ -2093,6 +2093,7 @@
   <button class="view-tab" id="view-tab-receita" onclick="switchView('receita')">💰 Fluxo de Caixa</button>
   <button class="view-tab" id="view-tab-meta" onclick="switchView('meta')">🎯 Meta</button>
   <button class="view-tab" id="view-tab-cartao" onclick="switchView('cartao')">💳 Cartão</button>
+  <button class="view-tab" id="view-tab-emprestimo" onclick="switchView('emprestimo')">🏦 Empréstimos</button>
   <button class="view-tab" id="view-tab-pj" onclick="switchView('pj')">Orçamento PJ</button>
   <button class="view-tab" id="view-tab-pf" onclick="switchView('pf')">Orçamento PF</button>
   <button class="view-tab" id="view-tab-objetivo" onclick="switchView('objetivo')">🏆 Objetivo Financeiro</button>
@@ -2141,6 +2142,11 @@
       <div class="dash-card-label">Cartões do Mês · em aberto</div>
       <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-cartao-sub">nada pago ainda neste mês</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Empréstimos do Mês · em aberto</div>
+      <div class="dash-card-value" id="dash-emp-total">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-emp-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
@@ -2508,6 +2514,45 @@
 
 </div>
 <!-- /view-cartao -->
+
+<!-- VIEW: EMPRÉSTIMOS -->
+<div id="view-emprestimo" style="display:none">
+
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#5a6e8c">Empréstimos</span>
+    <h2 class="section-title">Meus Empréstimos</h2>
+  </div>
+
+  <p class="receita-nota-mes">
+    Cada parcela tem o seu mês. Lance as parcelas de todos os meses aqui mesmo — o resumo abaixo soma
+    só o que ainda está <strong>em aberto</strong> (o que já foi marcado como pago aparece à parte),
+    e o Fluxo de Caixa puxa só as parcelas do mês que estiver aberto.
+  </p>
+
+  <div class="cartao-summary-box">
+    <p class="cartao-summary-sub-title">Em aberto por empréstimo</p>
+    <div id="emprestimo-summary-list" class="cartao-summary-list"></div>
+    <p class="cartao-summary-sub-title espaco">Em aberto por mês</p>
+    <div id="emprestimo-mes-list" class="cartao-summary-list"></div>
+    <div class="cartao-summary-total">
+      <span>Total em aberto em empréstimos</span>
+      <strong id="emprestimo-grand-total">R$ 0,00</strong>
+    </div>
+    <div class="cartao-summary-total-pago">
+      <span>Já pago (não entra no total acima)</span>
+      <strong id="emprestimo-grand-pago">R$ 0,00</strong>
+    </div>
+  </div>
+
+  <div id="emprestimo-cards-container"></div>
+
+  <button class="btn-add-row" onclick="addEmprestimoCard()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar empréstimo
+  </button>
+
+</div>
+<!-- /view-emprestimo -->
 
 <!-- VIEW: RECEITA (Fluxo de Caixa) -->
 <div id="view-receita" style="display:none">
@@ -3346,7 +3391,7 @@ let rowId = 0;
 // decide o que o Fluxo de Caixa puxa.
 
 function ehTipoCartao(type) {
-  return String(type).startsWith('cartao-');
+  return String(type).startsWith('cartao-') || String(type).startsWith('emp-');
 }
 
 function cartaoMesDaLinha(tr) {
@@ -3389,6 +3434,141 @@ function cartaoAbertoPagoNoMes(mes) {
     if (it.pago) pago += it.valor; else aberto += it.valor;
   });
   return { aberto, pago, total: aberto + pago };
+}
+
+// ── EMPRÉSTIMOS: mesma lógica dos cartões, em aba própria ─────
+function coletarItensEmprestimo() {
+  const itens = [];
+  document.querySelectorAll('.emprestimo-card').forEach(card => {
+    const cardId = card.dataset.cardId;
+    const cardNome = card.querySelector('.cartao-card-name')?.value?.trim() || 'Empréstimo sem nome';
+    document.querySelectorAll(`#emp-${cardId}-body tr`).forEach(tr => {
+      itens.push({
+        cardId, cardNome, tr,
+        mes: cartaoMesDaLinha(tr),
+        valor: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
+        pago: tr.querySelector('.paid-check')?.checked || false,
+      });
+    });
+  });
+  return itens;
+}
+
+function emprestimoAbertoPagoNoMes(mes) {
+  let aberto = 0, pago = 0;
+  coletarItensEmprestimo().forEach(it => {
+    if (it.mes !== mes) return;
+    if (it.pago) pago += it.valor; else aberto += it.valor;
+  });
+  return { aberto, pago, total: aberto + pago };
+}
+
+let emprestimoCardSeq = 0;
+function addEmprestimoCard(name = '', id = null) {
+  if (!id) {
+    id = 'e' + (emprestimoCardSeq++);
+  } else {
+    const n = parseInt(String(id).replace('e', ''), 10);
+    if (!isNaN(n) && n >= emprestimoCardSeq) emprestimoCardSeq = n + 1;
+  }
+  const container = document.getElementById('emprestimo-cards-container');
+  const card = document.createElement('div');
+  card.className = 'emprestimo-card';
+  card.id = 'emprestimo-card-' + id;
+  card.dataset.cardId = id;
+  card.innerHTML = `
+    <div class="cartao-card-header">
+      <input type="text" class="cartao-card-name" placeholder="Nome do empréstimo (ex: Banco X)" oninput="recalculate()" />
+      <span class="cartao-card-subtotal" id="emprestimo-subtotal-${id}">R$ 0,00</span>
+      <button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Parcela</th>
+            <th class="cartao-th-mes">Mês</th>
+            <th style="text-align:right">Dia</th>
+            <th>Valor</th>
+            <th class="th-pago">Pago</th>
+            <th class="th-pago">Data pgto</th>
+          </tr>
+        </thead>
+        <tbody id="emp-${id}-body"></tbody>
+      </table>
+      <button class="btn-add-row" onclick="addRow('emp-${id}')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar parcela
+      </button>
+    </div>
+  `;
+  card.querySelector('.cartao-card-name').value = name;
+  container.appendChild(card);
+  return id;
+}
+
+function deleteEmprestimoCard(id) {
+  if (!confirm('Remover este empréstimo e todas as parcelas cadastradas nele?')) return;
+  const card = document.getElementById('emprestimo-card-' + id);
+  if (card) card.remove();
+  recalculate();
+  saveData();
+}
+
+function renderResumoEmprestimos() {
+  const summaryList = document.getElementById('emprestimo-summary-list');
+  if (!summaryList) return;
+  const itens = coletarItensEmprestimo();
+  const cards = document.querySelectorAll('.emprestimo-card');
+  let grandAberto = 0, grandPago = 0;
+  summaryList.innerHTML = '';
+  cards.forEach(card => {
+    const id = card.dataset.cardId;
+    const name = card.querySelector('.cartao-card-name')?.value || 'Empréstimo sem nome';
+    const doEmp = itens.filter(it => it.cardId === id);
+    const aberto = doEmp.reduce((t, it) => t + (it.pago ? 0 : it.valor), 0);
+    const pago = doEmp.reduce((t, it) => t + (it.pago ? it.valor : 0), 0);
+    grandAberto += aberto;
+    grandPago += pago;
+    const subtotalEl = document.getElementById('emprestimo-subtotal-' + id);
+    if (subtotalEl) subtotalEl.textContent = formatBRL(aberto);
+    const item = document.createElement('div');
+    item.className = 'cartao-summary-item';
+    const notaPago = pago ? `<small class="cartao-summary-pago">pago ${formatBRL(pago)}</small>` : '';
+    item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div><button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>`;
+    summaryList.appendChild(item);
+  });
+  if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum empréstimo cadastrado ainda.</span>';
+
+  const mesList = document.getElementById('emprestimo-mes-list');
+  if (mesList) {
+    const porMes = new Map();
+    itens.forEach(it => {
+      const chave = it.mes || 'sem-mes';
+      const acc = porMes.get(chave) || { aberto: 0, pago: 0 };
+      if (it.pago) acc.pago += it.valor; else acc.aberto += it.valor;
+      porMes.set(chave, acc);
+    });
+    const chaves = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
+    if (porMes.has('sem-mes')) chaves.push('sem-mes');
+    const mesAtivo = getActiveMonthKey();
+    mesList.innerHTML = '';
+    chaves.forEach(chave => {
+      const { aberto, pago } = porMes.get(chave);
+      const div = document.createElement('div');
+      div.className = 'cartao-summary-item' + (chave === mesAtivo ? ' mes-ativo' : '');
+      const rotulo = chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave);
+      const tag = chave === mesAtivo ? '<span class="cartao-mes-tag">mês aberto</span>' : '';
+      const notaPago = pago ? `<small class="cartao-summary-pago">${aberto ? 'pago ' : 'tudo pago · '}${formatBRL(pago)}</small>` : '';
+      div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div>`;
+      mesList.appendChild(div);
+    });
+    if (!chaves.length) mesList.innerHTML = '<span class="cartao-summary-empty">Nenhuma parcela lançada ainda.</span>';
+  }
+  const gt = document.getElementById('emprestimo-grand-total');
+  if (gt) gt.textContent = formatBRL(grandAberto);
+  const gp = document.getElementById('emprestimo-grand-pago');
+  if (gp) gp.textContent = formatBRL(grandPago);
 }
 
 function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto = '', fluxoOculto = false, mes = '') {
@@ -3725,6 +3905,8 @@ function recalculate() {
     const grandPagoEl = document.getElementById('cartao-grand-pago');
     if (grandPagoEl) grandPagoEl.textContent = formatBRL(cartaoGrandPago);
   }
+
+  renderResumoEmprestimos();
 
   calcPricing();
   updateDashboard();
@@ -4193,6 +4375,11 @@ function coletarSaidasFluxo() {
   document.querySelectorAll('.cartao-card:not(.cliente-bloco)').forEach(card => {
     const nomeCartao = card.querySelector('.cartao-card-name')?.value?.trim() || 'Cartão';
     lerTabela('cartao-' + card.dataset.cardId, nomeCartao, { porMesDoItem: true });
+  });
+
+  document.querySelectorAll('.emprestimo-card').forEach(card => {
+    const nomeEmp = card.querySelector('.cartao-card-name')?.value?.trim() || 'Empréstimo';
+    lerTabela('emp-' + card.dataset.cardId, nomeEmp, { porMesDoItem: true });
   });
 
   // Contas lançadas direto no fluxo
@@ -4719,7 +4906,7 @@ function loadMonthIntoDOM(monthData) {
 }
 
 function switchView(view) {
-  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo', 'clientes', 'briefing'].forEach(v => {
+  ['orcamento', 'pf', 'pj', 'cartao', 'receita', 'meta', 'objetivo', 'clientes', 'briefing', 'emprestimo'].forEach(v => {
     document.getElementById('view-' + v).style.display = v === view ? '' : 'none';
     document.getElementById('view-tab-' + v).classList.toggle('active', v === view);
   });
@@ -4882,7 +5069,8 @@ function updateDashboard() {
   const receitaOutras = receitaManual + outrasPF;
   const receitaTotal = receitaClientes + receitaOutras;
 
-  const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal);
+  const empMes = emprestimoAbertoPagoNoMes(getActiveMonthKey());
+  const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal + empMes.total);
 
   const previsao = getPrevisaoProximoMes();
 
@@ -4896,6 +5084,8 @@ function updateDashboard() {
   const el = id => document.getElementById(id);
   if (el('dash-pf-total')) el('dash-pf-total').textContent = formatBRL(pfTotal);
   if (el('dash-pj-total')) el('dash-pj-total').textContent = formatBRL(pjTotal);
+  if (el('dash-emp-total')) el('dash-emp-total').textContent = formatBRL(empMes.aberto);
+  if (el('dash-emp-sub')) el('dash-emp-sub').textContent = empMes.pago ? formatBRL(empMes.pago) + ' já pagos' : 'nada pago ainda neste mês';
   if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoMes.aberto);
   if (el('dash-cartao-sub')) {
     el('dash-cartao-sub').textContent = cartaoMes.pago
@@ -6561,6 +6751,27 @@ function saveData() {
   });
   data.cartoes = cartoes;
 
+  // Empréstimos: mesma estrutura dos cartões
+  const emprestimos = [];
+  document.querySelectorAll('.emprestimo-card').forEach(card => {
+    const id = card.dataset.cardId;
+    const name = card.querySelector('.cartao-card-name')?.value || '';
+    const items = [];
+    document.querySelectorAll(`#emp-${id}-body tr`).forEach(tr => {
+      items.push({
+        name: tr.querySelector('input[type="text"]')?.value || '',
+        value: tr.querySelector('input[type="number"]:not(.due-input)')?.value || '0',
+        due: tr.querySelector('.due-input')?.value || '',
+        paid: tr.querySelector('.paid-check')?.checked || false,
+        mes: cartaoMesDaLinha(tr), dataPgto: tr.dataset.dataPgto || '', fluxoOculto: tr.dataset.fluxoOculto === '1',
+      });
+    });
+    const hasItems = items.some(it => it.name.trim() !== '' || parseFloat(it.value) > 0);
+    if (name.trim() === '' && !hasItems) return;
+    emprestimos.push({ id, name, items });
+  });
+  data.emprestimos = emprestimos;
+
   // Objetivos financeiros: lista única, não vinculada ao mês atual/próximo
   const objetivos = [];
   document.querySelectorAll('#objetivo-body tr').forEach(tr => {
@@ -6769,6 +6980,12 @@ async function loadData() {
       const id = addCartaoCard('Cartão');
       data.cartao.slice(0, 50).forEach(r => createRow('cartao-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false, r.mes || mesPadraoCartao));
     }
+
+    (data.emprestimos || []).slice(0, 30).forEach(c => {
+      const id = addEmprestimoCard(c.name || '', c.id);
+      (c.items || []).slice(0, 400).forEach(r => createRow('emp-' + id, r.name, parseFloat(r.value)||0, r.due||'', r.paid||false, r.dataPgto||'', r.fluxoOculto||false, r.mes || mesPadraoCartao));
+    });
+    if (data.emprestimos && data.emprestimos.length) recalculate();
 
     if (data.objetivos && data.objetivos.length) {
       data.objetivos.slice(0, 100).forEach(o => createObjetivoRow(o.name || '', parseFloat(o.necessario) || 0, parseFloat(o.guardado) || 0, o.dataAlvo || '', o.concluido || false));
