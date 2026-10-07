@@ -2350,6 +2350,7 @@
           <th class="th-sortable" id="sort-th-fixed" onclick="sortByDue('fixed')">Vencimento</th>
           <th>Mensal</th>
           <th class="th-pago">Pago</th>
+          <th class="th-pago">Data pgto</th>
         </tr>
       </thead>
       <tbody id="fixed-body">
@@ -2359,6 +2360,7 @@
           <td>Total Custos Fixos</td>
           <td></td>
           <td><span class="total-amount" id="fixed-monthly-total">R$ 0,00</span></td>
+          <td></td>
           <td></td>
         </tr>
       </tfoot>
@@ -2384,6 +2386,7 @@
           <th class="th-sortable" id="sort-th-variable" onclick="sortByDue('variable')">Vencimento</th>
           <th>Mensal</th>
           <th class="th-pago">Pago</th>
+          <th class="th-pago">Data pgto</th>
         </tr>
       </thead>
       <tbody id="variable-body">
@@ -2393,6 +2396,7 @@
           <td>Total Custos Variáveis</td>
           <td></td>
           <td><span class="total-amount" id="variable-monthly-total">R$ 0,00</span></td>
+          <td></td>
           <td></td>
         </tr>
       </tfoot>
@@ -2459,6 +2463,7 @@
           <th class="th-sortable" id="sort-th-biz-fixed" onclick="sortByDue('biz-fixed')">Vencimento</th>
           <th>Mensal</th>
           <th class="th-pago">Pago</th>
+          <th class="th-pago">Data pgto</th>
         </tr>
       </thead>
       <tbody id="biz-fixed-body"></tbody>
@@ -2467,6 +2472,7 @@
           <td>Total Custos Fixos Empresa</td>
           <td></td>
           <td><span class="total-amount" id="biz-fixed-monthly-total">R$ 0,00</span></td>
+          <td></td>
           <td></td>
         </tr>
       </tfoot>
@@ -2492,6 +2498,7 @@
           <th class="th-sortable" id="sort-th-biz-variable" onclick="sortByDue('biz-variable')">Vencimento</th>
           <th>Mensal</th>
           <th class="th-pago">Pago</th>
+          <th class="th-pago">Data pgto</th>
         </tr>
       </thead>
       <tbody id="biz-variable-body"></tbody>
@@ -2500,6 +2507,7 @@
           <td>Total Custos Variáveis Empresa</td>
           <td></td>
           <td><span class="total-amount" id="biz-variable-monthly-total">R$ 0,00</span></td>
+          <td></td>
           <td></td>
         </tr>
       </tfoot>
@@ -3845,11 +3853,11 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
       </div>
     </td>
     <td style="text-align:center">
-      <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="${isCartao ? 'onCartaoPago(this);' : ''}recalculate()" />
+      <input type="checkbox" class="paid-check" ${paid ? 'checked' : ''} onchange="onCartaoPago(this);recalculate()" />
     </td>
-    ${isCartao ? `<td style="text-align:center">
-      <input type="date" class="cartao-data-pgto" value="${dataPgto}" title="Data em que a fatura foi paga" onchange="onCartaoDataPgto(this)" />
-    </td>` : ''}
+    <td style="text-align:center">
+      <input type="date" class="cartao-data-pgto" value="${dataPgto}" title="Data em que foi pago" onchange="onCartaoDataPgto(this)" />
+    </td>
   `;
   tbody.appendChild(tr);
 }
@@ -3861,8 +3869,19 @@ function createRow(type, name = '', value = 0, due = '', paid = false, dataPgto 
 function onCartaoPago(check) {
   const tr = check.closest('tr');
   if (!tr) return;
-  if (check.checked) { if (!tr.dataset.dataPgto) tr.dataset.dataPgto = todayISO(); }
-  else tr.dataset.dataPgto = '';
+  if (check.checked) {
+    if (!tr.dataset.dataPgto) {
+      if (ehTipoCartao(tr.dataset.type)) {
+        tr.dataset.dataPgto = todayISO();
+      } else {
+        // Orçamento PF/PJ: hoje, se for dentro do mês aberto; senão o dia de vencimento naquele mês.
+        const mes = getActiveMonthKey();
+        const dia = parseInt(tr.querySelector('.due-input')?.value, 10);
+        if (todayISO().startsWith(mes)) tr.dataset.dataPgto = todayISO();
+        else if (dia >= 1 && dia <= 31) tr.dataset.dataPgto = mes + '-' + String(dia).padStart(2, '0');
+      }
+    }
+  } else tr.dataset.dataPgto = '';
   sincronizarDataPgtoCartao(tr);
 }
 
