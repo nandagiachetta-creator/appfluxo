@@ -3003,6 +3003,31 @@
     Adicionar sessão avulsa
   </button>
 
+  <!-- OUTRAS ENTRADAS DE CLIENTES -->
+  <div class="section-header" style="margin-top:56px">
+    <span class="section-pill" style="background:#6b8f71">Entradas</span>
+    <h2 class="section-title" style="font-size:20px">Outras Entradas de Clientes</h2>
+  </div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th>
+          <th>Data do Pagamento</th>
+          <th>Valor</th>
+          <th class="th-pago">Pago</th>
+          <th class="th-pago">Feita</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="clientes-extra-body"></tbody>
+    </table>
+    <button class="btn-add-row" type="button" onclick="addClienteExtraRow()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar linha
+    </button>
+  </div>
+
   <!-- AGENDA -->
   <div class="section-header" style="margin-top:56px">
     <span class="section-pill" style="background:#5a6e8c">Agenda</span>
@@ -4063,6 +4088,24 @@ function coletarEntradasFluxo() {
         tr,
         descEditavel: false, // o nome vem do bloco do cliente
       });
+    });
+  });
+
+  // 1b) Outras entradas de clientes (aba Clientes)
+  document.querySelectorAll('#clientes-extra-body tr').forEach(tr => {
+    const pago = tr.querySelector('.sessao-pago')?.checked || false;
+    const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
+    const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+    if (fluxoOculto(tr) || !pago || valor <= 0 || !dataPgto.startsWith(mesKey)) return;
+    entradas.push({
+      dia: parseInt(dataPgto.slice(8, 10), 10),
+      data: dataPgto,
+      desc: tr.querySelector('.cliente-extra-nome')?.value?.trim() || 'Cliente sem nome',
+      valor,
+      origem: 'Clientes',
+      fonte: 'sessao',
+      tr,
+      descEditavel: false,
     });
   });
 
@@ -5160,6 +5203,38 @@ function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false,
   tbody.appendChild(tr);
 }
 
+// ── OUTRAS ENTRADAS DE CLIENTES (linhas soltas: cliente, data, valor, pago, feita) ──
+function createClienteExtraRow(cliente = '', valor = '', dataPgto = '', pago = false, realizada = false, fluxoOculto = false) {
+  const tbody = document.getElementById('clientes-extra-body');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  if (fluxoOculto) tr.dataset.fluxoOculto = '1';
+  tr.innerHTML = `
+    <td><input type="text" class="cliente-extra-nome" placeholder="Nome do cliente" oninput="recalculateClientes()"></td>
+    <td style="text-align:center"><input type="date" class="sessao-data-pgto receita-data-input" oninput="recalculateClientes()"></td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="sessao-valor" min="0" step="0.01" oninput="recalculateClientes()">
+      </div>
+    </td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" onchange="onSessaoPagoToggle(this)"></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-realizada" onchange="recalculateClientes()"></td>
+    <td style="text-align:center"><button class="btn-del" type="button" onclick="this.closest('tr').remove(); recalculateClientes();" title="Remover">×</button></td>
+  `;
+  tr.querySelector('.cliente-extra-nome').value = cliente;
+  tr.querySelector('.sessao-data-pgto').value = dataPgto;
+  tr.querySelector('.sessao-valor').value = valor;
+  tr.querySelector('.sessao-pago').checked = pago;
+  tr.querySelector('.sessao-realizada').checked = realizada;
+  tbody.appendChild(tr);
+}
+
+function addClienteExtraRow() {
+  createClienteExtraRow();
+  document.querySelector('#clientes-extra-body tr:last-child .cliente-extra-nome')?.focus();
+}
+
 // Marcar "Pago" já sugere a data de hoje; desmarcar limpa a data.
 function onSessaoPagoToggle(checkbox) {
   const tr = checkbox.closest('tr');
@@ -5233,6 +5308,12 @@ function recalculateClientes() {
     if (subtotalEl) subtotalEl.textContent = formatBRL(recebido) + ' / ' + formatBRL(total);
   });
 
+  document.querySelectorAll('#clientes-extra-body tr').forEach(tr => {
+    const pago = tr.querySelector('.sessao-pago')?.checked || false;
+    const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
+    tr.classList.toggle('sessao-sem-data-pgto', pago && !dataPgto);
+  });
+
   const countEl = document.getElementById('clientes-total-count');
   if (countEl) countEl.textContent = totalClientes;
 
@@ -5256,6 +5337,14 @@ function getClientesRecebidoMes() {
         if (kind === 'pacote') pacotes += valor; else avulsos += valor;
       }
     });
+  });
+  // Outras entradas de clientes contam como avulsos.
+  document.querySelectorAll('#clientes-extra-body tr').forEach(tr => {
+    const pago = tr.querySelector('.sessao-pago')?.checked || false;
+    const dataPgto = tr.querySelector('.sessao-data-pgto')?.value || '';
+    const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+    if (pago && !dataPgto) { if (valor > 0) semDataPgto++; }
+    if (pago && dataPgto.startsWith(nowKey)) avulsos += valor;
   });
   return { pacotes, avulsos, semDataPgto };
 }
@@ -6478,6 +6567,14 @@ function saveData() {
     });
     return blocos;
   }
+  data.clientesExtras = Array.from(document.querySelectorAll('#clientes-extra-body tr')).map(tr => ({
+    cliente: tr.querySelector('.cliente-extra-nome')?.value || '',
+    dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
+    valor: tr.querySelector('.sessao-valor')?.value || '',
+    pago: tr.querySelector('.sessao-pago')?.checked || false,
+    realizada: tr.querySelector('.sessao-realizada')?.checked || false,
+    fluxoOculto: tr.dataset.fluxoOculto === '1',
+  }));
   data.pacotes = collectClienteBlocos('pacote');
   data.avulsos = collectClienteBlocos('avulso');
   syncOutrasFromDom();
@@ -6654,7 +6751,9 @@ async function loadData() {
     }
     loadClienteBlocos('pacote', data.pacotes);
     loadClienteBlocos('avulso', data.avulsos);
-    if ((data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
+    document.getElementById('clientes-extra-body').innerHTML = '';
+    (data.clientesExtras || []).slice(0, 500).forEach(r => createClienteExtraRow(r.cliente || '', r.valor || '', r.dataPgto || '', !!r.pago, !!r.realizada, !!r.fluxoOculto));
+    if ((data.clientesExtras && data.clientesExtras.length) || (data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
 
     OUTRAS_REC = data.outrasReceitas || {};
     OUTRAS_REC_KEY = null;
