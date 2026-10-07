@@ -3282,12 +3282,6 @@
     <label>Qtd. de pacotes
       <input type="number" id="plan-pacotes" class="bd-plan" min="0" step="1" placeholder="0" oninput="onPlanInput(this)">
     </label>
-    <label>Qtd. de sessões (por pacote)
-      <input type="number" id="plan-pac-sessoes" class="bd-plan" min="0" step="1" placeholder="0" oninput="onPlanInput(this)">
-    </label>
-    <label>Valor de cada sessão
-      <input type="number" id="plan-pac-vsessao" class="bd-plan" min="0" step="0.01" placeholder="0,00" oninput="onPlanInput(this)">
-    </label>
     <label>Valor de cada pacote
       <input type="number" id="plan-pac-valor" class="bd-plan" min="0" step="0.01" placeholder="0,00" oninput="onPlanInput(this)">
     </label>
@@ -3299,6 +3293,12 @@
     <strong style="width:100%;font-size:13px;color:var(--text)">Sessões de avaliação</strong>
     <label>Qtd. de sessões
       <input type="number" id="plan-avaliacao" class="bd-plan" min="0" step="1" placeholder="0" oninput="onPlanInput(this)">
+    </label>
+    <label>Valor de cada sessão
+      <input type="number" id="plan-aval-valor" class="bd-plan" min="0" step="0.01" placeholder="0,00" oninput="onPlanInput(this)">
+    </label>
+    <label>Total planejado em avaliações
+      <strong id="plan-aval-total" style="font-size:20px;padding:10px 0">R$ 0,00</strong>
     </label>
   </div>
   <div class="cliente-gerar-row" style="margin-bottom:16px">
@@ -3314,7 +3314,7 @@
     </label>
   </div>
   <div class="cartao-summary-total" style="margin-bottom:40px">
-    <span>Total planejado (pacotes + avulsas)</span>
+    <span>Total planejado (pacotes + avaliações + avulsas)</span>
     <strong id="plan-total">R$ 0,00</strong>
   </div>
 
@@ -5165,26 +5165,19 @@ function bdRotuloMes(key) {
 const bdNum = v => parseFloat(v) || 0;
 const bdRound = v => Math.round(v * 100) / 100;
 
-// Plan: sessões × valor da sessão = valor do pacote (e vice-versa); totais planejados.
+// Plan: quantidade × valor = total planejado de cada grupo.
 function atualizarTotaisPlan() {
   const v = id => bdNum(document.getElementById(id).value);
   const pacTotal = v('plan-pacotes') * v('plan-pac-valor');
+  const avalTotal = v('plan-avaliacao') * v('plan-aval-valor');
   const avTotal = v('plan-avulso') * v('plan-av-valor');
   document.getElementById('plan-pac-total').textContent = formatBRL(pacTotal);
+  document.getElementById('plan-aval-total').textContent = formatBRL(avalTotal);
   document.getElementById('plan-av-total').textContent = formatBRL(avTotal);
-  document.getElementById('plan-total').textContent = formatBRL(pacTotal + avTotal);
+  document.getElementById('plan-total').textContent = formatBRL(pacTotal + avalTotal + avTotal);
 }
 
-function onPlanInput(input) {
-  const el = id => document.getElementById(id);
-  if (input.id === 'plan-pac-sessoes' || input.id === 'plan-pac-vsessao') {
-    if (el('plan-pac-vsessao').value !== '') el('plan-pac-valor').value = bdRound(bdNum(el('plan-pac-sessoes').value) * bdNum(el('plan-pac-vsessao').value));
-  } else if (input.id === 'plan-pac-valor') {
-    const n = bdNum(el('plan-pac-sessoes').value);
-    if (n > 0 && el('plan-pac-valor').value !== '') el('plan-pac-vsessao').value = bdRound(bdNum(el('plan-pac-valor').value) / n);
-  }
-  atualizarTotaisPlan();
-}
+function onPlanInput() { atualizarTotaisPlan(); }
 
 function createBriefingItemRow(tipo, nome = '', sessoes = '', vsessao = '', valor = '') {
   const tbody = document.getElementById('briefing-' + tipo + '-body');
@@ -5259,9 +5252,8 @@ function syncBriefingFromDom() {
     pacotes: document.getElementById('plan-pacotes').value,
     avaliacao: document.getElementById('plan-avaliacao').value,
     avulso: document.getElementById('plan-avulso').value,
-    pacSessoes: document.getElementById('plan-pac-sessoes').value,
-    pacVSessao: document.getElementById('plan-pac-vsessao').value,
     pacValor: document.getElementById('plan-pac-valor').value,
+    avalValor: document.getElementById('plan-aval-valor').value,
     avValor: document.getElementById('plan-av-valor').value,
   };
   d.estrategias = Array.from(document.querySelectorAll('#bd-estrategias textarea')).map(t => t.value);
@@ -5312,9 +5304,8 @@ function renderBriefing() {
     document.getElementById('plan-pacotes').value = plan.pacotes || '';
     document.getElementById('plan-avaliacao').value = plan.avaliacao || '';
     document.getElementById('plan-avulso').value = plan.avulso || '';
-    document.getElementById('plan-pac-sessoes').value = plan.pacSessoes || '';
-    document.getElementById('plan-pac-vsessao').value = plan.pacVSessao || '';
     document.getElementById('plan-pac-valor').value = plan.pacValor || '';
+    document.getElementById('plan-aval-valor').value = plan.avalValor || '';
     document.getElementById('plan-av-valor').value = plan.avValor || '';
     atualizarTotaisPlan();
     document.getElementById('plan-mes-label').textContent = '· ' + ptMonthName(key);
