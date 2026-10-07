@@ -2132,8 +2132,19 @@
       <div class="dash-card-sub" id="dash-cartao-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Receita do Mês</div>
+      <div class="dash-card-label">Receita de Clientes</div>
+      <div class="dash-card-value" id="dash-receita-clientes">R$ 0,00</div>
+      <div class="dash-card-sub">Entradas da aba Clientes</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Outras Receitas</div>
+      <div class="dash-card-value" id="dash-receita-outras">R$ 0,00</div>
+      <div class="dash-card-sub">Orçamento PF + Fluxo de Caixa</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Total de Receita</div>
       <div class="dash-card-value" id="dash-receita-total">R$ 0,00</div>
+      <div class="dash-card-sub">Clientes + Outras</div>
     </div>
     <div class="dash-card highlight">
       <div class="dash-card-label">Saldo do Mês</div>
@@ -2209,6 +2220,30 @@
 
 <!-- VIEW: ORÇAMENTO PF -->
 <div id="view-pf" style="display:none">
+
+  <!-- OUTRAS RECEITAS -->
+  <div class="section-header" style="margin-top:0">
+    <span class="section-pill" style="background:#6b8f71">Receitas</span>
+    <h2 class="section-title">Outras Receitas</h2>
+  </div>
+  <div class="table-wrapper">
+    <table id="outras-rec-table">
+      <thead>
+        <tr><th>Origem / descrição</th><th>Valor</th></tr>
+      </thead>
+      <tbody id="outras-rec-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Total Outras Receitas</td>
+          <td><span class="total-amount" id="outras-rec-total">R$ 0,00</span></td>
+        </tr>
+      </tfoot>
+    </table>
+    <button class="btn-add-row" onclick="addOutraReceitaRow()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar receita
+    </button>
+  </div>
 
   <!-- FIXED COSTS -->
   <div class="section-header">
@@ -4461,7 +4496,7 @@ function calcMeta() {
     recebido += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
   });
   const clientesRecebidoMeta = getClientesRecebidoMes();
-  recebido += clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos;
+  recebido += clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos + getOutrasReceitasPF();
 
   // --- Planejamento mensal ---
   const semanasMes   = 4.3;
@@ -4626,8 +4661,68 @@ function renderBriefing() {
   document.getElementById('debriefing-total').placeholder = formatBRL(rec.pacotes + rec.avulsos);
 }
 
+// ── OUTRAS RECEITAS (Orçamento PF, por mês) ────────
+let OUTRAS_REC = {}; // { 'YYYY-MM': [{ desc, valor }] }
+let OUTRAS_REC_KEY = null;
+
+function syncOutrasFromDom() {
+  if (!OUTRAS_REC_KEY || !document.getElementById('outras-rec-body')) return;
+  const rows = [];
+  document.querySelectorAll('#outras-rec-body tr').forEach(tr => {
+    rows.push({ desc: tr.querySelector('.outra-rec-desc')?.value || '', valor: tr.querySelector('.outra-rec-valor')?.value || '' });
+  });
+  OUTRAS_REC[OUTRAS_REC_KEY] = rows;
+}
+
+function createOutraReceitaRow(desc = '', valor = '') {
+  const tbody = document.getElementById('outras-rec-body');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><div class="td-label">
+      <button class="btn-del" title="Remover" type="button">×</button>
+      <input type="text" class="outra-rec-desc" placeholder="Ex.: venda de curso, indicação, reembolso" />
+    </div></td>
+    <td><div class="value-input-wrap">
+      <span class="currency-sym">R$</span>
+      <input type="number" class="outra-rec-valor" min="0" step="0.01" />
+    </div></td>`;
+  tr.querySelector('.outra-rec-desc').value = desc;
+  tr.querySelector('.outra-rec-valor').value = valor;
+  tr.querySelector('.outra-rec-desc').addEventListener('input', onOutrasChange);
+  tr.querySelector('.outra-rec-valor').addEventListener('input', onOutrasChange);
+  tr.querySelector('.btn-del').addEventListener('click', () => { tr.remove(); onOutrasChange(); saveData(); });
+  tbody.appendChild(tr);
+}
+
+function addOutraReceitaRow() { createOutraReceitaRow(); }
+
+function onOutrasChange() {
+  syncOutrasFromDom();
+  updateDashboard();
+}
+
+function getOutrasReceitasPF() {
+  syncOutrasFromDom();
+  const rows = OUTRAS_REC[getActiveMonthKey()] || [];
+  return rows.reduce((t, r) => t + (parseFloat(r.valor) || 0), 0);
+}
+
+function renderOutrasReceitas() {
+  const tbody = document.getElementById('outras-rec-body');
+  if (!tbody) return;
+  const key = getActiveMonthKey();
+  if (key !== OUTRAS_REC_KEY) {
+    syncOutrasFromDom();
+    tbody.innerHTML = '';
+    (OUTRAS_REC[key] || []).forEach(r => createOutraReceitaRow(r.desc || '', r.valor || ''));
+    OUTRAS_REC_KEY = key;
+  }
+  document.getElementById('outras-rec-total').textContent = formatBRL(getOutrasReceitasPF());
+}
+
 const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f'];
 function updateDashboard() {
+  renderOutrasReceitas();
   const pfTotal = sumType('fixed') + sumType('variable');
   const pjTotal = sumType('biz-fixed') + sumType('biz-variable');
 
@@ -4642,7 +4737,10 @@ function updateDashboard() {
     receitaManual += parseFloat(tr.querySelector('.receita-valor')?.value) || 0;
   });
   const clientesRecebidoDash = getClientesRecebidoMes();
-  const receitaTotal = receitaManual + clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
+  const outrasPF = getOutrasReceitasPF();
+  const receitaClientes = clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
+  const receitaOutras = receitaManual + outrasPF;
+  const receitaTotal = receitaClientes + receitaOutras;
 
   const saldo = receitaTotal - (pfTotal + pjTotal + cartaoTotal);
 
@@ -4664,6 +4762,8 @@ function updateDashboard() {
       ? formatBRL(cartaoMes.pago) + ' já pagos'
       : 'nada pago ainda neste mês';
   }
+  if (el('dash-receita-clientes')) el('dash-receita-clientes').textContent = formatBRL(receitaClientes);
+  if (el('dash-receita-outras')) el('dash-receita-outras').textContent = formatBRL(receitaOutras);
   if (el('dash-receita-total')) el('dash-receita-total').textContent = formatBRL(receitaTotal);
   const saldoValueEl = el('dash-saldo');
   if (saldoValueEl) {
@@ -4690,7 +4790,7 @@ function updateDashboard() {
   renderDashDonut('dashboard-donut-receita', 'dashboard-legend-receita', [
     { label: 'Pacotes pagos', value: clientesRecebidoDash.pacotes, color: DASH_COLORS[0] },
     { label: 'Avulsos pagos', value: clientesRecebidoDash.avulsos, color: DASH_COLORS[1] },
-    { label: 'Demais valores', value: receitaManual, color: DASH_COLORS[2] },
+    { label: 'Outras receitas', value: receitaOutras, color: DASH_COLORS[2] },
   ], 'Sem receita lançada ainda.');
 
   renderFluxoCaixa();
@@ -5450,7 +5550,7 @@ async function exportWord() {
     const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
     const receitaSemNf = receitaManualTotal - receitaComNf;
     const clientesRecebido = getClientesRecebidoMes();
-    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + getOutrasReceitasPF();
 
     // Objetivos financeiros
     const objetivoRows = [];
@@ -5851,7 +5951,7 @@ async function exportExcel() {
     const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
     const receitaSemNf = receitaManualTotal - receitaComNf;
     const clientesRecebido = getClientesRecebidoMes();
-    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + getOutrasReceitasPF();
 
     const objetivoRows = [];
     document.querySelectorAll('#objetivo-body tr').forEach(tr => {
@@ -6296,6 +6396,8 @@ function saveData() {
   }
   data.pacotes = collectClienteBlocos('pacote');
   data.avulsos = collectClienteBlocos('avulso');
+  syncOutrasFromDom();
+  if (OUTRAS_REC_KEY) data.outrasReceitas = OUTRAS_REC;
   syncBriefingFromDom();
   if (BRIEFING_SHOWN_KEY) data.briefing = BRIEFING_DATA;
   data.agendaHoras = AGENDA_HORAS;
@@ -6470,6 +6572,9 @@ async function loadData() {
     loadClienteBlocos('avulso', data.avulsos);
     if ((data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
 
+    OUTRAS_REC = data.outrasReceitas || {};
+    OUTRAS_REC_KEY = null;
+    renderOutrasReceitas();
     BRIEFING_DATA = data.briefing || {};
     BRIEFING_SHOWN_KEY = null;
     renderBriefing();
