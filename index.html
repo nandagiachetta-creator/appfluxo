@@ -2198,6 +2198,46 @@
   </div>
 
   <div class="dashboard-cards">
+    <div class="dash-card dash-card-meta">
+      <div class="dash-card-label">Meta de Faturamento</div>
+      <div class="dash-meta-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" id="dash-meta-goal" class="dash-meta-input" min="0" step="100"
+               placeholder="0" title="Quanto você quer faturar neste mês"
+               oninput="onDashMetaGoal(this.value)">
+      </div>
+      <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
+      <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Objetivos Financeiros</div>
+      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
+      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Receita de Clientes</div>
+      <div class="dash-card-value" id="dash-receita-clientes">R$ 0,00</div>
+      <div class="dash-card-sub">Entradas da aba Clientes</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Outras Receitas</div>
+      <div class="dash-card-value" id="dash-receita-outras">R$ 0,00</div>
+      <div class="dash-card-sub">Orçamento PF + Fluxo de Caixa</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Total de Receita</div>
+      <div class="dash-card-value" id="dash-receita-total">R$ 0,00</div>
+      <div class="dash-card-sub">Clientes + Outras</div>
+    </div>
+    <div class="dash-card highlight">
+      <div class="dash-card-label">Saldo do Mês</div>
+      <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
+    </div>
     <div class="dash-card">
       <div class="dash-card-label">Orçamento PF</div>
       <div class="dash-card-value" id="dash-pf-total">R$ 0,00</div>
@@ -2221,61 +2261,21 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos</div>
     </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Receita de Clientes</div>
-      <div class="dash-card-value" id="dash-receita-clientes">R$ 0,00</div>
-      <div class="dash-card-sub">Entradas da aba Clientes</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Outras Receitas</div>
-      <div class="dash-card-value" id="dash-receita-outras">R$ 0,00</div>
-      <div class="dash-card-sub">Orçamento PF + Fluxo de Caixa</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Total de Receita</div>
-      <div class="dash-card-value" id="dash-receita-total">R$ 0,00</div>
-      <div class="dash-card-sub">Clientes + Outras</div>
-    </div>
-    <div class="dash-card highlight">
-      <div class="dash-card-label">Saldo do Mês</div>
-      <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
-    </div>
-    <div class="dash-card dash-card-meta">
-      <div class="dash-card-label">Meta de Faturamento</div>
-      <div class="dash-meta-input-wrap">
-        <span class="currency-sym">R$</span>
-        <input type="number" id="dash-meta-goal" class="dash-meta-input" min="0" step="100"
-               placeholder="0" title="Quanto você quer faturar neste mês"
-               oninput="onDashMetaGoal(this.value)">
-      </div>
-      <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
-      <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Objetivos Financeiros</div>
-      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
-      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
-      <div class="dash-card-sub">Sessões agendadas ainda não pagas</div>
-    </div>
   </div>
 
   <div class="dashboard-charts-grid">
     <div class="dashboard-chart-box">
-      <h3>Orçamento PF</h3>
+      <h3>Custo Total do Mês</h3>
       <div class="dashboard-chart-row">
-        <div class="dashboard-donut" id="dashboard-donut-pf"></div>
-        <div class="dashboard-legend" id="dashboard-legend-pf"></div>
+        <div class="dashboard-donut" id="dashboard-donut-custos"></div>
+        <div class="dashboard-legend" id="dashboard-legend-custos"></div>
       </div>
     </div>
     <div class="dashboard-chart-box">
-      <h3>Orçamento PJ</h3>
+      <h3>Receitas</h3>
       <div class="dashboard-chart-row">
-        <div class="dashboard-donut" id="dashboard-donut-pj"></div>
-        <div class="dashboard-legend" id="dashboard-legend-pj"></div>
+        <div class="dashboard-donut" id="dashboard-donut-entradas"></div>
+        <div class="dashboard-legend" id="dashboard-legend-entradas"></div>
       </div>
     </div>
     <div class="dashboard-chart-box">
@@ -5434,7 +5434,7 @@ function renderOutrasReceitas() {
   document.getElementById('outras-rec-total').textContent = formatBRL(getOutrasReceitasPF());
 }
 
-const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f'];
+const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f', '#5a6e8c'];
 function updateDashboard() {
   renderOutrasReceitas();
   const pfTotal = sumType('fixed') + sumType('variable');
@@ -5460,7 +5460,7 @@ function updateDashboard() {
   const custosTotal = pfTotal + pjTotal + cartaoTotal + empMes.total;
   const saldo = receitaTotal - custosTotal;
 
-  const previsao = getPrevisaoProximoMes();
+  const previsao = getPrevisaoMesAtual();
 
   let objNecessario = 0, objGuardado = 0;
   document.querySelectorAll('#objetivo-body tr').forEach(tr => {
@@ -5494,17 +5494,20 @@ function updateDashboard() {
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
   if (el('dash-previsao-mes')) el('dash-previsao-mes').textContent = previsao.monthLabel;
+  if (el('dash-previsao-sub')) el('dash-previsao-sub').textContent = 'Sessões agendadas ainda não pagas, de hoje até dia ' + previsao.ultimoDia;
   if (el('dash-previsao-total')) el('dash-previsao-total').textContent = formatBRL(previsao.total);
 
-  renderDashDonut('dashboard-donut-pf', 'dashboard-legend-pf', [
-    { label: 'Fixos', value: sumType('fixed'), color: DASH_COLORS[0] },
-    { label: 'Variáveis', value: sumType('variable'), color: DASH_COLORS[1] },
-  ], 'Sem gastos pessoais lançados ainda.');
+  renderDashDonut('dashboard-donut-custos', 'dashboard-legend-custos', [
+    { label: 'Orçamento PF', value: pfTotal, color: DASH_COLORS[0] },
+    { label: 'Orçamento PJ', value: pjTotal, color: DASH_COLORS[1] },
+    { label: 'Cartões', value: cartaoTotal, color: DASH_COLORS[2] },
+    { label: 'Empréstimos', value: empMes.total, color: DASH_COLORS[3] },
+  ], 'Sem custos lançados ainda.');
 
-  renderDashDonut('dashboard-donut-pj', 'dashboard-legend-pj', [
-    { label: 'Fixos', value: sumType('biz-fixed'), color: DASH_COLORS[0] },
-    { label: 'Variáveis', value: sumType('biz-variable'), color: DASH_COLORS[1] },
-  ], 'Sem gastos empresariais lançados ainda.');
+  renderDashDonut('dashboard-donut-entradas', 'dashboard-legend-entradas', [
+    { label: 'Receita de clientes', value: receitaClientes, color: DASH_COLORS[0] },
+    { label: 'Outras receitas', value: receitaOutras, color: DASH_COLORS[1] },
+  ], 'Sem receita lançada ainda.');
 
   renderDashDonut('dashboard-donut-receita', 'dashboard-legend-receita', [
     { label: 'Pacotes pagos', value: clientesRecebidoDash.pacotes, color: DASH_COLORS[0] },
@@ -5583,30 +5586,24 @@ function renderDashDonut(donutId, legendId, cats, emptyMsg) {
   `).join('');
 }
 
-function getPrevisaoProximoMes() {
+// Previsão do mês atual (sempre o mês de hoje): sessões agendadas e ainda não pagas,
+// de hoje até o último dia do mês.
+function getPrevisaoMesAtual() {
   const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const ny = next.getFullYear(), nm = next.getMonth();
+  const hoje = todayISO();
+  const prefixo = monthKey(now);
+  const ultimoDia = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   let total = 0;
-  document.querySelectorAll('.cliente-bloco').forEach(block => {
-    block.querySelectorAll('tbody tr').forEach(tr => {
-      const dataStr = tr.querySelector('.sessao-data')?.value;
-      if (!dataStr) return;
-      if (tr.querySelector('.sessao-pago')?.checked) return;
-      const [y, m] = dataStr.split('-').map(Number);
-      if (y === ny && (m - 1) === nm) {
-        total += parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
-      }
-    });
-  });
-  document.querySelectorAll('#clientes-extra-body tr').forEach(tr => {
+  const conta = tr => {
     const dataStr = tr.querySelector('.sessao-data')?.value;
-    if (!dataStr || tr.querySelector('.sessao-pago')?.checked) return;
-    const [y, m] = dataStr.split('-').map(Number);
-    if (y === ny && (m - 1) === nm) total += parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
-  });
-  const monthName = next.toLocaleString('pt-BR', { month: 'long' });
-  return { total, monthLabel: monthName.charAt(0).toUpperCase() + monthName.slice(1) };
+    if (!dataStr || !dataStr.startsWith(prefixo) || dataStr < hoje) return;
+    if (tr.querySelector('.sessao-pago')?.checked) return;
+    total += parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
+  };
+  document.querySelectorAll('.cliente-bloco tbody tr').forEach(conta);
+  document.querySelectorAll('#clientes-extra-body tr').forEach(conta);
+  const monthName = now.toLocaleString('pt-BR', { month: 'long' });
+  return { total, ultimoDia, monthLabel: monthName.charAt(0).toUpperCase() + monthName.slice(1) };
 }
 
 let objetivoRowId = 0;
