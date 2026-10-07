@@ -1575,6 +1575,19 @@
     padding: 4px;
     border-radius: 6px;
   }
+  .emp-ordem { display: inline-flex; gap: 2px; }
+  .emp-seta {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 10px;
+    color: var(--text-muted);
+    width: 26px;
+    height: 26px;
+    padding: 0;
+  }
+  .emp-seta:hover { background: var(--warm); color: var(--accent); border-color: var(--accent); }
   .emp-toggle:hover { background: var(--warm); color: var(--accent); }
   .emp-resumo strong { color: var(--text); font-weight: 700; }
   .emp-resumo-dif strong { color: #a6763f; }
@@ -3514,6 +3527,10 @@ function addEmprestimoCard(name = '', id = null) {
       <button class="emp-toggle" type="button" id="emprestimo-toggle-${id}" onclick="toggleEmprestimoCard('${id}')" title="Mostrar ou esconder as parcelas">▾</button>
       <input type="text" class="cartao-card-name" placeholder="Nome do empréstimo (ex: Banco X)" oninput="recalculate()" />
       <span class="cartao-card-subtotal" id="emprestimo-subtotal-${id}">R$ 0,00</span>
+      <span class="emp-ordem">
+        <button class="emp-seta" type="button" onclick="moverEmprestimo('${id}', -1)" title="Subir">▲</button>
+        <button class="emp-seta" type="button" onclick="moverEmprestimo('${id}', 1)" title="Descer">▼</button>
+      </span>
       <button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>
     </div>
     <div class="emprestimo-body" id="emprestimo-body-${id}">
@@ -3564,6 +3581,21 @@ function addEmprestimoCard(name = '', id = null) {
   card.querySelector('.cartao-card-name').value = name;
   container.appendChild(card);
   return id;
+}
+
+// Reordena as caixas na tela; a ordem é gravada junto com os dados (segue a ordem do DOM).
+function moverEmprestimo(id, direcao) {
+  const card = document.getElementById('emprestimo-card-' + id);
+  if (!card) return;
+  if (direcao < 0 && card.previousElementSibling) {
+    card.parentNode.insertBefore(card, card.previousElementSibling);
+  } else if (direcao > 0 && card.nextElementSibling) {
+    card.parentNode.insertBefore(card.nextElementSibling, card);
+  } else {
+    return;
+  }
+  recalculate();
+  card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 function toggleEmprestimoCard(id) {
