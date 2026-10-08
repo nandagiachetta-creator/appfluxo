@@ -5385,6 +5385,44 @@ function renderBriefing() {
   });
 }
 
+// Dados do Briefing de um mês para os relatórios (valor digitado vence o automático).
+function bdDadosParaRelatorio(key) {
+  syncBriefingFromDom();
+  const d = BRIEFING_DATA[key] || {};
+  const ativo = key === BRIEFING_SHOWN_KEY;
+  const t = bdTotaisDoMes(key, ativo);
+  const man = v => (v !== undefined && v !== null && String(v).trim() !== '') ? bdNum(v) : null;
+  return {
+    key,
+    briefing: man(d.briefingManual) !== null ? man(d.briefingManual) : t.briefing,
+    debriefing: man(d.debriefingManual) !== null ? man(d.debriefingManual) : t.debriefing,
+    pacotes: Array.isArray(d.pacotes) ? d.pacotes : [],
+    avulsos: Array.isArray(d.avulsos) ? d.avulsos : [],
+    plan: d.plan || {},
+    estrategias: (Array.isArray(d.estrategias) ? d.estrategias : []).filter(t => String(t).trim() !== ''),
+  };
+}
+
+// Receitas do Orçamento PF (por mês) para os relatórios.
+function outrasReceitasParaRelatorio() {
+  syncOutrasFromDom();
+  return (OUTRAS_REC[getActiveMonthKey()] || []).filter(r => (r.desc || '').trim() !== '' || bdNum(r.valor) > 0)
+    .map(r => ({ desc: r.desc || '', valor: bdNum(r.valor) }));
+}
+
+// Linhas de "Outras Entradas de Clientes" (aba Clientes) para os relatórios.
+function clientesExtrasParaRelatorio() {
+  return Array.from(document.querySelectorAll('#clientes-extra-body tr')).map(tr => ({
+    cliente: tr.querySelector('.cliente-extra-nome')?.value || '',
+    data: tr.querySelector('.sessao-data')?.value || '',
+    hora: tr.querySelector('.sessao-hora')?.value || '',
+    valor: bdNum(tr.querySelector('.sessao-valor')?.value),
+    pago: tr.querySelector('.sessao-pago')?.checked || false,
+    dataPgto: tr.querySelector('.sessao-data-pgto')?.value || '',
+    realizada: tr.querySelector('.sessao-realizada')?.checked || false,
+  })).filter(r => r.cliente.trim() !== '' || r.valor > 0);
+}
+
 // ── OUTRAS RECEITAS (Orçamento PF, por mês) ────────
 let OUTRAS_REC = {}; // { 'YYYY-MM': [{ desc, valor }] }
 let OUTRAS_REC_KEY = null;
@@ -6445,17 +6483,26 @@ async function exportWord() {
       return xml;
     }
 
+    const receitaClientesExp = clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const outrasReceitasExp = receitaTotalGeral - receitaClientesExp;
+    const metaDashExp = parseFloat(document.getElementById('meta-goal')?.value) || 0;
+    const previsaoExp = getPrevisaoMesAtual();
+
     function dashboardSection() {
       let xml = par('DASHBOARD', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160});
       xml += summaryTable([
+        ['Meta de Faturamento', fBRL(metaDashExp) + (metaDashExp > 0 ? ' (' + Math.min(100, Math.round(receitaClientesExp / metaDashExp * 100)) + '% atingido, so clientes)' : '')],
+        ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+        ['Previsao ' + previsaoExp.monthLabel + ' (ate dia ' + previsaoExp.ultimoDia + ')', fBRL(previsaoExp.total)],
+        ['Receita de Clientes', fBRL(receitaClientesExp)],
+        ['Outras Receitas', fBRL(outrasReceitasExp)],
+        ['TOTAL DE RECEITA', fBRL(receitaTotalGeral)],
+        ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
         ['Orcamento PF (mensal)', fBRL(pessoalM)],
         ['Orcamento PJ (mensal)', fBRL(empresaM)],
         ['Cartoes do mes', fBRL(cartaoTotal)],
         ['Emprestimos do mes', fBRL(empTotal)],
         ['TOTAL DE CUSTOS', fBRL(pessoalM + empresaM + cartaoTotal + empTotal)],
-        ['Receita do Mes', fBRL(receitaTotalGeral)],
-        ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
-        ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
       ]);
       xml += par('Distribuicao de Gastos', {bold:true, size:20, color:'7A7A7A', spBefore:160, spAfter:80});
       xml += summaryTable([
@@ -6571,6 +6618,64 @@ async function exportWord() {
       return xml;
     }
 
+    function simpleTable(headers, widths, linhas, bg) {
+      let xml = `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${widths.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+      xml += `<w:tr>${headers.map((h, i) => tc(h, {w:widths[i], bold:true, bg, align:i === 0 ? 'left' : 'center'})).join('')}</w:tr>`;
+      linhas.forEach(l => { xml += `<w:tr>${l.map((c, i) => tc(c, {w:widths[i], align:i === 0 ? 'left' : 'center'})).join('')}</w:tr>`; });
+      return xml + `</w:tbl>`;
+    }
+
+    function outrasReceitasSection() {
+      const rows = outrasReceitasParaRelatorio();
+      if (!rows.length) return '';
+      let xml = par('Outras Receitas (Orcamento PF)', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80});
+      xml += simpleTable(['Origem', 'Valor'], [6360, 3000], rows.map(r => [r.desc || '-', fBRL(r.valor)]), 'E8F0E8');
+      xml += par('Total: ' + fBRL(rows.reduce((t, r) => t + r.valor, 0)), {bold:true, size:18, color:'3D5C42', spBefore:60, spAfter:80});
+      return xml;
+    }
+
+    function clientesExtrasSection() {
+      const rows = clientesExtrasParaRelatorio();
+      if (!rows.length) return '';
+      const fd = d => d ? d.split('-').reverse().join('/') : '-';
+      let xml = par('CLIENTES - OUTRAS ENTRADAS', {bold:true, size:26, color:'6B8F71', spBefore:560, spAfter:160});
+      xml += simpleTable(['Cliente', 'Data', 'Horario', 'Valor', 'Pago', 'Data pgto', 'Feita'], [2300, 1200, 900, 1500, 800, 1500, 1160],
+        rows.map(r => [r.cliente || '-', fd(r.data), r.hora || '-', fBRL(r.valor), r.pago ? 'Sim' : 'Nao', fd(r.dataPgto), r.realizada ? 'Sim' : 'Nao']), 'E8F0E8');
+      return xml;
+    }
+
+    function briefingSection() {
+      const meses = bdMesesVisiveis().map(bdDadosParaRelatorio);
+      const atual = meses[0];
+      let xml = par('BRIEFING E DEBRIEFING', {bold:true, size:26, color:'3D7A8C', spBefore:560, spAfter:160});
+      xml += simpleTable(['Mes', 'Briefing', 'Debriefing'], [3360, 3000, 3000], meses.map(m => [bdRotuloMes(m.key), fBRL(m.briefing), fBRL(m.debriefing)]), 'E4F0F3');
+      const lista = (titulo, itens) => {
+        if (!itens.length) return '';
+        let x = par(titulo + ' - ' + ptMonthName(atual.key), {bold:true, size:22, color:'3D7A8C', spBefore:240, spAfter:80});
+        x += simpleTable(['Nome', 'Qtd. sessoes', 'Valor por sessao', 'Valor total'], [3360, 1800, 2100, 2100],
+          itens.map(i => [i.nome || '-', String(i.sessoes || '-'), i.vsessao !== '' && i.vsessao !== undefined ? fBRL(bdNum(i.vsessao)) : '-', fBRL(bdNum(i.valor))]), 'E4F0F3');
+        return x + par('Total: ' + fBRL(itens.reduce((t, i) => t + bdNum(i.valor), 0)), {bold:true, size:18, color:'3D7A8C', spBefore:60, spAfter:80});
+      };
+      xml += lista('Pacotes', atual.pacotes) + lista('Sessoes Avulsas', atual.avulsos);
+      const pl = atual.plan;
+      const v = k => bdNum(pl[k]);
+      const planTotal = v('pacotes') * v('pacValor') + v('avaliacao') * v('avalValor') + v('avulso') * v('avValor');
+      if (planTotal > 0 || v('pacotes') || v('avaliacao') || v('avulso')) {
+        xml += par('Plan B&DB - ' + ptMonthName(atual.key), {bold:true, size:22, color:'3D7A8C', spBefore:240, spAfter:80});
+        xml += simpleTable(['Item', 'Quantidade', 'Valor unitario', 'Total planejado'], [3360, 1800, 2100, 2100], [
+          ['Pacotes', String(v('pacotes')), fBRL(v('pacValor')), fBRL(v('pacotes') * v('pacValor'))],
+          ['Sessoes de avaliacao', String(v('avaliacao')), fBRL(v('avalValor')), fBRL(v('avaliacao') * v('avalValor'))],
+          ['Sessoes avulso', String(v('avulso')), fBRL(v('avValor')), fBRL(v('avulso') * v('avValor'))],
+        ], 'E4F0F3');
+        xml += par('Total planejado: ' + fBRL(planTotal), {bold:true, size:18, color:'3D7A8C', spBefore:60, spAfter:80});
+      }
+      if (atual.estrategias.length) {
+        xml += par('Estrategias', {bold:true, size:22, color:'3D7A8C', spBefore:240, spAfter:80});
+        atual.estrategias.forEach((t, i) => { xml += par(`${i + 1}. ${t}`, {size:18, spAfter:100}); });
+      }
+      return xml;
+    }
+
     function receitaSection() {
       let xml = par('RECEITA', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
       xml += par('Receitas do Mes', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80});
@@ -6586,9 +6691,11 @@ async function exportWord() {
       } else {
         xml += par('Nenhuma receita manual cadastrada.', {size:18, color:'AAAAAA', spAfter:120});
       }
+      xml += outrasReceitasSection();
       xml += par('Resumo de Receitas', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80});
       xml += summaryTable([
         ['Total Recebido (manual)', fBRL(receitaManualTotal)],
+        ['Outras Receitas (Orcamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos)],
         ['Com Nota Fiscal', fBRL(receitaComNf)],
         ['Sem Nota Fiscal', fBRL(receitaSemNf)],
         ['Receita de Pacotes', fBRL(clientesRecebido.pacotes)],
@@ -6688,7 +6795,9 @@ async function exportWord() {
       metaSemanalSection() +
       objetivoSection() +
       clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
-      clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D');
+      clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D') +
+      clientesExtrasSection() +
+      briefingSection();
 
     const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
     const relsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
@@ -6855,17 +6964,24 @@ async function exportExcel() {
     const sheets = [];
 
     // DASHBOARD
+    const receitaClientesX = clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const metaDashX = parseFloat(document.getElementById('meta-goal')?.value) || 0;
+    const previsaoX = getPrevisaoMesAtual();
     sheets.push({ name: 'Dashboard', rows: [
       tit('DASHBOARD'),
       [],
+      ['Meta de Faturamento', fBRL(metaDashX) + (metaDashX > 0 ? ' (' + Math.min(100, Math.round(receitaClientesX / metaDashX * 100)) + '% atingido, só clientes)' : '')],
+      ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+      ['Previsão ' + previsaoX.monthLabel + ' (até dia ' + previsaoX.ultimoDia + ')', fBRL(previsaoX.total)],
+      ['Receita de Clientes', fBRL(receitaClientesX)],
+      ['Outras Receitas', fBRL(receitaTotalGeral - receitaClientesX)],
+      [{v:'TOTAL DE RECEITA',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}],
+      [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
       ['Orçamento PF (mensal)', fBRL(pessoalM)],
       ['Orçamento PJ (mensal)', fBRL(empresaM)],
       ['Cartões do mês', fBRL(cartaoTotal)],
       ['Empréstimos do mês', fBRL(empTotal)],
       [{v:'TOTAL DE CUSTOS',bold:true}, {v:fBRL(pessoalM + empresaM + cartaoTotal + empTotal),bold:true}],
-      ['Receita do Mês', fBRL(receitaTotalGeral)],
-      [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
-      ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
       [],
       tit('Distribuição de Gastos'),
       ['Fixos', fBRL(fixosTotalDash) + ' (' + pct(fixosTotalDash) + '%)'],
@@ -7028,8 +7144,17 @@ async function exportExcel() {
       receitaSheetRows.push(['Nenhuma receita manual cadastrada.']);
     }
     receitaSheetRows.push([]);
+    const outrasRelX = outrasReceitasParaRelatorio();
+    if (outrasRelX.length) {
+      receitaSheetRows.push(tit('Outras Receitas (Orçamento PF)'));
+      receitaSheetRows.push(hdr('Origem','Valor'));
+      outrasRelX.forEach(r => receitaSheetRows.push([r.desc || '-', fBRL(r.valor)]));
+      receitaSheetRows.push([{v:'Total',bold:true}, {v:fBRL(outrasRelX.reduce((t, r) => t + r.valor, 0)),bold:true}]);
+      receitaSheetRows.push([]);
+    }
     receitaSheetRows.push(tit('Resumo de Receitas'));
     receitaSheetRows.push(['Total Recebido (manual)', fBRL(receitaManualTotal)]);
+    receitaSheetRows.push(['Outras Receitas (Orçamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos)]);
     receitaSheetRows.push(['Com Nota Fiscal', fBRL(receitaComNf)]);
     receitaSheetRows.push(['Sem Nota Fiscal', fBRL(receitaSemNf)]);
     receitaSheetRows.push(['Receita de Pacotes', fBRL(clientesRecebido.pacotes)]);
@@ -7136,6 +7261,47 @@ async function exportExcel() {
     if (pacoteSheet) sheets.push(pacoteSheet);
     const avulsoSheet = clientesSheet('avulso', 'CLIENTES - SESSÕES AVULSAS', 'Clientes Avulsos');
     if (avulsoSheet) sheets.push(avulsoSheet);
+
+    // CLIENTES - OUTRAS ENTRADAS
+    const extrasX = clientesExtrasParaRelatorio();
+    if (extrasX.length) {
+      const fdX = d => d ? d.split('-').reverse().join('/') : '-';
+      const exRows = [tit('CLIENTES - OUTRAS ENTRADAS'), [], hdr('Cliente','Data','Horário','Valor','Pago','Data do Pagamento','Feita')];
+      extrasX.forEach(r => exRows.push([r.cliente || '-', fdX(r.data), r.hora || '-', fBRL(r.valor), r.pago ? 'Sim' : 'Não', fdX(r.dataPgto), r.realizada ? 'Sim' : 'Não']));
+      sheets.push({ name: 'Clientes Outras Entradas', rows: exRows });
+    }
+
+    // BRIEFING E DEBRIEFING
+    {
+      const mesesX = bdMesesVisiveis().map(bdDadosParaRelatorio);
+      const atualX = mesesX[0];
+      const bdRows = [tit('BRIEFING E DEBRIEFING'), [], hdr('Mês','Briefing','Debriefing')];
+      mesesX.forEach(m => bdRows.push([bdRotuloMes(m.key), fBRL(m.briefing), fBRL(m.debriefing)]));
+      const listaX = (titulo, itens) => {
+        if (!itens.length) return;
+        bdRows.push([]);
+        bdRows.push(tit(titulo + ' — ' + ptMonthName(atualX.key)));
+        bdRows.push(hdr('Nome','Qtd. sessões','Valor por sessão','Valor total'));
+        itens.forEach(i => bdRows.push([i.nome || '-', String(i.sessoes || '-'), i.vsessao !== '' && i.vsessao !== undefined ? fBRL(bdNum(i.vsessao)) : '-', fBRL(bdNum(i.valor))]));
+        bdRows.push([{v:'Total',bold:true}, '', '', {v:fBRL(itens.reduce((t, i) => t + bdNum(i.valor), 0)),bold:true}]);
+      };
+      listaX('Pacotes', atualX.pacotes);
+      listaX('Sessões Avulsas', atualX.avulsos);
+      const plX = atualX.plan; const vX = k => bdNum(plX[k]);
+      bdRows.push([]);
+      bdRows.push(tit('Plan B&DB — ' + ptMonthName(atualX.key)));
+      bdRows.push(hdr('Item','Quantidade','Valor unitário','Total planejado'));
+      bdRows.push(['Pacotes', String(vX('pacotes')), fBRL(vX('pacValor')), fBRL(vX('pacotes') * vX('pacValor'))]);
+      bdRows.push(['Sessões de avaliação', String(vX('avaliacao')), fBRL(vX('avalValor')), fBRL(vX('avaliacao') * vX('avalValor'))]);
+      bdRows.push(['Sessões avulso', String(vX('avulso')), fBRL(vX('avValor')), fBRL(vX('avulso') * vX('avValor'))]);
+      bdRows.push([{v:'Total planejado',bold:true}, '', '', {v:fBRL(vX('pacotes') * vX('pacValor') + vX('avaliacao') * vX('avalValor') + vX('avulso') * vX('avValor')),bold:true}]);
+      if (atualX.estrategias.length) {
+        bdRows.push([]);
+        bdRows.push(tit('Estratégias'));
+        atualX.estrategias.forEach((t, i) => bdRows.push([`${i + 1}. ${t}`]));
+      }
+      sheets.push({ name: 'Briefing e Debriefing', rows: bdRows });
+    }
 
     // ── Monta o arquivo XLSX ──
     function buildContentTypesXlsx(n) {
