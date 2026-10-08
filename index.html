@@ -5423,6 +5423,65 @@ function clientesExtrasParaRelatorio() {
   })).filter(r => r.cliente.trim() !== '' || r.valor > 0);
 }
 
+const fmtDataBR = d => d ? String(d).split('-').reverse().join('/') : '-';
+
+// Fluxo de Caixa do mês aberto, pronto para os relatórios.
+function fluxoParaRelatorio() {
+  const entradas = coletarEntradasFluxo();
+  const saidas = coletarSaidasFluxo();
+  const ord = (a, b) => (a.dia == null ? 99 : a.dia) - (b.dia == null ? 99 : b.dia);
+  const totalEntradas = entradas.reduce((t, e) => t + e.valor, 0);
+  const totalSaidas = saidas.reduce((t, x) => t + x.valor, 0);
+  const saidasPagas = saidas.filter(x => x.pago).reduce((t, x) => t + x.valor, 0);
+  const saldoAnterior = getSaldoAnterior();
+  return {
+    mesLabel: getMonthLabel(activeMonth === 'next' ? 1 : 0),
+    saldoAnterior, totalEntradas, totalSaidas, saidasPagas,
+    pendentes: totalSaidas - saidasPagas,
+    saldo: saldoAnterior + totalEntradas - totalSaidas,
+    emCaixa: saldoAnterior + totalEntradas - saidasPagas,
+    entradas: entradas.slice().sort(ord).map(e => ({ dia: e.dia == null ? '-' : String(e.dia).padStart(2, '0'), desc: e.desc || '-', origem: e.origem || '-', valor: e.valor })),
+    saidas: saidas.slice().sort(ord).map(x => ({ dia: x.dia == null ? '-' : String(x.dia).padStart(2, '0'), desc: x.desc || '-', origem: x.origem || '-', valor: x.valor, pago: !!x.pago })),
+  };
+}
+
+// Calendário de vagas (mês atual + 2 próximos) resumido para os relatórios.
+function agendaParaRelatorio() {
+  const duracao = parseFloat(document.getElementById('agenda-duracao')?.value) || 50;
+  const ini = document.getElementById('agenda-hora-inicio')?.value || '08:00';
+  const fim = document.getElementById('agenda-hora-fim')?.value || '18:00';
+  const horasPadrao = Math.max(0, (timeToMinutes(fim) - timeToMinutes(ini)) / 60);
+  const dias = getAgendaDiasSemana();
+  const nomesDia = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const occupied = getOccupiedSlotsMap();
+  const now = new Date();
+  const meses = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const y = d.getFullYear(), m = d.getMonth();
+    const n = new Date(y, m + 1, 0).getDate();
+    let vagas = 0, ocupadas = 0;
+    const sessoes = [];
+    for (let day = 1; day <= n; day++) {
+      const key = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      const manual = AGENDA_HORAS[key];
+      const horas = manual !== undefined ? manual : (dias.has(new Date(y, m, day).getDay()) ? horasPadrao : 0);
+      const slots = gerarHorariosDoDia(ini, parseFloat(horas) || 0, duracao);
+      const oc = occupied[key] || [];
+      vagas += slots.length;
+      const slotMins = slots.map(timeToMinutes);
+      oc.forEach(o => {
+        const om = timeToMinutes(o.hora);
+        if (slotMins.some(sm => om >= sm && om < sm + duracao)) ocupadas++;
+        sessoes.push({ data: key, hora: o.hora, nome: o.nome });
+      });
+    }
+    sessoes.sort((a, b) => (a.data + a.hora).localeCompare(b.data + b.hora));
+    meses.push({ label: ptMonthName(monthKey(d)), vagas, ocupadas, livres: Math.max(0, vagas - ocupadas), sessoes });
+  }
+  return { duracao, ini, fim, dias: Array.from(dias).sort((a, b) => a - b).map(n => nomesDia[n]), meses };
+}
+
 // ── OUTRAS RECEITAS (Orçamento PF, por mês) ────────
 let OUTRAS_REC = {}; // { 'YYYY-MM': [{ desc, valor }] }
 let OUTRAS_REC_KEY = null;
@@ -6313,7 +6372,7 @@ async function exportWord() {
         const name = tr.querySelector('input[type="text"]')?.value || '';
         const value = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
         const due = tr.querySelector('.due-input')?.value || '';
-        rows.push({ name, value, due });
+        rows.push({ name, value, due, paid: tr.querySelector('.paid-check')?.checked || false, dataPgto: tr.dataset.dataPgto || '' });
       });
       return rows;
     }
@@ -6418,15 +6477,15 @@ async function exportWord() {
     }
 
     function tableSection(title, rows, totalLabel, totalM, totalA, hdrBg, totalBg) {
-      const w0=3600,w1=1100,w2=4660;
+      const w0=2900,w1=1100,w2=900,w3=1500,w4=2960;
       let xml = par(title, { bold:true, size:24, color:'3D5C42', spBefore:240, spAfter:80 });
-      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/></w:tblGrid>`;
-      xml += `<w:tr>${tc('Categoria',{w:w0,bold:true,bg:hdrBg})}${tc('Vencimento',{w:w1,bold:true,bg:hdrBg,align:'center'})}${tc('Mensal',{w:w2,bold:true,bg:hdrBg,align:'right'})}</w:tr>`;
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Categoria',{w:w0,bold:true,bg:hdrBg})}${tc('Vencimento',{w:w1,bold:true,bg:hdrBg,align:'center'})}${tc('Pago',{w:w2,bold:true,bg:hdrBg,align:'center'})}${tc('Data pgto',{w:w3,bold:true,bg:hdrBg,align:'center'})}${tc('Mensal',{w:w4,bold:true,bg:hdrBg,align:'right'})}</w:tr>`;
       rows.forEach(r => {
         const due = r.due ? r.due + 'o' : '-';
-        xml += `<w:tr>${tc(r.name,{w:w0})}${tc(due,{w:w1,align:'center',color:r.due?'2A2A2A':'AAAAAA'})}${tc(fBRL(r.value),{w:w2,align:'right'})}</w:tr>`;
+        xml += `<w:tr>${tc(r.name,{w:w0})}${tc(due,{w:w1,align:'center',color:r.due?'2A2A2A':'AAAAAA'})}${tc(r.paid?'Sim':'Nao',{w:w2,align:'center',color:r.paid?'3D5C42':'C0392B'})}${tc(fmtDataBR(r.dataPgto),{w:w3,align:'center'})}${tc(fBRL(r.value),{w:w4,align:'right'})}</w:tr>`;
       });
-      xml += `<w:tr>${tc(totalLabel,{w:w0,bold:true,bg:totalBg})}${tc('',{w:w1,bg:totalBg})}${tc(fBRL(totalM),{w:w2,bold:true,bg:totalBg,align:'right'})}</w:tr>`;
+      xml += `<w:tr>${tc(totalLabel,{w:w0,bold:true,bg:totalBg})}${tc('',{w:w1,bg:totalBg})}${tc('',{w:w2,bg:totalBg})}${tc('',{w:w3,bg:totalBg})}${tc(fBRL(totalM),{w:w4,bold:true,bg:totalBg,align:'right'})}</w:tr>`;
       xml += `</w:tbl>`;
       return xml;
     }
@@ -6518,7 +6577,7 @@ async function exportWord() {
       const cards = document.querySelectorAll('.cartao-card:not(.cliente-bloco)');
       if (!cards.length) return '';
       let xml = par('CARTOES', {bold:true, size:26, color:'A6763F', spBefore:560, spAfter:160});
-      const w0=2800,w1=1760,w2=1000,w3=2200,w4=1600;
+      const w0=2400,w1=1560,w2=800,w3=1800,w4=900,w5=1900;
 
       // Fecha o total de cada mes antes de detalhar cartao por cartao.
       const porMes = new Map();
@@ -6547,6 +6606,7 @@ async function exportWord() {
             due: tr.querySelector('.due-input')?.value || '',
             value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
             paid: tr.querySelector('.paid-check')?.checked || false,
+            dataPgto: tr.dataset.dataPgto || '',
           });
         });
         itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
@@ -6554,10 +6614,10 @@ async function exportWord() {
         xml += par(nome, {bold:true, size:22, color:'A6763F', spBefore:200, spAfter:40});
         xml += par(`Total no cartao: ${fBRL(subtotal)}`, {size:18, color:'7A7A7A', spAfter:80});
         if (!itemRows.length) { xml += par('Nenhum item cadastrado.', {size:18, color:'AAAAAA', spAfter:120}); return; }
-        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/></w:tblGrid>`;
-        xml += `<w:tr>${tc('Item',{w:w0,bold:true,bg:'F0E6D8'})}${tc('Mes',{w:w1,bold:true,bg:'F0E6D8',align:'center'})}${tc('Dia',{w:w2,bold:true,bg:'F0E6D8',align:'center'})}${tc('Valor',{w:w3,bold:true,bg:'F0E6D8',align:'right'})}${tc('Pago',{w:w4,bold:true,bg:'F0E6D8',align:'center'})}</w:tr>`;
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/><w:gridCol w:w="${w5}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Item',{w:w0,bold:true,bg:'F0E6D8'})}${tc('Mes',{w:w1,bold:true,bg:'F0E6D8',align:'center'})}${tc('Dia',{w:w2,bold:true,bg:'F0E6D8',align:'center'})}${tc('Valor',{w:w3,bold:true,bg:'F0E6D8',align:'right'})}${tc('Pago',{w:w4,bold:true,bg:'F0E6D8',align:'center'})}${tc('Data pgto',{w:w5,bold:true,bg:'F0E6D8',align:'center'})}</w:tr>`;
         itemRows.forEach(r => {
-          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.mes?ptMonthName(r.mes):'-',{w:w1,align:'center'})}${tc(r.due?r.due+'o':'-',{w:w2,align:'center'})}${tc(fBRL(r.value),{w:w3,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w4,align:'center',color:r.paid?'3D5C42':'C0392B'})}</w:tr>`;
+          xml += `<w:tr>${tc(r.name,{w:w0})}${tc(r.mes?ptMonthName(r.mes):'-',{w:w1,align:'center'})}${tc(r.due?r.due+'o':'-',{w:w2,align:'center'})}${tc(fBRL(r.value),{w:w3,align:'right'})}${tc(r.paid?'Sim':'Nao',{w:w4,align:'center',color:r.paid?'3D5C42':'C0392B'})}${tc(fmtDataBR(r.dataPgto),{w:w5,align:'center'})}</w:tr>`;
         });
         xml += `</w:tbl>`;
       });
@@ -6641,6 +6701,46 @@ async function exportWord() {
       let xml = par('CLIENTES - OUTRAS ENTRADAS', {bold:true, size:26, color:'6B8F71', spBefore:560, spAfter:160});
       xml += simpleTable(['Cliente', 'Data', 'Horario', 'Valor', 'Pago', 'Data pgto', 'Feita'], [2300, 1200, 900, 1500, 800, 1500, 1160],
         rows.map(r => [r.cliente || '-', fd(r.data), r.hora || '-', fBRL(r.valor), r.pago ? 'Sim' : 'Nao', fd(r.dataPgto), r.realizada ? 'Sim' : 'Nao']), 'E8F0E8');
+      return xml;
+    }
+
+    function fluxoSection() {
+      const f = fluxoParaRelatorio();
+      let xml = par('FLUXO DE CAIXA - ' + f.mesLabel, {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
+      xml += summaryTable([
+        ['Saldo do mes anterior', fBRL(f.saldoAnterior)],
+        ['Total de entradas', fBRL(f.totalEntradas)],
+        ['Total de saidas', fBRL(f.totalSaidas)],
+        ['Saidas ainda a pagar', fBRL(f.pendentes)],
+        ['SALDO DO MES', fBRL(f.saldo), f.saldo >= 0 ? 'D4E8D4' : 'FDECEA'],
+        ['Em caixa hoje', fBRL(f.emCaixa)],
+      ]);
+      xml += par('Entradas', {bold:true, size:22, color:'3D5C42', spBefore:240, spAfter:80});
+      xml += f.entradas.length
+        ? simpleTable(['Dia', 'Descricao', 'Origem', 'Valor'], [800, 4160, 2200, 2200], f.entradas.map(e => [e.dia, e.desc, e.origem, fBRL(e.valor)]), 'E8F0E8')
+        : par('Nenhuma entrada no mes.', {size:18, color:'AAAAAA', spAfter:120});
+      xml += par('Saidas', {bold:true, size:22, color:'C0392B', spBefore:240, spAfter:80});
+      xml += f.saidas.length
+        ? simpleTable(['Dia', 'Descricao', 'Origem', 'Valor', 'Situacao'], [700, 3260, 2000, 1800, 1600], f.saidas.map(x => [x.dia, x.desc, x.origem, fBRL(x.valor), x.pago ? 'Paga' : 'A pagar']), 'FDECEA')
+        : par('Nenhuma saida no mes.', {size:18, color:'AAAAAA', spAfter:120});
+      return xml;
+    }
+
+    function agendaSection() {
+      const a = agendaParaRelatorio();
+      let xml = par('AGENDA - CALENDARIO DE VAGAS', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160});
+      xml += summaryTable([
+        ['Duracao de cada sessao', a.duracao + ' min'],
+        ['Horario do dia', a.ini + ' as ' + a.fim],
+        ['Dias da semana', a.dias.join(', ') || '-'],
+      ]);
+      xml += par('Vagas por mes', {bold:true, size:22, color:'3D5C42', spBefore:240, spAfter:80});
+      xml += simpleTable(['Mes', 'Vagas', 'Ocupadas', 'Livres'], [3360, 2000, 2000, 2000], a.meses.map(m => [m.label, String(m.vagas), String(m.ocupadas), String(m.livres)]), 'E8F0E8');
+      a.meses.forEach(m => {
+        if (!m.sessoes.length) return;
+        xml += par('Horarios ocupados - ' + m.label, {bold:true, size:20, color:'5A6E8C', spBefore:200, spAfter:60});
+        xml += simpleTable(['Data', 'Horario', 'Cliente'], [2000, 1500, 5860], m.sessoes.map(x => [fmtDataBR(x.data), x.hora, x.nome]), 'EAF0F8');
+      });
       return xml;
     }
 
@@ -6768,6 +6868,7 @@ async function exportWord() {
       cartaoSection() +
       emprestimoSection() +
       receitaSection() +
+      fluxoSection() +
       par('PRECIFICACAO E META', {bold:true, size:26, color:'5A6E8C', spBefore:560, spAfter:160}) +
       par('Valor da Hora', {bold:true, size:22, color:'3D5C42', spBefore:80, spAfter:80}) +
       summaryTable([
@@ -6797,6 +6898,7 @@ async function exportWord() {
       clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
       clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D') +
       clientesExtrasSection() +
+      agendaSection() +
       briefingSection();
 
     const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
@@ -6846,7 +6948,7 @@ async function exportExcel() {
         const name = tr.querySelector('input[type="text"]')?.value || '';
         const value = parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0;
         const due = tr.querySelector('.due-input')?.value || '';
-        rows.push({ name, value, due });
+        rows.push({ name, value, due, paid: tr.querySelector('.paid-check')?.checked || false, dataPgto: tr.dataset.dataPgto || '' });
       });
       return rows;
     }
@@ -6995,15 +7097,15 @@ async function exportExcel() {
       tit(`ORÇAMENTO PESSOAL — ${mesC} de ${ano}`),
       [],
       tit('Custos Fixos'),
-      hdr('Categoria','Vencimento','Mensal'),
+      hdr('Categoria','Vencimento','Pago','Data pgto','Mensal'),
     ];
-    fixedRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
-    pessoalRows.push([{v:'Total Custos Fixos',bold:true},'',{v:fBRL(fixedM),bold:true}]);
+    fixedRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', r.paid ? 'Sim' : 'Não', fmtDataBR(r.dataPgto), fBRL(r.value)]));
+    pessoalRows.push([{v:'Total Custos Fixos',bold:true},'','','',{v:fBRL(fixedM),bold:true}]);
     pessoalRows.push([]);
     pessoalRows.push(tit('Custos Variáveis'));
-    pessoalRows.push(hdr('Categoria','Vencimento','Mensal'));
-    varRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
-    pessoalRows.push([{v:'Total Custos Variáveis',bold:true},'',{v:fBRL(varM),bold:true}]);
+    pessoalRows.push(hdr('Categoria','Vencimento','Pago','Data pgto','Mensal'));
+    varRows.forEach(r => pessoalRows.push([r.name, r.due ? r.due+'º' : '-', r.paid ? 'Sim' : 'Não', fmtDataBR(r.dataPgto), fBRL(r.value)]));
+    pessoalRows.push([{v:'Total Custos Variáveis',bold:true},'','','',{v:fBRL(varM),bold:true}]);
     pessoalRows.push([]);
     pessoalRows.push(['Total Fixo Anual', fBRL(fixedM*12)]);
     pessoalRows.push([{v:'Custo Total Mensal',bold:true}, {v:fBRL(pessoalM),bold:true}]);
@@ -7014,15 +7116,15 @@ async function exportExcel() {
       tit('ORÇAMENTO EMPRESARIAL'),
       [],
       tit('Custos Fixos Empresa'),
-      hdr('Categoria','Vencimento','Mensal'),
+      hdr('Categoria','Vencimento','Pago','Data pgto','Mensal'),
     ];
-    bizFRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
-    empresaRows.push([{v:'Total Custos Fixos Empresa',bold:true},'',{v:fBRL(bizFM),bold:true}]);
+    bizFRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', r.paid ? 'Sim' : 'Não', fmtDataBR(r.dataPgto), fBRL(r.value)]));
+    empresaRows.push([{v:'Total Custos Fixos Empresa',bold:true},'','','',{v:fBRL(bizFM),bold:true}]);
     empresaRows.push([]);
     empresaRows.push(tit('Custos Variáveis Empresa'));
-    empresaRows.push(hdr('Categoria','Vencimento','Mensal'));
-    bizVRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', fBRL(r.value)]));
-    empresaRows.push([{v:'Total Custos Variáveis Empresa',bold:true},'',{v:fBRL(bizVM),bold:true}]);
+    empresaRows.push(hdr('Categoria','Vencimento','Pago','Data pgto','Mensal'));
+    bizVRows.forEach(r => empresaRows.push([r.name, r.due ? r.due+'º' : '-', r.paid ? 'Sim' : 'Não', fmtDataBR(r.dataPgto), fBRL(r.value)]));
+    empresaRows.push([{v:'Total Custos Variáveis Empresa',bold:true},'','','',{v:fBRL(bizVM),bold:true}]);
     empresaRows.push([]);
     empresaRows.push(['Total Fixo Anual', fBRL(bizFM*12)]);
     empresaRows.push([{v:'Custo Mensal da Empresa',bold:true}, {v:fBRL(empresaM),bold:true}]);
@@ -7061,6 +7163,7 @@ async function exportExcel() {
             due: tr.querySelector('.due-input')?.value || '',
             value: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
             paid: tr.querySelector('.paid-check')?.checked || false,
+            dataPgto: tr.dataset.dataPgto || '',
           });
         });
         itemRows.sort((a, b) => String(a.mes).localeCompare(String(b.mes)));
@@ -7068,8 +7171,8 @@ async function exportExcel() {
         cartaoRows.push(tit(nome));
         cartaoRows.push(['Total no cartão', fBRL(subtotal)]);
         if (itemRows.length) {
-          cartaoRows.push(hdr('Item','Mês','Dia','Valor','Pago'));
-          itemRows.forEach(r => cartaoRows.push([r.name, r.mes?ptMonthName(r.mes):'-', r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não']));
+          cartaoRows.push(hdr('Item','Mês','Dia','Valor','Pago','Data pgto'));
+          itemRows.forEach(r => cartaoRows.push([r.name, r.mes?ptMonthName(r.mes):'-', r.due?r.due+'º':'-', fBRL(r.value), r.paid?'Sim':'Não', fmtDataBR(r.dataPgto)]));
         } else {
           cartaoRows.push(['Nenhum item cadastrado.']);
         }
@@ -7161,6 +7264,23 @@ async function exportExcel() {
     receitaSheetRows.push(['Receita de Atendimentos Avulsos', fBRL(clientesRecebido.avulsos)]);
     receitaSheetRows.push([{v:'TOTAL GERAL RECEBIDO',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}]);
     sheets.push({ name: 'Receita', rows: receitaSheetRows });
+
+    // FLUXO DE CAIXA
+    {
+      const f = fluxoParaRelatorio();
+      const fxRows = [tit('FLUXO DE CAIXA — ' + f.mesLabel), [],
+        ['Saldo do mês anterior', fBRL(f.saldoAnterior)],
+        ['Total de entradas', fBRL(f.totalEntradas)],
+        ['Total de saídas', fBRL(f.totalSaidas)],
+        ['Saídas ainda a pagar', fBRL(f.pendentes)],
+        [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(f.saldo),bold:true}],
+        ['Em caixa hoje', fBRL(f.emCaixa)],
+        [], tit('Entradas'), hdr('Dia','Descrição','Origem','Valor')];
+      if (f.entradas.length) f.entradas.forEach(e => fxRows.push([e.dia, e.desc, e.origem, fBRL(e.valor)])); else fxRows.push(['Nenhuma entrada no mês.']);
+      fxRows.push([], tit('Saídas'), hdr('Dia','Descrição','Origem','Valor','Situação'));
+      if (f.saidas.length) f.saidas.forEach(x => fxRows.push([x.dia, x.desc, x.origem, fBRL(x.valor), x.pago ? 'Paga' : 'A pagar'])); else fxRows.push(['Nenhuma saída no mês.']);
+      sheets.push({ name: 'Fluxo de Caixa', rows: fxRows });
+    }
 
     // PRECIFICAÇÃO E META
     const precifRows = [
@@ -7261,6 +7381,23 @@ async function exportExcel() {
     if (pacoteSheet) sheets.push(pacoteSheet);
     const avulsoSheet = clientesSheet('avulso', 'CLIENTES - SESSÕES AVULSAS', 'Clientes Avulsos');
     if (avulsoSheet) sheets.push(avulsoSheet);
+
+    // AGENDA
+    {
+      const a = agendaParaRelatorio();
+      const agRows = [tit('AGENDA — CALENDÁRIO DE VAGAS'), [],
+        ['Duração de cada sessão', a.duracao + ' min'],
+        ['Horário do dia', a.ini + ' às ' + a.fim],
+        ['Dias da semana', a.dias.join(', ') || '-'],
+        [], tit('Vagas por mês'), hdr('Mês','Vagas','Ocupadas','Livres')];
+      a.meses.forEach(m => agRows.push([m.label, String(m.vagas), String(m.ocupadas), String(m.livres)]));
+      a.meses.forEach(m => {
+        if (!m.sessoes.length) return;
+        agRows.push([], tit('Horários ocupados — ' + m.label), hdr('Data','Horário','Cliente'));
+        m.sessoes.forEach(x => agRows.push([fmtDataBR(x.data), x.hora, x.nome]));
+      });
+      sheets.push({ name: 'Agenda', rows: agRows });
+    }
 
     // CLIENTES - OUTRAS ENTRADAS
     const extrasX = clientesExtrasParaRelatorio();
