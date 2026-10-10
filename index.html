@@ -3233,6 +3233,13 @@
         <tr><th></th><th>BRIEFING</th><th>DEBRIEFING</th></tr>
       </thead>
       <tbody id="bd-meses-body"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Média dos 3 meses</td>
+          <td style="text-align:right"><span class="total-amount" id="bd-media-briefing">R$ 0,00</span></td>
+          <td style="text-align:right"><span class="total-amount" id="bd-media-debriefing">R$ 0,00</span></td>
+        </tr>
+      </tfoot>
     </table>
   </div>
   <p class="receita-nota-mes" style="margin-bottom:36px">
@@ -5383,6 +5390,12 @@ function renderBriefing() {
     tr.querySelector('[data-campo="briefingManual"]').placeholder = formatBRL(t.briefing);
     tr.querySelector('[data-campo="debriefingManual"]').placeholder = formatBRL(t.debriefing);
   });
+
+  // Média dos 3 meses visíveis: soma dos três ÷ 3, usando o valor efetivo de cada mês.
+  const efetivos = bdMesesVisiveis().map(bdDadosParaRelatorio);
+  const media = campo => efetivos.reduce((t, m) => t + m[campo], 0) / efetivos.length;
+  document.getElementById('bd-media-briefing').textContent = formatBRL(media('briefing'));
+  document.getElementById('bd-media-debriefing').textContent = formatBRL(media('debriefing'));
 }
 
 // Dados do Briefing de um mês para os relatórios (valor digitado vence o automático).
@@ -6748,7 +6761,9 @@ async function exportWord() {
       const meses = bdMesesVisiveis().map(bdDadosParaRelatorio);
       const atual = meses[0];
       let xml = par('BRIEFING E DEBRIEFING', {bold:true, size:26, color:'3D7A8C', spBefore:560, spAfter:160});
-      xml += simpleTable(['Mes', 'Briefing', 'Debriefing'], [3360, 3000, 3000], meses.map(m => [bdRotuloMes(m.key), fBRL(m.briefing), fBRL(m.debriefing)]), 'E4F0F3');
+      const mediaB = meses.reduce((t, m) => t + m.briefing, 0) / meses.length;
+      const mediaD = meses.reduce((t, m) => t + m.debriefing, 0) / meses.length;
+      xml += simpleTable(['Mes', 'Briefing', 'Debriefing'], [3360, 3000, 3000], [...meses.map(m => [bdRotuloMes(m.key), fBRL(m.briefing), fBRL(m.debriefing)]), ['Media dos 3 meses', fBRL(mediaB), fBRL(mediaD)]], 'E4F0F3');
       const lista = (titulo, itens) => {
         if (!itens.length) return '';
         let x = par(titulo + ' - ' + ptMonthName(atual.key), {bold:true, size:22, color:'3D7A8C', spBefore:240, spAfter:80});
@@ -7414,6 +7429,7 @@ async function exportExcel() {
       const atualX = mesesX[0];
       const bdRows = [tit('BRIEFING E DEBRIEFING'), [], hdr('Mês','Briefing','Debriefing')];
       mesesX.forEach(m => bdRows.push([bdRotuloMes(m.key), fBRL(m.briefing), fBRL(m.debriefing)]));
+      bdRows.push([{v:'Média dos 3 meses',bold:true}, {v:fBRL(mesesX.reduce((t, m) => t + m.briefing, 0) / mesesX.length),bold:true}, {v:fBRL(mesesX.reduce((t, m) => t + m.debriefing, 0) / mesesX.length),bold:true}]);
       const listaX = (titulo, itens) => {
         if (!itens.length) return;
         bdRows.push([]);
