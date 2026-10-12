@@ -318,6 +318,16 @@
   }
   .cartao-sub-btn:hover { border-color:var(--sage); color:var(--sage-dark); }
   .cartao-sub-btn.ativo { background:var(--sage); border-color:var(--sage); color:#fff; }
+  .df-card table { table-layout:fixed; width:100%; }
+  .df-card th:last-child, .df-card td:last-child { width:150px; }
+  @media (max-width:600px) {
+    .df-card th, .df-card td { padding:10px 8px; }
+    .df-card th:last-child, .df-card td:last-child { width:112px; }
+    .df-card .td-label { gap:6px; }
+    .df-card .td-label input[type="text"] { min-width:0; }
+    .df-card .df-valor { width:70px; padding:6px 2px; }
+    .df-card .cartao-card-subtotal { font-size:13px; }
+  }
   .btn-del:hover { background: #fde8e8; border-color: var(--red); color: var(--red); }
 
   /* Add row btn */
@@ -4295,7 +4305,7 @@ function addDetalheItem(card, item = '', valor = '') {
     <td>
       <div class="td-label">
         <button class="btn-del" onclick="const c=this.closest('.df-card');this.closest('tr').remove();somarDetalheCartao(c);saveData()" title="Remover">×</button>
-        <input type="text" class="df-item" style="width:100%;min-width:140px" value="${escHtml(item)}" placeholder="Descrição do gasto" />
+        <input type="text" class="df-item" style="width:100%" value="${escHtml(item)}" placeholder="Descrição do gasto" />
       </div>
     </td>
     <td>
