@@ -4261,7 +4261,7 @@ function addDetalheCartao(nome = '', itens = null) {
     </div>
     <div class="table-wrapper">
       <table>
-        <thead><tr><th>Item gasto</th><th style="width:140px">Valor</th><th style="width:40px"></th></tr></thead>
+        <thead><tr><th>Item gasto</th><th>Valor</th></tr></thead>
         <tbody class="df-body"></tbody>
       </table>
       <button class="btn-add-row" onclick="addDetalheItem(this.closest('.df-card'))">
@@ -4279,9 +4279,18 @@ function addDetalheCartao(nome = '', itens = null) {
 function addDetalheItem(card, item = '', valor = '') {
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" class="df-item" value="${escHtml(item)}" placeholder="Ex: Mercado" /></td>
-    <td><input type="number" class="df-valor" step="0.01" value="${escHtml(valor)}" placeholder="0,00" oninput="somarDetalheCartao(this.closest('.df-card'))" /></td>
-    <td><button class="btn-del" onclick="const c=this.closest('.df-card');this.closest('tr').remove();somarDetalheCartao(c);saveData()" title="Remover item">×</button></td>`;
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="const c=this.closest('.df-card');this.closest('tr').remove();somarDetalheCartao(c);saveData()" title="Remover">×</button>
+        <input type="text" class="df-item" style="width:100%;min-width:140px" value="${escHtml(item)}" placeholder="Descrição do gasto" />
+      </div>
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="df-valor" min="0" step="0.01" value="${escHtml(valor)}" oninput="somarDetalheCartao(this.closest('.df-card'))" />
+      </div>
+    </td>`;
   card.querySelector('.df-body').appendChild(tr);
 }
 
