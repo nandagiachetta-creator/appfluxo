@@ -326,7 +326,7 @@
     .df-card .td-label { gap:6px; }
     .df-card .td-label input[type="text"] { min-width:0; }
     .df-card .df-valor { width:70px; padding:6px 2px; }
-    .df-card .cartao-card-subtotal { font-size:13px; }
+    .df-card .df-subtotal { font-size:13px; }
   }
   .btn-del:hover { background: #fde8e8; border-color: var(--red); color: var(--red); }
 
@@ -1371,9 +1371,9 @@
     .dash-card { min-width: 0; padding: 14px; }
     .dash-card-label { letter-spacing: 0.5px; overflow-wrap: anywhere; }
     .dash-card-value, .dash-card-sub { overflow-wrap: anywhere; }
-    .cartao-card-header { flex-wrap: wrap; gap: 8px; }
-    .cartao-card-name { flex: 1 1 140px; min-width: 0; }
-    .cartao-card, .emprestimo-card { padding: 16px 12px; }
+    .cartao-card-header, .df-header { flex-wrap: wrap; gap: 8px; }
+    .cartao-card-name, .df-nome { flex: 1 1 140px; min-width: 0; }
+    .cartao-card, .emprestimo-card, .df-card { padding: 16px 12px; }
     .dashboard-chart-row { flex-direction: column; align-items: flex-start; }
 
     .cliente-gerar-row { flex-direction: column; align-items: stretch; }
@@ -1546,7 +1546,7 @@
   .cartao-mes-input:focus { outline: none; border-color: #a6763f; background: white; }
   .cartao-th-mes { width: 168px; }
   .cartao-mes-input.sem-mes { border-color: var(--red); background: #fdf1ef; }
-  .cartao-card, .emprestimo-card {
+  .cartao-card, .emprestimo-card, .df-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -1554,13 +1554,13 @@
     padding: 20px 24px 24px;
     margin-bottom: 24px;
   }
-  .cartao-card-header {
+  .cartao-card-header, .df-header {
     display: flex;
     align-items: center;
     gap: 16px;
     margin-bottom: 16px;
   }
-  .cartao-card-name {
+  .cartao-card-name, .df-nome {
     font-family: 'Playfair Display', serif;
     font-size: 18px;
     border: none;
@@ -1571,14 +1571,14 @@
     min-width: 120px;
     color: var(--text);
   }
-  .cartao-card-name:focus { outline: none; border-color: var(--accent); }
-  .cartao-card-subtotal {
+  .df-nome:focus, .cartao-card-name:focus { outline: none; border-color: var(--accent); }
+  .cartao-card-subtotal, .df-subtotal {
     font-family: 'Playfair Display', serif;
     font-size: 16px;
     color: #a6763f;
     white-space: nowrap;
   }
-  .cartao-card .table-wrapper, .emprestimo-card .table-wrapper { box-shadow: none; }
+  .cartao-card .table-wrapper, .emprestimo-card .table-wrapper, .df-card .table-wrapper { box-shadow: none; }
   .bd-lista td { padding-top: 14px; padding-bottom: 14px; }
   .bd-lista input[type="text"], .bd-lista input[type="number"] {
     font-family: 'DM Sans', sans-serif;
@@ -4275,11 +4275,11 @@ function showCartaoSub(qual) {
 
 function addDetalheCartao(nome = '', itens = null) {
   const card = document.createElement('div');
-  card.className = 'cartao-card df-card';
+  card.className = 'df-card';
   card.innerHTML = `
-    <div class="cartao-card-header">
-      <input type="text" class="cartao-card-name df-nome" value="${escHtml(nome)}" placeholder="Nome do cartão (ex: Nubank PJ)" />
-      <span class="cartao-card-subtotal df-subtotal">R$ 0,00</span>
+    <div class="df-header">
+      <input type="text" class="df-nome" value="${escHtml(nome)}" placeholder="Nome do cartão (ex: Nubank PJ)" />
+      <span class="df-subtotal">R$ 0,00</span>
       <button class="btn-del" onclick="removerDetalheCartao(this)" title="Remover cartão">×</button>
     </div>
     <div class="table-wrapper">
