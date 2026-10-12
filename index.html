@@ -3012,16 +3012,33 @@
             <div class="breakdown-row"><span>Sessões possíveis no mês</span><strong id="bd-possible-sessions">—</strong></div>
             <div class="breakdown-row"><span>Valor mínimo por hora (sem margem)</span><strong id="bd-min-hour">—</strong></div>
             <hr class="breakdown-divider">
-            <div class="breakdown-row"><span>Margem de lucro (<span id="bd-margin-pct">30</span>%)</span><strong id="bd-margin-val">—</strong></div>
+            <div class="breakdown-row"><span>Acréscimo sobre o custo — markup de <span id="bd-margin-pct">30</span>%</span><strong id="bd-margin-val">—</strong></div>
+            <div class="breakdown-row"><span>Lucro por hora pela margem sobre o preço (<span id="bd-margem2-pct">30</span>%)</span><strong id="bd-margem2-val">—</strong></div>
           </div>
 
           <div class="pricing-result">
             <div>
-              <div class="pricing-result-label">Valor da Hora</div>
+              <div class="pricing-result-label">Valor da Hora — acréscimo sobre o custo (markup)</div>
               <div class="pricing-result-value" id="result-hour-value">R$ —</div>
-              <div class="pricing-result-sub">Com <span id="res-margin">30</span>% de margem de lucro</div>
+              <div class="pricing-result-sub">Custo + <span id="res-margin">30</span>% do custo · o lucro vira <span id="res-margem-real">—</span> do preço cobrado</div>
             </div>
             <div style="font-size:48px;opacity:0.15">⏱</div>
+          </div>
+
+          <div class="pricing-result">
+            <div>
+              <div class="pricing-result-label">Valor da Hora — margem sobre o preço</div>
+              <div class="pricing-result-value" id="result-hour-margem">R$ —</div>
+              <div class="pricing-result-sub" id="result-hour-margem-sub">—</div>
+            </div>
+            <div style="font-size:48px;opacity:0.15">%</div>
+          </div>
+
+          <div class="pricing-nota-margem" style="font-size:12.5px;line-height:1.55;color:var(--text-muted);background:var(--warm);border-radius:12px;padding:12px 16px;margin-top:12px">
+            <strong style="color:var(--text)">Qual a diferença?</strong><br>
+            <strong>Markup (acréscimo sobre o custo):</strong> soma a porcentagem em cima do <em>custo</em>. Custo de R$ 100 com 30% = cobra R$ 130; o lucro (R$ 30) é cerca de 23% do preço.<br>
+            <strong>Margem (sobre o preço):</strong> a porcentagem é a parte do <em>preço cobrado</em> que vira lucro. Para sobrar 30% de cada venda, o preço é R$ 100 ÷ 0,70 = R$ 142,86.<br>
+            A margem sobre o preço nunca chega a 100%: a partir daí o preço não existe (lucro não pode ser todo o valor cobrado).
           </div>
 
         </div>
@@ -4388,6 +4405,20 @@ function calcPricing() {
   document.getElementById('bd-margin-val').style.color = marginPct > 0 ? 'var(--sage-dark)' : 'var(--text-muted)';
   document.getElementById('result-hour-value').textContent = formatBRL(finalHourValue);
   document.getElementById('res-margin').textContent = marginPct;
+  // Duas leituras da mesma porcentagem: markup (sobre o custo) e margem (sobre o preço).
+  const margemReal = finalHourValue > 0 ? (marginAmount / finalHourValue) * 100 : 0;
+  document.getElementById('res-margem-real').textContent = margemReal.toFixed(1).replace('.', ',') + '%';
+  document.getElementById('bd-margem2-pct').textContent = marginPct;
+  if (marginPct < 100) {
+    const horaMargem = minHourValue / (1 - marginPct / 100);
+    document.getElementById('result-hour-margem').textContent = formatBRL(horaMargem);
+    document.getElementById('bd-margem2-val').textContent = '+ ' + formatBRL(horaMargem - minHourValue);
+    document.getElementById('result-hour-margem-sub').textContent = 'Custo ÷ (1 − ' + marginPct + '%) · ' + marginPct + '% do preço cobrado vira lucro';
+  } else {
+    document.getElementById('result-hour-margem').textContent = 'Inviável';
+    document.getElementById('bd-margem2-val').textContent = '—';
+    document.getElementById('result-hour-margem-sub').textContent = 'A margem sobre o preço precisa ser menor que 100%';
+  }
 
   // Meta calc — receita de pacotes abate da meta antes de calcular sessões avulsas necessárias
   const pacoteRevenue = pacoteValor * pacoteQtd;
@@ -7071,8 +7102,9 @@ async function exportWord() {
         ['Horas de atendimento por dia', hpd + 'h/dia'],
         ['Total de horas/mes disponiveis', totalH + 'h'],
         ['Valor minimo por hora (sem margem)', fBRL(minHour)],
-        ['Margem de lucro (' + margin + '%)', fBRL(minHour * margin/100)],
-        ['VALOR DA HORA', fBRL(finalHour), 'D4E8D4'],
+        ['Markup - acrescimo sobre o custo (' + margin + '%)', fBRL(minHour * margin/100)],
+        ['VALOR DA HORA (markup: custo + ' + margin + '% do custo)', fBRL(finalHour), 'D4E8D4'],
+        ['VALOR DA HORA (margem de ' + margin + '% sobre o preco)', margin < 100 ? fBRL(minHour / (1 - margin/100)) : 'Inviavel (margem deve ser menor que 100%)', 'E4F0F3'],
       ]) +
       par('Meta de Faturamento', {bold:true, size:22, color:'C17F3E', spBefore:280, spAfter:80}) +
       summaryTable([
@@ -7504,8 +7536,9 @@ async function exportExcel() {
       ['Horas de atendimento por dia', hpd + 'h/dia'],
       ['Total de horas/mês disponíveis', totalH + 'h'],
       ['Valor mínimo por hora (sem margem)', fBRL(minHour)],
-      ['Margem de lucro (' + margin + '%)', fBRL(minHour * margin/100)],
-      [{v:'VALOR DA HORA',bold:true}, {v:fBRL(finalHour),bold:true}],
+      ['Markup - acréscimo sobre o custo (' + margin + '%)', fBRL(minHour * margin/100)],
+      [{v:'VALOR DA HORA (markup: custo + ' + margin + '% do custo)',bold:true}, {v:fBRL(finalHour),bold:true}],
+      [{v:'VALOR DA HORA (margem de ' + margin + '% sobre o preço)',bold:true}, {v:margin < 100 ? fBRL(minHour / (1 - margin/100)) : 'Inviável (margem deve ser menor que 100%)',bold:true}],
       [],
       tit('Meta de Faturamento'),
       ['Meta de faturamento mensal', fBRL(goal)],
