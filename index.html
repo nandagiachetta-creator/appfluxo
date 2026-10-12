@@ -2603,6 +2603,23 @@
     Adicionar cartão
   </button>
 
+  <button class="btn-add-row" id="df-toggle-btn" onclick="toggleDetalheFatura()" style="margin-top:10px">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6M7 4h10a2 2 0 012 2v14l-3-2-2 2-2-2-2 2-2-2-3 2V6a2 2 0 012-2z"/></svg>
+    Detalhamento de Fatura
+  </button>
+
+  <div id="df-panel" style="display:none;margin-top:14px">
+    <p class="receita-nota-mes">
+      Espaço só para <strong>análise interna</strong>: anote o que foi gasto em cada cartão.
+      Estes valores <strong>não</strong> entram em totais, Dashboard nem Fluxo de Caixa.
+    </p>
+    <div id="df-cards-container"></div>
+    <button class="btn-add-row" onclick="addDetalheCartao()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar cartão ao detalhamento
+    </button>
+  </div>
+
 </div>
 <!-- /view-cartao -->
 
@@ -4223,6 +4240,72 @@ function addCartaoCard(name = '', id = null) {
   `;
   container.appendChild(card);
   return id;
+}
+
+// ---- Detalhamento de Fatura (só análise interna; não alimenta nenhum total) ----
+function toggleDetalheFatura() {
+  const panel = document.getElementById('df-panel');
+  const abrir = panel.style.display === 'none';
+  panel.style.display = abrir ? '' : 'none';
+  if (abrir && !document.querySelector('#df-cards-container .cartao-card')) addDetalheCartao();
+}
+
+function addDetalheCartao(nome = '', itens = null) {
+  const card = document.createElement('div');
+  card.className = 'cartao-card df-card';
+  card.innerHTML = `
+    <div class="cartao-card-header">
+      <input type="text" class="cartao-card-name df-nome" value="${escHtml(nome)}" placeholder="Nome do cartão (ex: Nubank PJ)" />
+      <span class="cartao-card-subtotal df-subtotal">R$ 0,00</span>
+      <button class="btn-del" onclick="removerDetalheCartao(this)" title="Remover cartão">×</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>Item gasto</th><th style="width:140px">Valor</th><th style="width:40px"></th></tr></thead>
+        <tbody class="df-body"></tbody>
+      </table>
+      <button class="btn-add-row" onclick="addDetalheItem(this.closest('.df-card'))">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Adicionar item
+      </button>
+    </div>`;
+  document.getElementById('df-cards-container').appendChild(card);
+  if (itens && itens.length) itens.slice(0, 500).forEach(i => addDetalheItem(card, i.item || '', i.valor || ''));
+  else addDetalheItem(card);
+  somarDetalheCartao(card);
+  return card;
+}
+
+function addDetalheItem(card, item = '', valor = '') {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="df-item" value="${escHtml(item)}" placeholder="Ex: Mercado" /></td>
+    <td><input type="number" class="df-valor" step="0.01" value="${escHtml(valor)}" placeholder="0,00" oninput="somarDetalheCartao(this.closest('.df-card'))" /></td>
+    <td><button class="btn-del" onclick="const c=this.closest('.df-card');this.closest('tr').remove();somarDetalheCartao(c);saveData()" title="Remover item">×</button></td>`;
+  card.querySelector('.df-body').appendChild(tr);
+}
+
+function somarDetalheCartao(card) {
+  if (!card) return;
+  let t = 0;
+  card.querySelectorAll('.df-valor').forEach(i => { t += parseFloat(i.value) || 0; });
+  card.querySelector('.df-subtotal').textContent = formatBRL(t);
+}
+
+function removerDetalheCartao(btn) {
+  if (!confirm('Remover este cartão do detalhamento?')) return;
+  btn.closest('.df-card').remove();
+  saveData();
+}
+
+function coletarDetalheFatura() {
+  return Array.from(document.querySelectorAll('#df-cards-container .df-card')).map(card => ({
+    nome: card.querySelector('.df-nome')?.value || '',
+    itens: Array.from(card.querySelectorAll('.df-body tr')).map(tr => ({
+      item: tr.querySelector('.df-item')?.value || '',
+      valor: tr.querySelector('.df-valor')?.value || '',
+    })),
+  }));
 }
 
 function deleteCartaoCard(id) {
@@ -7250,6 +7333,22 @@ async function exportExcel() {
       sheets.push({ name: 'Emprestimos', rows: empRows });
     }
 
+    // DETALHAMENTO DE FATURA (análise interna)
+    const dfX = coletarDetalheFatura().filter(c => c.nome || c.itens.some(i => i.item || i.valor));
+    if (dfX.length) {
+      const dfRows = [tit('DETALHAMENTO DE FATURA'), ['Uso interno: não entra nos totais do app.'], []];
+      dfX.forEach(c => {
+        const itens = c.itens.filter(i => i.item || i.valor);
+        const total = itens.reduce((t, i) => t + (parseFloat(i.valor) || 0), 0);
+        dfRows.push(tit(c.nome || 'Cartão sem nome'));
+        dfRows.push(hdr('Item gasto', 'Valor'));
+        itens.forEach(i => dfRows.push([i.item, fBRL(parseFloat(i.valor) || 0)]));
+        dfRows.push([{v:'Total do cartão',bold:true}, {v:fBRL(total),bold:true}]);
+        dfRows.push([]);
+      });
+      sheets.push({ name: 'Detalhamento Fatura', rows: dfRows });
+    }
+
     // RECEITA
     const receitaSheetRows = [tit('RECEITA'), [], tit('Receitas do Mês')];
     if (receitaRows.length) {
@@ -7654,6 +7753,7 @@ function saveData() {
   }));
   data.pacotes = collectClienteBlocos('pacote');
   data.avulsos = collectClienteBlocos('avulso');
+  data.detalheFatura = coletarDetalheFatura();
   syncOutrasFromDom();
   if (OUTRAS_REC_KEY) data.outrasReceitas = OUTRAS_REC;
   syncBriefingFromDom();
@@ -7846,6 +7946,10 @@ async function loadData() {
     document.getElementById('clientes-extra-body').innerHTML = '';
     (data.clientesExtras || []).slice(0, 500).forEach(r => createClienteExtraRow(r.cliente || '', r.valor || '', r.dataPgto || '', !!r.pago, !!r.realizada, !!r.fluxoOculto, r.data || '', r.hora || ''));
     if ((data.clientesExtras && data.clientesExtras.length) || (data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
+
+    document.getElementById('df-cards-container').innerHTML = '';
+    (data.detalheFatura || []).slice(0, 100).forEach(c => addDetalheCartao(c.nome || '', c.itens || []));
+    if ((data.detalheFatura || []).length) document.getElementById('df-panel').style.display = '';
 
     OUTRAS_REC = data.outrasReceitas || {};
     OUTRAS_REC_KEY = null;
