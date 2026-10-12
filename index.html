@@ -6813,6 +6813,20 @@ async function exportWord() {
       return xml + `</w:tbl>`;
     }
 
+    function detalheFaturaSection() {
+      const cartoes = coletarDetalheFatura().filter(c => c.nome || c.itens.some(i => i.item || i.valor));
+      if (!cartoes.length) return '';
+      let xml = par('DETALHAMENTO DE FATURA', {bold:true, size:26, color:'A6763F', spBefore:560, spAfter:80});
+      xml += par('Uso interno: nao entra nos totais do app.', {size:18, color:'7A7A7A', spAfter:120});
+      cartoes.forEach(c => {
+        const itens = c.itens.filter(i => i.item || i.valor);
+        const total = itens.reduce((t, i) => t + (parseFloat(i.valor) || 0), 0);
+        xml += par(c.nome || 'Cartao sem nome', {bold:true, size:22, color:'5A6E8C', spBefore:200, spAfter:80});
+        xml += simpleTable(['Item gasto', 'Valor'], [6360, 3000], [...itens.map(i => [i.item || '-', fBRL(parseFloat(i.valor) || 0)]), ['Total do cartao', fBRL(total)]], 'F3EADB');
+      });
+      return xml;
+    }
+
     function outrasReceitasSection() {
       const rows = outrasReceitasParaRelatorio();
       if (!rows.length) return '';
@@ -6996,6 +7010,7 @@ async function exportWord() {
         ['Custo Mensal da Empresa', fBRL(empresaM), 'CCD8EE'],
       ]) +
       cartaoSection() +
+      detalheFaturaSection() +
       emprestimoSection() +
       receitaSection() +
       fluxoSection() +
