@@ -1377,7 +1377,7 @@
     .dashboard-chart-row { flex-direction: column; align-items: flex-start; }
 
     .cliente-gerar-row { flex-direction: column; align-items: stretch; }
-    .cliente-gerar-row input { width: 100%; }
+    .cliente-gerar-row input, .cliente-gerar-row select { width: 100%; }
     .cliente-bloco-body-header { flex-direction: column; align-items: stretch; gap: 10px; }
     .agenda-month { min-width: 100%; }
   }
@@ -1817,7 +1817,7 @@
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }
-  .cliente-gerar-row input {
+  .cliente-gerar-row input, .cliente-gerar-row select {
     font-family: 'DM Sans', sans-serif;
     font-size: 13px;
     border: 1px solid var(--border);
@@ -5952,6 +5952,14 @@ function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null, expa
         <label>1ª sessão
           <input type="date" class="cliente-data-inicial">
         </label>
+        <label>Intervalo entre sessões
+          <select class="cliente-intervalo">
+            <option value="7" selected>7/7 dias</option>
+            <option value="14">14/14 dias</option>
+            <option value="15">15/15 dias</option>
+            <option value="30">30/30 dias</option>
+          </select>
+        </label>
         <label>Horário
           <input type="time" class="cliente-hora-inicial" value="09:00">
         </label>
@@ -6096,16 +6104,17 @@ function gerarSessoesCliente(blocoId) {
   const jaPagas = parseInt(block.querySelector('.cliente-ja-pagas').value, 10) || 0;
   const dataInicial = block.querySelector('.cliente-data-inicial').value;
   const horaInicial = block.querySelector('.cliente-hora-inicial').value || '09:00';
+  const intervalo = parseInt(block.querySelector('.cliente-intervalo')?.value, 10) || 7;
 
   if (!dataInicial || qtd <= 0) {
     alert('Preencha a data da 1ª sessão e a quantidade de sessões.');
     return;
   }
-  if (!confirm(`Gerar ${qtd} sessões semanais a partir de ${dataInicial}, sempre às ${horaInicial}?\n\nAs sessões já existentes desse cliente não são apagadas.`)) return;
+  if (!confirm(`Gerar ${qtd} sessões (a cada ${intervalo} dias) a partir de ${dataInicial.split('-').reverse().join('/')}, sempre às ${horaInicial}?\n\nAs sessões já existentes desse cliente não são apagadas.`)) return;
 
   const [y, m, d] = dataInicial.split('-').map(Number);
   for (let i = 0; i < qtd; i++) {
-    const dt = new Date(y, m - 1, d + (i * 7));
+    const dt = new Date(y, m - 1, d + (i * intervalo));
     const dataStr = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
     createSessaoRow(blocoId, dataStr, horaInicial, valorSessao, i < jaPagas);
   }
