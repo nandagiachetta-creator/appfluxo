@@ -3031,7 +3031,7 @@
       <div class="pricing-card">
         <div class="pricing-card-header">
           <h3>Meta de Faturamento</h3>
-          <p>Quantas sessões você precisa fazer para atingir sua meta</p>
+          <p>Quantas sessões você precisa fazer para atingir sua meta, calculando seu momento agora</p>
         </div>
         <div class="pricing-body">
 
@@ -3093,6 +3093,14 @@
             <div class="breakdown-row"><span>Margem após cobrir custos</span><strong id="bd-profit" style="color:var(--sage-dark)">—</strong></div>
             <div class="breakdown-row" id="bd-actual-row" style="display:none"><span>Faturamento com sessões inseridas</span><strong id="bd-actual-revenue">—</strong></div>
             <div class="breakdown-row" id="bd-diff-row" style="display:none"><span>Diferença para a meta</span><strong id="bd-diff">—</strong></div>
+          </div>
+
+          <div class="pricing-breakdown" id="agora-box">
+            <div class="breakdown-row" style="font-weight:600"><span>Seu momento agora</span><span id="agora-label" style="font-weight:400;font-size:12px;color:var(--text-muted)"></span></div>
+            <div class="breakdown-row"><span>Já recebido de clientes no mês</span><strong id="agora-recebido">—</strong></div>
+            <div class="breakdown-row"><span>Falta para a meta</span><strong id="agora-falta">—</strong></div>
+            <div class="breakdown-row"><span>Sessões que ainda faltam</span><strong id="agora-sessoes">—</strong></div>
+            <div class="breakdown-row"><span>Sessões por dia nos dias restantes</span><strong id="agora-sessoes-dia">—</strong></div>
           </div>
 
           <div class="pricing-result accent">
@@ -4421,6 +4429,37 @@ function calcPricing() {
     document.getElementById('bd-actual-row').style.display = 'none';
     document.getElementById('bd-diff-row').style.display = 'none';
   }
+  atualizarSessoesAgora();
+}
+
+// "Seu momento agora": meta − o que já entrou de clientes no mês ⇒ sessões que ainda faltam.
+function atualizarSessoesAgora() {
+  const el = id => document.getElementById(id);
+  if (!el('agora-sessoes')) return;
+  const meta = parseFloat(el('monthly-goal')?.value) || 0;
+  const preco = parseFloat(el('session-price')?.value) || 0;
+  const rec = getClientesRecebidoMes();
+  const recebido = rec.pacotes + rec.avulsos;
+  const falta = Math.max(0, meta - recebido);
+  const sessoes = preco > 0 ? Math.ceil(falta / preco) : 0;
+
+  const hoje = new Date();
+  const ativo = getActiveMonthDate();
+  const ultimo = new Date(ativo.getFullYear(), ativo.getMonth() + 1, 0).getDate();
+  const mesAtualReal = ativo.getFullYear() === hoje.getFullYear() && ativo.getMonth() === hoje.getMonth();
+  const diaIni = mesAtualReal ? hoje.getDate() : 1;
+  // dias úteis (seg-sex) de hoje até o fim do mês
+  let uteis = 0;
+  for (let d = diaIni; d <= ultimo; d++) {
+    const wd = new Date(ativo.getFullYear(), ativo.getMonth(), d).getDay();
+    if (wd !== 0 && wd !== 6) uteis++;
+  }
+
+  el('agora-label').textContent = mesAtualReal ? 'hoje, dia ' + hoje.getDate() + ' · ' + uteis + ' dias úteis restantes' : uteis + ' dias úteis no mês';
+  el('agora-recebido').textContent = formatBRL(recebido);
+  el('agora-falta').textContent = meta > 0 ? (falta > 0 ? formatBRL(falta) : 'Meta batida! 🎉') : '—';
+  el('agora-sessoes').textContent = meta > 0 && preco > 0 ? (sessoes > 0 ? sessoes + ' sessões' : '0 — meta batida') : '—';
+  el('agora-sessoes-dia').textContent = sessoes > 0 && uteis > 0 ? (sessoes / uteis).toFixed(1) + ' sess/dia' : '—';
 }
 
 // ── RECEITA ───────────────────────────────────────────────────
@@ -5170,6 +5209,7 @@ function calcMeta() {
   const valorSem     = goal > 0 ? goal / semanasMes : 0;
   const horasSem     = sessoesSem * sessionMin / 60;
 
+  atualizarSessoesAgora();
   document.getElementById('meta-r-sessoes-mes').textContent     = sessoesMes > 0 ? sessoesMes + ' sessões' : '—';
   document.getElementById('meta-r-sessoes-semana').textContent  = sessoesSem > 0 ? sessoesSem + ' sess/semana' : '—';
   document.getElementById('meta-r-sessoes-dia').textContent     = sessoesDia > 0 ? sessoesDia + ' sess/dia' + (horasSem > 0 ? ' · ' + horasSem.toFixed(1) + 'h/sem' : '') : '—';
@@ -7045,6 +7085,10 @@ async function exportWord() {
         ['Duracao de cada sessao', sessDur + ' min'],
         ['Sessoes necessarias/mes', sessNeeded + ' sessoes'],
         ['Sessoes por dia de trabalho', sessDay + ' sess/dia'],
+        ['Seu momento agora - ja recebido de clientes', document.getElementById('agora-recebido').textContent],
+        ['Seu momento agora - falta para a meta', document.getElementById('agora-falta').textContent],
+        ['Seu momento agora - sessoes que ainda faltam', document.getElementById('agora-sessoes').textContent],
+        ['Seu momento agora - sessoes por dia nos dias restantes', document.getElementById('agora-sessoes-dia').textContent],
         ['Margem apos cobrir custos', fBRL(profit), profit >= 0 ? 'D4E8D4' : 'FDECEA'],
       ]) +
       metaSemanalSection() +
@@ -7474,6 +7518,10 @@ async function exportExcel() {
     precifRows.push(['Duração de cada sessão', sessDur + ' min']);
     precifRows.push(['Sessões necessárias/mês', sessNeeded + ' sessões']);
     precifRows.push(['Sessões por dia de trabalho', sessDay + ' sess/dia']);
+    precifRows.push(['Seu momento agora: já recebido de clientes', document.getElementById('agora-recebido').textContent]);
+    precifRows.push(['Seu momento agora: falta para a meta', document.getElementById('agora-falta').textContent]);
+    precifRows.push(['Seu momento agora: sessões que ainda faltam', document.getElementById('agora-sessoes').textContent]);
+    precifRows.push(['Seu momento agora: sessões por dia nos dias restantes', document.getElementById('agora-sessoes-dia').textContent]);
     precifRows.push([{v:'Margem após cobrir custos',bold:true}, {v:fBRL(profit),bold:true}]);
     sheets.push({ name: 'Precificacao e Meta', rows: precifRows });
 
