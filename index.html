@@ -39,7 +39,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
   }
+  .header-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .header-right { display: flex; gap: 24px; align-items: center; }
+  .month-time { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--cream); letter-spacing: 1px; font-variant-numeric: tabular-nums; }
   .logo {
     font-family: 'Playfair Display', serif;
     font-size: 28px;
@@ -1303,6 +1315,8 @@
 
   @media (max-width: 768px) {
     header { flex-direction: column; gap: 16px; padding: 20px 16px; }
+    .header-center { position: static; transform: none; }
+    .header-right { flex-direction: column; gap: 12px; }
     .header-summary { width: 100%; justify-content: center; flex-wrap: wrap; gap: 12px; }
     .hsum-item { text-align: center; }
     .hsum-value { font-size: 18px; }
@@ -2162,14 +2176,22 @@
     <div class="logo">Fluxo<span>.</span></div>
     <div class="header-sub">Gestão Financeira · Terapeutas</div>
   </div>
-  <div class="header-summary">
+  <div class="header-center">
     <div class="header-month">
       <div class="month-badge">
         <div class="month-name" id="header-month-name">—</div>
         <div class="month-year" id="header-month-year">—</div>
       </div>
     </div>
-    <div class="hsum-divider"></div>
+    <div class="header-month">
+      <div class="month-badge">
+        <div class="month-time" id="header-time">--:--:--</div>
+        <div class="month-year">Horário</div>
+      </div>
+    </div>
+  </div>
+  <div class="header-right">
+  <div class="header-summary">
     <div class="hsum-item">
       <div class="hsum-label">Custo Mensal</div>
       <div class="hsum-value" id="header-monthly">R$ 0,00</div>
@@ -2178,6 +2200,7 @@
   <div id="header-user" style="display:none;align-items:center;gap:12px;">
     <span id="user-email-display" style="font-size:12px;color:var(--sage-light);"></span>
     <button onclick="doLogout()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;padding:6px 14px;border-radius:8px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">Sair</button>
+  </div>
   </div>
 </header>
 
@@ -8273,11 +8296,16 @@ async function onAuthLogin(user) {
   calcMeta();
 
   // Set current month
+  updateHeaderClock();
+  if (!window._clockTimer) window._clockTimer = setInterval(updateHeaderClock, 1000);
+}
+
+function updateHeaderClock() {
   const now = new Date();
   const monthName = now.toLocaleString('pt-BR', { month: 'long' });
-  const year = now.getFullYear();
-  document.getElementById('header-month-name').textContent = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-  document.getElementById('header-month-year').textContent = year;
+  document.getElementById('header-month-name').textContent = now.getDate() + ' de ' + monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  document.getElementById('header-month-year').textContent = now.getFullYear();
+  document.getElementById('header-time').textContent = now.toLocaleTimeString('pt-BR', { hour12: false });
 }
 
 // Salva o estado ao sair da página (fechar aba, navegar para outro site, etc.)
