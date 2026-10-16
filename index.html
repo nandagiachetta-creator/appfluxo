@@ -3336,11 +3336,12 @@
   <div class="section-header">
     <span class="section-pill" style="background:#3d7a8c">Pacotes</span>
     <h2 class="section-title" style="font-size:20px">Pacotes</h2>
+    <button class="btn-sort-due" id="bd-sort-btn-pac" type="button" onclick="sortBriefingPorValor('pac')">↕ Ordenar por valor</button>
   </div>
   <div class="table-wrapper bd-lista" style="margin-bottom:32px">
     <table>
       <thead>
-        <tr><th>Nome do pacote</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th>Valor total do pacote</th></tr>
+        <tr><th>Nome do pacote</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th class="th-sortable" onclick="sortBriefingPorValor('pac')">Valor total do pacote</th></tr>
       </thead>
       <tbody id="briefing-pac-body"></tbody>
       <tfoot>
@@ -3361,11 +3362,12 @@
   <div class="section-header">
     <span class="section-pill" style="background:#8c6b3d">Avulso</span>
     <h2 class="section-title" style="font-size:20px">Sessões Avulsas</h2>
+    <button class="btn-sort-due" id="bd-sort-btn-av" type="button" onclick="sortBriefingPorValor('av')">↕ Ordenar por valor</button>
   </div>
   <div class="table-wrapper bd-lista" style="margin-bottom:32px">
     <table>
       <thead>
-        <tr><th>Nome / descrição</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th>Valor total</th></tr>
+        <tr><th>Nome / descrição</th><th style="text-align:center">Qtd. de sessões</th><th>Valor por sessão</th><th class="th-sortable" onclick="sortBriefingPorValor('av')">Valor total</th></tr>
       </thead>
       <tbody id="briefing-av-body"></tbody>
       <tfoot>
@@ -5452,6 +5454,33 @@ function createBriefingItemRow(tipo, nome = '', sessoes = '', vsessao = '', valo
   q('.bi-nome').addEventListener('input', renderBriefing);
   q('.btn-del').addEventListener('click', () => { tr.remove(); renderBriefing(); saveData(); });
   tbody.appendChild(tr);
+}
+
+const _bdSortDir = {};
+function sortBriefingPorValor(tipo, campo = '.bi-valor') {
+  const tbody = document.getElementById('briefing-' + tipo + '-body');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (!rows.length) return;
+  const key = tipo + campo;
+  const asc = _bdSortDir[key] !== 'asc';
+  _bdSortDir[key] = asc ? 'asc' : 'desc';
+  const val = tr => {
+    const n = parseFloat(tr.querySelector(campo)?.value);
+    return isNaN(n) ? (asc ? Infinity : -Infinity) : n;
+  };
+  rows.sort((a, b) => asc ? val(a) - val(b) : val(b) - val(a));
+  rows.forEach(r => tbody.appendChild(r));
+  const btn = document.getElementById('bd-sort-btn-' + tipo);
+  if (btn) {
+    btn.classList.remove('sort-asc', 'sort-desc');
+    btn.classList.add(asc ? 'sort-asc' : 'sort-desc');
+    btn.textContent = (asc ? '↑' : '↓') + ' Ordenar por valor';
+  }
+  const table = tbody.closest('table');
+  table.querySelectorAll('.th-sortable').forEach(el => el.classList.remove('sort-asc', 'sort-desc'));
+  table.querySelectorAll('thead th')[campo === '.bi-vsessao' ? 2 : 3].classList.add(asc ? 'sort-asc' : 'sort-desc');
+  renderBriefing();
+  saveData();
 }
 
 function addBriefingItem(tipo) { createBriefingItemRow(tipo); }
