@@ -6075,14 +6075,14 @@ function createClienteBloco(kind, cliente = '', valorSessao = 0, id = null, expa
         <label>1ª sessão
           <input type="date" class="cliente-data-inicial">
         </label>
-        <label>Intervalo entre sessões
+        ${kind === 'pacote' ? `<label>Intervalo entre sessões
           <select class="cliente-intervalo">
             <option value="7" selected>7/7 dias</option>
             <option value="14">14/14 dias</option>
             <option value="15">15/15 dias</option>
             <option value="30">30/30 dias</option>
           </select>
-        </label>
+        </label>` : ''}
         <label>Horário
           <input type="time" class="cliente-hora-inicial" value="09:00">
         </label>
