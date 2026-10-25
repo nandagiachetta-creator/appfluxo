@@ -2261,14 +2261,13 @@
       <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Objetivos Financeiros</div>
-      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
-    </div>
-    <div class="dash-card">
       <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
       <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
+    </div>
+    <div class="dash-card highlight">
+      <div class="dash-card-label">Saldo do Mês</div>
+      <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
@@ -2285,10 +2284,6 @@
       <div class="dash-card-value" id="dash-receita-total">R$ 0,00</div>
       <div class="dash-card-sub">Clientes + Outras</div>
     </div>
-    <div class="dash-card highlight">
-      <div class="dash-card-label">Saldo do Mês</div>
-      <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
-    </div>
     <div class="dash-card">
       <div class="dash-card-label">Orçamento PF</div>
       <div class="dash-card-value" id="dash-pf-total">R$ 0,00</div>
@@ -2303,19 +2298,24 @@
       <div class="dash-card-sub" id="dash-fixas-sub">PF R$ 0,00 · PJ R$ 0,00</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Cartões do Mês</div>
+      <div class="dash-card-label">Cartões em Aberto</div>
       <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-cartao-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
-      <div class="dash-card-label">Empréstimos do Mês</div>
+      <div class="dash-card-label">Empréstimos em Aberto</div>
       <div class="dash-card-value" id="dash-emp-total">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-emp-sub">nada pago ainda neste mês</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Total de Custos do Mês</div>
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
-      <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos</div>
+      <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
+    </div>
+    <div class="dash-card" style="grid-column:1/-1">
+      <div class="dash-card-label">Objetivos Financeiros</div>
+      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
     </div>
   </div>
 
@@ -5839,11 +5839,11 @@ function updateDashboard() {
   if (el('dash-fixas-total')) el('dash-fixas-total').textContent = formatBRL(fixasPF + fixasPJ);
   if (el('dash-fixas-sub')) el('dash-fixas-sub').textContent = 'PF ' + formatBRL(fixasPF) + ' · PJ ' + formatBRL(fixasPJ);
   if (el('dash-custos-total')) el('dash-custos-total').textContent = formatBRL(custosTotal);
-  if (el('dash-emp-total')) el('dash-emp-total').textContent = formatBRL(empMes.total);
-  if (el('dash-emp-sub')) el('dash-emp-sub').textContent = formatBRL(empMes.aberto) + ' em aberto · ' + formatBRL(empMes.pago) + ' já pagos';
-  if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoMes.total);
+  if (el('dash-emp-total')) el('dash-emp-total').textContent = formatBRL(empMes.aberto);
+  if (el('dash-emp-sub')) el('dash-emp-sub').textContent = 'Total do mês ' + formatBRL(empMes.total) + ' · ' + formatBRL(empMes.pago) + ' já pagos';
+  if (el('dash-cartao-total')) el('dash-cartao-total').textContent = formatBRL(cartaoMes.aberto);
   if (el('dash-cartao-sub')) {
-    el('dash-cartao-sub').textContent = formatBRL(cartaoMes.aberto) + ' em aberto · ' + formatBRL(cartaoMes.pago) + ' já pagos';
+    el('dash-cartao-sub').textContent = 'Total do mês ' + formatBRL(cartaoMes.total) + ' · ' + formatBRL(cartaoMes.pago) + ' já pagos';
   }
   if (el('dash-receita-clientes')) el('dash-receita-clientes').textContent = formatBRL(receitaClientes);
   if (el('dash-receita-outras')) el('dash-receita-outras').textContent = formatBRL(receitaOutras);
