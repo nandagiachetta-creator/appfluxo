@@ -2298,6 +2298,11 @@
       <div class="dash-card-value" id="dash-pj-total">R$ 0,00</div>
     </div>
     <div class="dash-card">
+      <div class="dash-card-label">Contas Fixas · PF + PJ</div>
+      <div class="dash-card-value" id="dash-fixas-total">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-fixas-sub">PF R$ 0,00 · PJ R$ 0,00</div>
+    </div>
+    <div class="dash-card">
       <div class="dash-card-label">Cartões do Mês · em aberto</div>
       <div class="dash-card-value" id="dash-cartao-total">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-cartao-sub">nada pago ainda neste mês</div>
@@ -5830,6 +5835,9 @@ function updateDashboard() {
   const el = id => document.getElementById(id);
   if (el('dash-pf-total')) el('dash-pf-total').textContent = formatBRL(pfTotal);
   if (el('dash-pj-total')) el('dash-pj-total').textContent = formatBRL(pjTotal);
+  const fixasPF = sumType('fixed'), fixasPJ = sumType('biz-fixed');
+  if (el('dash-fixas-total')) el('dash-fixas-total').textContent = formatBRL(fixasPF + fixasPJ);
+  if (el('dash-fixas-sub')) el('dash-fixas-sub').textContent = 'PF ' + formatBRL(fixasPF) + ' · PJ ' + formatBRL(fixasPJ);
   if (el('dash-custos-total')) el('dash-custos-total').textContent = formatBRL(custosTotal);
   if (el('dash-emp-total')) el('dash-emp-total').textContent = formatBRL(empMes.aberto);
   if (el('dash-emp-sub')) el('dash-emp-sub').textContent = empMes.pago ? formatBRL(empMes.pago) + ' já pagos' : 'nada pago ainda neste mês';
