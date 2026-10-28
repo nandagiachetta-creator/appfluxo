@@ -105,6 +105,7 @@ body{background:var(--bg);color:var(--tx);font-family:'DM Sans','Segoe UI',syste
     <div class="field"><label>Senha</label><input type="password" id="adm-pass" placeholder="Sua senha" onkeydown="if(event.key==='Enter')doAdmLogin()"/></div>
     <div id="login-err" class="err"></div>
     <button class="btn btn-primary" id="login-btn" onclick="doAdmLogin()">Entrar</button>
+    <div style="text-align:center;margin-top:14px"><a href="#" onclick="doAdmForgot();return false" style="font-size:13px;color:var(--mu)">Esqueci minha senha</a></div>
   </div>
 </div>
 
@@ -263,6 +264,16 @@ async function doAdmLogin() {
   btn.disabled = false; btn.textContent = 'Entrar';
   if (error) { err.textContent = 'E-mail ou senha incorretos.'; return; }
   onAdmLogin(data.session);
+}
+
+async function doAdmForgot() {
+  const email = document.getElementById('adm-email').value.trim();
+  const err   = document.getElementById('login-err');
+  err.textContent = '';
+  if (!email) { err.textContent = 'Digite seu e-mail acima e clique de novo.'; return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
+  if (error) { err.textContent = error.message; return; }
+  showToast('📧 Link enviado! Defina a nova senha e volte ao painel.');
 }
 
 async function onAdmLogin(session) {
