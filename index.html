@@ -2327,10 +2327,17 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
     </div>
-    <div class="dash-card" style="grid-column:1/-1">
-      <div class="dash-card-label">Objetivos Financeiros</div>
-      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:inherit">
+      <div class="dash-card">
+        <div class="dash-card-label">Objetivos Financeiros</div>
+        <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+        <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Total Investido</div>
+        <div class="dash-card-value" id="dash-invest-total">R$ 0,00</div>
+        <div class="dash-card-sub" id="dash-invest-sub">Investimentos e caixinhas</div>
+      </div>
     </div>
   </div>
 
@@ -5966,6 +5973,7 @@ function updateDashboard() {
   if (el('dash-receita-outras')) el('dash-receita-outras').textContent = formatBRL(receitaOutras);
   if (el('dash-receita-total')) el('dash-receita-total').textContent = formatBRL(receitaTotal);
   atualizarSaldoDash();
+  atualizarInvestDash();
   atualizarDashMeta(receitaClientes);
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
@@ -6218,6 +6226,19 @@ function coletarInvestimentos() {
   return rows;
 }
 
+function atualizarInvestDash() {
+  const inv = coletarInvestimentos();
+  const tv = inv.reduce((t, r) => t + r.valor, 0);
+  const tr = inv.reduce((t, r) => t + r.rendimento, 0);
+  const el = id => document.getElementById(id);
+  if (el('dash-invest-total')) el('dash-invest-total').textContent = formatBRL(tv + tr);
+  if (el('dash-invest-sub')) {
+    el('dash-invest-sub').textContent = inv.length
+      ? `${formatBRL(tv)} guardados + ${formatBRL(tr)} de rendimento`
+      : 'Investimentos e caixinhas';
+  }
+}
+
 function recalculateInvest() {
   let totalValor = 0, totalRend = 0;
   document.querySelectorAll('#invest-body tr').forEach(tr => {
@@ -6232,6 +6253,7 @@ function recalculateInvest() {
   if (el('invest-total-guardado')) el('invest-total-guardado').textContent = formatBRL(totalValor);
   if (el('invest-total-rendimento')) el('invest-total-rendimento').textContent = formatBRL(totalRend);
   if (el('invest-total-atual')) el('invest-total-atual').textContent = formatBRL(totalValor + totalRend);
+  atualizarInvestDash();
   saveData();
 }
 
