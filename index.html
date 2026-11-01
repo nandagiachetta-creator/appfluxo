@@ -2869,6 +2869,11 @@
         <div class="sum-value" id="receita-sum-avulsos">R$ 0</div>
         <div class="sum-sub">Pagas com data neste mês</div>
       </div>
+      <div class="sum-card receita-total">
+        <div class="sum-label">Receita de Mentorias</div>
+        <div class="sum-value" id="receita-sum-mentorias">R$ 0</div>
+        <div class="sum-sub">Pagas com data neste mês</div>
+      </div>
     </div>
   </div>
 </div>
@@ -3218,7 +3223,7 @@
 
   <div class="section-header" style="margin-top:0">
     <span class="section-pill" style="background:#3d7a8c">Clientes</span>
-    <h2 class="section-title">Pacotes, Sessões Avulsas e Agenda</h2>
+    <h2 class="section-title">Pacotes, Avulsas, Mentorias e Agenda</h2>
   </div>
 
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
@@ -3230,6 +3235,7 @@
     <div class="cartao-summary-list">
       <div class="cartao-summary-item"><span>Receita de Pacotes (mês)</span><strong id="clientes-total-pacotes">R$ 0,00</strong></div>
       <div class="cartao-summary-item"><span>Receita de Avulsos (mês)</span><strong id="clientes-total-avulsos">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Receita de Mentorias (mês)</span><strong id="clientes-total-mentorias">R$ 0,00</strong></div>
       <div class="cartao-summary-item"><span>Clientes cadastrados</span><strong id="clientes-total-count">0</strong></div>
     </div>
   </div>
@@ -3254,6 +3260,17 @@
   <button class="btn-add-row" onclick="addClienteBloco('avulso')">
     <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
     Adicionar sessão avulsa
+  </button>
+
+  <!-- MENTORIA -->
+  <div class="section-header" style="margin-top:56px">
+    <span class="section-pill" style="background:#7a5c8c">Mentoria</span>
+    <h2 class="section-title" style="font-size:20px">Mentorias</h2>
+  </div>
+  <div id="mentorias-container"></div>
+  <button class="btn-add-row" onclick="addMentoriaBloco()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Adicionar mentorado
   </button>
 
   <!-- OUTRAS ENTRADAS DE CLIENTES -->
@@ -4510,7 +4527,7 @@ function atualizarSessoesAgora() {
   const meta = parseFloat(el('monthly-goal')?.value) || 0;
   const preco = parseFloat(el('session-price')?.value) || 0;
   const rec = getClientesRecebidoMes();
-  const recebido = rec.pacotes + rec.avulsos;
+  const recebido = rec.pacotes + rec.avulsos + rec.mentorias;
   const falta = Math.max(0, meta - recebido);
   const sessoes = preco > 0 ? Math.ceil(falta / preco) : 0;
 
@@ -4672,6 +4689,10 @@ function recalculateReceita() {
   const avulsosEl = document.getElementById('receita-sum-avulsos');
   if (pacotesEl) pacotesEl.textContent = formatBRL(clientesRecebido.pacotes);
   if (avulsosEl) avulsosEl.textContent = formatBRL(clientesRecebido.avulsos);
+  const mentoriasEl = document.getElementById('receita-sum-mentorias');
+  if (mentoriasEl) mentoriasEl.textContent = formatBRL(clientesRecebido.mentorias);
+  const clientesTotalMentoriasEl = document.getElementById('clientes-total-mentorias');
+  if (clientesTotalMentoriasEl) clientesTotalMentoriasEl.textContent = formatBRL(clientesRecebido.mentorias);
   const clientesTotalPacotesEl = document.getElementById('clientes-total-pacotes');
   const clientesTotalAvulsosEl = document.getElementById('clientes-total-avulsos');
   if (clientesTotalPacotesEl) clientesTotalPacotesEl.textContent = formatBRL(clientesRecebido.pacotes);
@@ -4688,7 +4709,7 @@ function recalculateReceita() {
       : 'Há ' + semData + ' sessões marcadas como pagas na aba Clientes sem data de pagamento — elas não entram em nenhum mês. Preencha as datas para contabilizar.';
   }
 
-  document.getElementById('receita-sum-total').textContent = formatBRL(total + clientesRecebido.pacotes + clientesRecebido.avulsos);
+  document.getElementById('receita-sum-total').textContent = formatBRL(total + clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias);
 
   calcMeta();
   updateDashboard();
@@ -4776,7 +4797,9 @@ function coletarEntradasFluxo() {
       entradas.push({
         dia: parseInt(dataPgto.slice(8, 10), 10),
         data: dataPgto,
-        desc: (kind === 'pacote' ? 'Pacote de ' : 'Sessão avulsa de ') + nome,
+        desc: (kind === 'pacote' ? 'Pacote de '
+          : kind === 'mentoria' ? (tr.dataset.tipo === 'leitura' ? 'Leitura da Realidade de ' : 'Mentoria de ')
+          : 'Sessão avulsa de ') + nome,
         valor,
         origem: 'Clientes',
         fonte: 'sessao',
@@ -5276,7 +5299,7 @@ function calcMeta() {
   // Já recebido: só o que entrou de clientes (pacotes/avulsos pagos no mês).
   // Outras receitas não abatem a meta de faturamento.
   const clientesRecebidoMeta = getClientesRecebidoMes();
-  const recebido = clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos;
+  const recebido = clientesRecebidoMeta.pacotes + clientesRecebidoMeta.avulsos + clientesRecebidoMeta.mentorias;
 
   // --- Planejamento mensal ---
   const semanasMes   = 4.3;
@@ -5581,7 +5604,7 @@ function bdTotaisDoMes(key, ativo) {
   }
   const soma = lista => lista.reduce((t, r) => t + bdNum(r.valor), 0);
   const rec = getClientesRecebidoMes(key);
-  return { briefing: soma(pac) + soma(av), debriefing: rec.pacotes + rec.avulsos, pacTotal: soma(pac), avTotal: soma(av) };
+  return { briefing: soma(pac) + soma(av), debriefing: rec.pacotes + rec.avulsos + rec.mentorias, pacTotal: soma(pac), avTotal: soma(av) };
 }
 
 function renderBriefing() {
@@ -5839,7 +5862,7 @@ function updateDashboard() {
   });
   const clientesRecebidoDash = getClientesRecebidoMes();
   const outrasPF = getOutrasReceitasPF();
-  const receitaClientes = clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos;
+  const receitaClientes = clientesRecebidoDash.pacotes + clientesRecebidoDash.avulsos + clientesRecebidoDash.mentorias;
   const receitaOutras = receitaManual + outrasPF;
   const receitaTotal = receitaClientes + receitaOutras;
 
@@ -5900,6 +5923,7 @@ function updateDashboard() {
   renderDashDonut('dashboard-donut-receita', 'dashboard-legend-receita', [
     { label: 'Pacotes pagos', value: clientesRecebidoDash.pacotes, color: DASH_COLORS[0] },
     { label: 'Avulsos pagos', value: clientesRecebidoDash.avulsos, color: DASH_COLORS[1] },
+    { label: 'Mentorias pagas', value: clientesRecebidoDash.mentorias, color: DASH_COLORS[3] },
     { label: 'Outras receitas', value: receitaOutras, color: DASH_COLORS[2] },
   ], 'Sem receita lançada ainda.');
 
@@ -5927,7 +5951,7 @@ function atualizarDashMeta(receitaTotal) {
   const meta = parseFloat(metaInput?.value) || 0;
   if (receitaTotal === undefined) {
     const clientes = getClientesRecebidoMes();
-    receitaTotal = clientes.pacotes + clientes.avulsos;
+    receitaTotal = clientes.pacotes + clientes.avulsos + clientes.mentorias;
   }
 
   const pct = meta > 0 ? Math.min(100, Math.round((receitaTotal / meta) * 100)) : 0;
@@ -6189,6 +6213,245 @@ function createSessaoRow(blocoId, data = '', hora = '', valor = 0, pago = false,
   tbody.appendChild(tr);
 }
 
+
+// ── MENTORIA: pagamento à vista + Leitura da Realidade + encontros ──
+// Tudo fica dentro do plano do mentorado. As linhas usam as mesmas classes das
+// sessões (sessao-data, sessao-valor, sessao-pago...) para entrar na agenda,
+// na receita do mês e no fluxo de caixa sem código extra.
+function createMentoriaBloco(cliente = '', id = null, expanded = false, d = null) {
+  if (!id) {
+    id = 'm' + (clienteBlocoSeq++);
+  } else {
+    const n = parseInt(String(id).replace(/^[a-z]/, ''), 10);
+    if (!isNaN(n) && n >= clienteBlocoSeq) clienteBlocoSeq = n + 1;
+  }
+  const container = document.getElementById('mentorias-container');
+  const block = document.createElement('div');
+  block.className = 'cartao-card cliente-bloco';
+  block.id = 'cliente-bloco-' + id;
+  block.dataset.blocoId = id;
+  block.dataset.kind = 'mentoria';
+  const subt = 'font-size:13px;font-weight:600;color:var(--text);margin:18px 0 8px';
+  block.innerHTML = `
+    <button class="cliente-bloco-header" type="button" onclick="toggleClienteBloco('${id}')">
+      <span class="cliente-toggle-icon" id="cliente-toggle-icon-${id}">${expanded ? '▾' : '▸'}</span>
+      <span class="cliente-nome-label" id="cliente-nome-label-${id}">${escHtml(cliente) || 'Novo mentorado'}</span>
+      <span class="cartao-card-subtotal" id="cliente-subtotal-${id}">R$ 0,00 / R$ 0,00</span>
+    </button>
+    <div class="cliente-bloco-body" id="cliente-bloco-body-${id}" style="display:${expanded ? '' : 'none'}">
+      <div class="cliente-bloco-body-header">
+        <label class="cliente-nome-field">Nome do mentorado
+          <input type="text" class="cliente-nome" value="${escHtml(cliente)}" placeholder="Nome do mentorado" oninput="recalculateClientes(); syncClienteNomeLabel('${id}'); recalcAgenda()" />
+        </label>
+        <button class="btn-del" onclick="deleteClienteBloco('${id}')" title="Remover">×</button>
+      </div>
+
+      <div style="${subt}">1. Pagamento da mentoria · somente à vista</div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Valor total</th><th class="th-pago">Pago</th><th style="text-align:center">Data do Pagamento</th></tr></thead>
+        <tbody class="mentoria-pgto" id="mentoria-pgto-${id}"></tbody>
+      </table></div>
+
+      <div style="${subt}">2. Sessão de Leitura da Realidade</div>
+      <div class="table-wrapper"><table>
+        <thead><tr><th>Data</th><th style="text-align:center">Horário</th><th>Leitura</th><th>Valor</th><th class="th-pago">Pago</th><th style="text-align:center">Data do Pagamento</th><th class="th-pago">Realizada</th></tr></thead>
+        <tbody class="mentoria-leitura" id="mentoria-leitura-${id}"></tbody>
+      </table></div>
+
+      <div style="${subt}">3. Aplicação da Mentoria · encontros</div>
+      <div class="cliente-gerar-row">
+        <label>Qtd encontros
+          <input type="number" class="mentoria-qtd" min="1" step="1" value="12">
+        </label>
+        <label>1º encontro
+          <input type="date" class="mentoria-data-inicial">
+        </label>
+        <label>Intervalo
+          <select class="mentoria-intervalo">
+            <option value="7" selected>7/7 dias (semanal)</option>
+            <option value="14">14/14 dias</option>
+            <option value="15">15/15 dias</option>
+          </select>
+        </label>
+        <label>Horário
+          <input type="time" class="mentoria-hora" value="09:00">
+        </label>
+        <button class="btn-gerar" type="button" onclick="gerarEncontrosMentoria('${id}')">Gerar encontros</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>Data</th><th style="text-align:center">Horário</th><th class="th-pago">Realizado</th><th></th></tr></thead>
+          <tbody class="mentoria-encontros" id="mentoria-encontros-${id}"></tbody>
+        </table>
+        <button class="btn-add-row" type="button" onclick="addEncontroManual('${id}')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Adicionar encontro manual
+        </button>
+      </div>
+    </div>
+  `;
+  container.appendChild(block);
+
+  const pg = d?.pagamento || {};
+  createMentoriaPgtoRow(id, pg.valor, !!pg.pago, pg.dataPgto || '', !!pg.fluxoOculto);
+  createLeituraRow(id, d?.leitura || {});
+  (d?.encontros || []).slice(0, 200).forEach(e => createEncontroRow(id, e.data || '', e.hora || '', !!e.realizada));
+  const cfg = d?.cfg || {};
+  if (cfg.qtd) block.querySelector('.mentoria-qtd').value = cfg.qtd;
+  if (cfg.dataInicial) block.querySelector('.mentoria-data-inicial').value = cfg.dataInicial;
+  if (cfg.intervalo) block.querySelector('.mentoria-intervalo').value = cfg.intervalo;
+  if (cfg.hora) block.querySelector('.mentoria-hora').value = cfg.hora;
+  return id;
+}
+
+function addMentoriaBloco() {
+  const id = createMentoriaBloco('', null, true);
+  document.querySelector('#cliente-bloco-' + id + ' .cliente-nome')?.focus();
+  recalculateClientes();
+}
+
+function createMentoriaPgtoRow(id, valor = '', pago = false, dataPgto = '', fluxoOculto = false) {
+  const tbody = document.getElementById('mentoria-pgto-' + id);
+  const tr = document.createElement('tr');
+  tr.dataset.tipo = 'pagamento';
+  if (fluxoOculto) tr.dataset.fluxoOculto = '1';
+  tr.innerHTML = `
+    <td><div class="value-input-wrap"><span class="currency-sym">R$</span>
+      <input type="number" class="sessao-valor" min="0" step="0.01" oninput="recalculateClientes()"></div></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" onchange="onSessaoPagoToggle(this)"></td>
+    <td style="text-align:center"><input type="date" class="sessao-data-pgto receita-data-input" oninput="recalculateClientes()"></td>`;
+  tr.querySelector('.sessao-valor').value = valor ?? '';
+  tr.querySelector('.sessao-pago').checked = pago;
+  tr.querySelector('.sessao-data-pgto').value = dataPgto;
+  tbody.appendChild(tr);
+}
+
+function createLeituraRow(id, d = {}) {
+  const tbody = document.getElementById('mentoria-leitura-' + id);
+  const tr = document.createElement('tr');
+  tr.dataset.tipo = 'leitura';
+  if (d.fluxoOculto) tr.dataset.fluxoOculto = '1';
+  tr.innerHTML = `
+    <td><input type="date" class="sessao-data" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td style="text-align:center"><input type="time" class="sessao-hora" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td><select class="leitura-tipo" onchange="onLeituraTipoChange(this)">
+      <option value="paga">Paga</option><option value="cortesia">Cortesia (sem cobrança)</option></select></td>
+    <td><div class="value-input-wrap"><span class="currency-sym">R$</span>
+      <input type="number" class="sessao-valor" min="0" step="0.01" oninput="recalculateClientes()"></div></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-pago" onchange="onSessaoPagoToggle(this)"></td>
+    <td style="text-align:center"><input type="date" class="sessao-data-pgto receita-data-input" oninput="recalculateClientes()"></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-realizada" onchange="recalculateClientes()"></td>`;
+  tr.querySelector('.sessao-data').value = d.data || '';
+  tr.querySelector('.sessao-hora').value = d.hora || '';
+  tr.querySelector('.leitura-tipo').value = d.cortesia ? 'cortesia' : 'paga';
+  tr.querySelector('.sessao-valor').value = d.valor ?? '';
+  tr.querySelector('.sessao-pago').checked = !!d.pago;
+  tr.querySelector('.sessao-data-pgto').value = d.dataPgto || '';
+  tr.querySelector('.sessao-realizada').checked = !!d.realizada;
+  applyLeituraTipo(tr);
+  tbody.appendChild(tr);
+}
+
+// Cortesia: zera o valor e trava o pagamento, para não entrar na receita.
+function applyLeituraTipo(tr) {
+  const cortesia = tr.querySelector('.leitura-tipo').value === 'cortesia';
+  const valor = tr.querySelector('.sessao-valor');
+  const pago = tr.querySelector('.sessao-pago');
+  const dataPgto = tr.querySelector('.sessao-data-pgto');
+  if (cortesia) { valor.value = 0; pago.checked = false; dataPgto.value = ''; }
+  valor.disabled = pago.disabled = dataPgto.disabled = cortesia;
+}
+
+function onLeituraTipoChange(sel) {
+  const tr = sel.closest('tr');
+  const valor = tr.querySelector('.sessao-valor');
+  if (sel.value !== 'cortesia' && (parseFloat(valor.value) || 0) === 0) valor.value = '';
+  applyLeituraTipo(tr);
+  recalculateClientes();
+}
+
+function createEncontroRow(id, data = '', hora = '', realizada = false) {
+  const tbody = document.getElementById('mentoria-encontros-' + id);
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.dataset.tipo = 'encontro';
+  tr.innerHTML = `
+    <td><input type="date" class="sessao-data" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td style="text-align:center"><input type="time" class="sessao-hora" oninput="recalculateClientes(); recalcAgenda();"></td>
+    <td style="text-align:center"><input type="checkbox" class="paid-check sessao-realizada" onchange="recalculateClientes()"></td>
+    <td style="text-align:center"><button class="btn-del" type="button" onclick="this.closest('tr').remove(); recalculateClientes(); recalcAgenda();" title="Remover">×</button></td>`;
+  tr.querySelector('.sessao-data').value = data;
+  tr.querySelector('.sessao-hora').value = hora;
+  tr.querySelector('.sessao-realizada').checked = realizada;
+  tbody.appendChild(tr);
+}
+
+function addEncontroManual(id) {
+  createEncontroRow(id);
+  recalculateClientes();
+}
+
+function gerarEncontrosMentoria(id) {
+  const block = document.getElementById('cliente-bloco-' + id);
+  if (!block) return;
+  const qtd = parseInt(block.querySelector('.mentoria-qtd').value, 10) || 0;
+  const dataInicial = block.querySelector('.mentoria-data-inicial').value;
+  const hora = block.querySelector('.mentoria-hora').value || '09:00';
+  const intervalo = parseInt(block.querySelector('.mentoria-intervalo').value, 10) || 7;
+  if (!dataInicial || qtd <= 0) {
+    alert('Preencha a data do 1º encontro e a quantidade de encontros.');
+    return;
+  }
+  if (!confirm(`Gerar ${qtd} encontros (a cada ${intervalo} dias) a partir de ${dataInicial.split('-').reverse().join('/')}, sempre às ${hora}?\n\nOs encontros já existentes não são apagados.`)) return;
+  const [y, m, d] = dataInicial.split('-').map(Number);
+  for (let i = 0; i < qtd; i++) {
+    const dt = new Date(y, m - 1, d + (i * intervalo));
+    const dataStr = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+    createEncontroRow(id, dataStr, hora, false);
+  }
+  recalculateClientes();
+  recalcAgenda();
+}
+
+function collectMentorias() {
+  return Array.from(document.querySelectorAll('.cliente-bloco[data-kind="mentoria"]')).map(block => {
+    const g = (el, sel) => el?.querySelector(sel);
+    const pg = block.querySelector('tr[data-tipo="pagamento"]');
+    const lt = block.querySelector('tr[data-tipo="leitura"]');
+    return {
+      id: block.dataset.blocoId,
+      cliente: g(block, '.cliente-nome')?.value || '',
+      cfg: {
+        qtd: g(block, '.mentoria-qtd')?.value || '',
+        dataInicial: g(block, '.mentoria-data-inicial')?.value || '',
+        intervalo: g(block, '.mentoria-intervalo')?.value || '7',
+        hora: g(block, '.mentoria-hora')?.value || '09:00',
+      },
+      pagamento: {
+        valor: g(pg, '.sessao-valor')?.value || '',
+        pago: g(pg, '.sessao-pago')?.checked || false,
+        dataPgto: g(pg, '.sessao-data-pgto')?.value || '',
+        fluxoOculto: pg?.dataset.fluxoOculto === '1',
+      },
+      leitura: {
+        data: g(lt, '.sessao-data')?.value || '',
+        hora: g(lt, '.sessao-hora')?.value || '',
+        cortesia: g(lt, '.leitura-tipo')?.value === 'cortesia',
+        valor: g(lt, '.sessao-valor')?.value || '',
+        pago: g(lt, '.sessao-pago')?.checked || false,
+        dataPgto: g(lt, '.sessao-data-pgto')?.value || '',
+        realizada: g(lt, '.sessao-realizada')?.checked || false,
+        fluxoOculto: lt?.dataset.fluxoOculto === '1',
+      },
+      encontros: Array.from(block.querySelectorAll('tr[data-tipo="encontro"]')).map(tr => ({
+        data: g(tr, '.sessao-data')?.value || '',
+        hora: g(tr, '.sessao-hora')?.value || '',
+        realizada: g(tr, '.sessao-realizada')?.checked || false,
+      })),
+    };
+  });
+}
+
 // ── OUTRAS ENTRADAS DE CLIENTES (linhas soltas: cliente, data, valor, pago, feita) ──
 function createClienteExtraRow(cliente = '', valor = '', dataPgto = '', pago = false, realizada = false, fluxoOculto = false, data = '', hora = '') {
   const tbody = document.getElementById('clientes-extra-body');
@@ -6316,7 +6579,7 @@ function recalculateClientes() {
 // dentro do mês vigente. A data da sessão não define mais o mês da entrada.
 function getClientesRecebidoMes(chaveMes) {
   const nowKey = chaveMes || getActiveMonthKey();
-  let pacotes = 0, avulsos = 0, semDataPgto = 0;
+  let pacotes = 0, avulsos = 0, mentorias = 0, semDataPgto = 0;
   document.querySelectorAll('.cliente-bloco').forEach(block => {
     const kind = block.dataset.kind;
     block.querySelectorAll('tbody tr').forEach(tr => {
@@ -6325,7 +6588,7 @@ function getClientesRecebidoMes(chaveMes) {
       const valor = parseFloat(tr.querySelector('.sessao-valor')?.value) || 0;
       if (pago && !dataPgto) { if (valor > 0) semDataPgto++; }
       if (pago && dataPgto.startsWith(nowKey)) {
-        if (kind === 'pacote') pacotes += valor; else avulsos += valor;
+        if (kind === 'pacote') pacotes += valor; else if (kind === 'mentoria') mentorias += valor; else avulsos += valor;
       }
     });
   });
@@ -6337,7 +6600,7 @@ function getClientesRecebidoMes(chaveMes) {
     if (pago && !dataPgto) { if (valor > 0) semDataPgto++; }
     if (pago && dataPgto.startsWith(nowKey)) avulsos += valor;
   });
-  return { pacotes, avulsos, semDataPgto };
+  return { pacotes, avulsos, mentorias, semDataPgto };
 }
 
 // ── AGENDA: CALENDÁRIO DE VAGAS (mês atual + 2 próximos) ────────
@@ -6377,12 +6640,14 @@ function getOccupiedSlotsMap() {
   // { 'YYYY-MM-DD': [{ hora: 'HH:MM', nome: 'Cliente' }, ...] }
   const map = {};
   document.querySelectorAll('.cliente-bloco').forEach(block => {
-    const nome = block.querySelector('.cliente-nome')?.value || 'Cliente sem nome';
+    const nomeBase = block.querySelector('.cliente-nome')?.value || 'Cliente sem nome';
     block.querySelectorAll('tbody tr').forEach(tr => {
       const d = tr.querySelector('.sessao-data')?.value;
       const h = tr.querySelector('.sessao-hora')?.value;
       if (!d || !h) return;
       if (!map[d]) map[d] = [];
+      const nome = tr.dataset.tipo === 'leitura' ? nomeBase + ' · Leitura'
+        : tr.dataset.tipo === 'encontro' ? nomeBase + ' · Mentoria' : nomeBase;
       map[d].push({ hora: h, nome });
     });
   });
@@ -6737,7 +7002,7 @@ async function exportWord() {
     const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
     const receitaSemNf = receitaManualTotal - receitaComNf;
     const clientesRecebido = getClientesRecebidoMes();
-    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + getOutrasReceitasPF();
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias + getOutrasReceitasPF();
 
     // Objetivos financeiros
     const objetivoRows = [];
@@ -6847,7 +7112,7 @@ async function exportWord() {
       return xml;
     }
 
-    const receitaClientesExp = clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const receitaClientesExp = clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias;
     const outrasReceitasExp = receitaTotalGeral - receitaClientesExp;
     const metaDashExp = parseFloat(document.getElementById('meta-goal')?.value) || 0;
     const previsaoExp = getPrevisaoMesAtual();
@@ -7116,7 +7381,7 @@ async function exportWord() {
       xml += par('Resumo de Receitas', {bold:true, size:22, color:'3D5C42', spBefore:280, spAfter:80});
       xml += summaryTable([
         ['Total Recebido (manual)', fBRL(receitaManualTotal)],
-        ['Outras Receitas (Orcamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos)],
+        ['Outras Receitas (Orcamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos - clientesRecebido.mentorias)],
         ['Com Nota Fiscal', fBRL(receitaComNf)],
         ['Sem Nota Fiscal', fBRL(receitaSemNf)],
         ['Receita de Pacotes', fBRL(clientesRecebido.pacotes)],
@@ -7333,7 +7598,7 @@ async function exportExcel() {
     const receitaComNf = receitaRows.filter(r=>r.nf).reduce((s,r)=>s+r.valor,0);
     const receitaSemNf = receitaManualTotal - receitaComNf;
     const clientesRecebido = getClientesRecebidoMes();
-    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + getOutrasReceitasPF();
+    const receitaTotalGeral = receitaManualTotal + clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias + getOutrasReceitasPF();
 
     const objetivoRows = [];
     document.querySelectorAll('#objetivo-body tr').forEach(tr => {
@@ -7393,7 +7658,7 @@ async function exportExcel() {
     const sheets = [];
 
     // DASHBOARD
-    const receitaClientesX = clientesRecebido.pacotes + clientesRecebido.avulsos;
+    const receitaClientesX = clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias;
     const metaDashX = parseFloat(document.getElementById('meta-goal')?.value) || 0;
     const previsaoX = getPrevisaoMesAtual();
     sheets.push({ name: 'Dashboard', rows: [
@@ -7600,7 +7865,7 @@ async function exportExcel() {
     }
     receitaSheetRows.push(tit('Resumo de Receitas'));
     receitaSheetRows.push(['Total Recebido (manual)', fBRL(receitaManualTotal)]);
-    receitaSheetRows.push(['Outras Receitas (Orçamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos)]);
+    receitaSheetRows.push(['Outras Receitas (Orçamento PF)', fBRL(receitaTotalGeral - receitaManualTotal - clientesRecebido.pacotes - clientesRecebido.avulsos - clientesRecebido.mentorias)]);
     receitaSheetRows.push(['Com Nota Fiscal', fBRL(receitaComNf)]);
     receitaSheetRows.push(['Sem Nota Fiscal', fBRL(receitaSemNf)]);
     receitaSheetRows.push(['Receita de Pacotes', fBRL(clientesRecebido.pacotes)]);
@@ -7987,6 +8252,7 @@ function saveData() {
   }));
   data.pacotes = collectClienteBlocos('pacote');
   data.avulsos = collectClienteBlocos('avulso');
+  data.mentorias = collectMentorias();
   data.detalheFatura = coletarDetalheFatura();
   syncOutrasFromDom();
   if (OUTRAS_REC_KEY) data.outrasReceitas = OUTRAS_REC;
@@ -8191,9 +8457,10 @@ async function loadData() {
     }
     loadClienteBlocos('pacote', data.pacotes);
     loadClienteBlocos('avulso', data.avulsos);
+    (data.mentorias || []).slice(0, 100).forEach(m => createMentoriaBloco(m.cliente || '', m.id, false, m));
     document.getElementById('clientes-extra-body').innerHTML = '';
     (data.clientesExtras || []).slice(0, 500).forEach(r => createClienteExtraRow(r.cliente || '', r.valor || '', r.dataPgto || '', !!r.pago, !!r.realizada, !!r.fluxoOculto, r.data || '', r.hora || ''));
-    if ((data.clientesExtras && data.clientesExtras.length) || (data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length)) recalculateClientes();
+    if ((data.clientesExtras && data.clientesExtras.length) || (data.pacotes && data.pacotes.length) || (data.avulsos && data.avulsos.length) || (data.mentorias && data.mentorias.length)) recalculateClientes();
 
     document.getElementById('df-cards-container').innerHTML = '';
     (data.detalheFatura || []).slice(0, 100).forEach(c => addDetalheCartao(c.nome || '', c.itens || []));
