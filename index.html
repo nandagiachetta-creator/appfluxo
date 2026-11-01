@@ -2270,14 +2270,11 @@
       <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
       <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
     </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
-      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
-      <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
-    </div>
     <div class="dash-card highlight">
       <div class="dash-card-label">Saldo do Mês</div>
       <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-saldo-conta">—</div>
+      <div class="dash-card-sub">Saldo real, igual ao do Fluxo de Caixa: o que sobrou do mês anterior + o que entrou − o que sai no mês.</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
@@ -2322,10 +2319,17 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
     </div>
-    <div class="dash-card" style="grid-column:1/-1">
-      <div class="dash-card-label">Objetivos Financeiros</div>
-      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:inherit">
+      <div class="dash-card">
+        <div class="dash-card-label">Objetivos Financeiros</div>
+        <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+        <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
+        <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
+        <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
+      </div>
     </div>
   </div>
 
@@ -5274,6 +5278,7 @@ function atualizarTotaisFluxo() {
   }
   const cardSaldo = el('fluxo-card-saldo');
   if (cardSaldo) cardSaldo.classList.toggle('negative', saldo < 0);
+  atualizarSaldoDash();
 
   const ocultos = contarOcultosFluxo();
   const barra = el('fluxo-ocultos');
@@ -5844,6 +5849,23 @@ function renderOutrasReceitas() {
   document.getElementById('outras-rec-total').textContent = formatBRL(getOutrasReceitasPF());
 }
 
+// Saldo do Dashboard = mesmo cálculo do Fluxo de Caixa (saldo anterior + entradas − saídas).
+function atualizarSaldoDash() {
+  const saldoValueEl = document.getElementById('dash-saldo');
+  if (!saldoValueEl) return;
+  const totalEntradas = coletarEntradasFluxo().reduce((t, e) => t + e.valor, 0);
+  const totalSaidas = coletarSaidasFluxo().reduce((t, s) => t + s.valor, 0);
+  const saldoAnterior = getSaldoAnterior();
+  const saldo = saldoAnterior + totalEntradas - totalSaidas;
+  saldoValueEl.textContent = formatBRL(saldo);
+  const conta = document.getElementById('dash-saldo-conta');
+  if (conta) {
+    conta.textContent = `${formatBRL(saldoAnterior)} anterior + ${formatBRL(totalEntradas)} entradas − ${formatBRL(totalSaidas)} saídas`;
+  }
+  const saldoCard = saldoValueEl.closest('.dash-card');
+  if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
+}
+
 const DASH_COLORS = ['#6b8f71', '#c17f3e', '#a6763f', '#5a6e8c'];
 function updateDashboard() {
   renderOutrasReceitas();
@@ -5895,12 +5917,7 @@ function updateDashboard() {
   if (el('dash-receita-clientes')) el('dash-receita-clientes').textContent = formatBRL(receitaClientes);
   if (el('dash-receita-outras')) el('dash-receita-outras').textContent = formatBRL(receitaOutras);
   if (el('dash-receita-total')) el('dash-receita-total').textContent = formatBRL(receitaTotal);
-  const saldoValueEl = el('dash-saldo');
-  if (saldoValueEl) {
-    saldoValueEl.textContent = formatBRL(saldo);
-    const saldoCard = saldoValueEl.closest('.dash-card');
-    if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
-  }
+  atualizarSaldoDash();
   atualizarDashMeta(receitaClientes);
   if (el('dash-objetivo-pct')) el('dash-objetivo-pct').textContent = objPct + '%';
   if (el('dash-objetivo-sub')) el('dash-objetivo-sub').textContent = formatBRL(objGuardado) + ' guardados';
