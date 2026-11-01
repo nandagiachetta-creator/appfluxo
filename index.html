@@ -3220,6 +3220,42 @@
     </button>
   </div>
 
+  <div class="section-header" style="margin-top:36px">
+    <span class="section-pill" style="background:#6b5b95">Investimentos</span>
+    <h2 class="section-title">Investimentos e Caixinhas</h2>
+  </div>
+  <p style="font-size:13px;color:var(--text-muted);margin:-4px 0 14px">
+    Registre o dinheiro que você guardou, em qual banco está, desde quando e quanto já rendeu.
+  </p>
+
+  <div class="cartao-summary-box">
+    <div class="cartao-summary-list">
+      <div class="cartao-summary-item"><span>Total guardado</span><strong id="invest-total-guardado">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Rendimento até agora</span><strong id="invest-total-rendimento">R$ 0,00</strong></div>
+      <div class="cartao-summary-item"><span>Total com rendimento</span><strong id="invest-total-atual">R$ 0,00</strong></div>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Investimento / Caixinha</th>
+          <th>Banco / Instituição</th>
+          <th style="text-align:center">Data</th>
+          <th>Quanto guardei</th>
+          <th>Rendimento até agora</th>
+          <th>Total atual</th>
+        </tr>
+      </thead>
+      <tbody id="invest-body"></tbody>
+    </table>
+    <button class="btn-add-row" onclick="addInvestRow()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Adicionar investimento / caixinha
+    </button>
+  </div>
+
 </div>
 <!-- /view-objetivo -->
 
@@ -6116,6 +6152,89 @@ function recalculateObjetivos() {
   updateDashboard();
 }
 
+// ── INVESTIMENTOS E CAIXINHAS ───────────────────────────────────
+let investRowId = 0;
+function createInvestRow(nome = '', banco = '', data = '', valor = 0, rendimento = 0) {
+  const id = investRowId++;
+  const tbody = document.getElementById('invest-body');
+  if (!tbody) return;
+  const tr = document.createElement('tr');
+  tr.id = 'invest-row-' + id;
+  tr.innerHTML = `
+    <td>
+      <div class="td-label">
+        <button class="btn-del" onclick="deleteInvestRow('invest-row-${id}')" title="Remover">×</button>
+        <input type="text" class="invest-nome" value="${escHtml(nome)}" placeholder="Ex.: Caixinha viagem, CDB, Tesouro" oninput="recalculateInvest()" />
+      </div>
+    </td>
+    <td>
+      <input type="text" class="invest-banco" value="${escHtml(banco)}" placeholder="Ex.: Nubank, Inter" oninput="recalculateInvest()" />
+    </td>
+    <td style="text-align:center">
+      <input type="date" class="invest-data" value="${escHtml(data)}" oninput="recalculateInvest()" />
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="invest-valor" min="0" step="0.01" value="${valor}" oninput="recalculateInvest()" />
+      </div>
+    </td>
+    <td>
+      <div class="value-input-wrap">
+        <span class="currency-sym">R$</span>
+        <input type="number" class="invest-rendimento" step="0.01" value="${rendimento}" oninput="recalculateInvest()" />
+      </div>
+    </td>
+    <td><strong class="invest-atual">R$ 0,00</strong></td>
+  `;
+  tbody.appendChild(tr);
+}
+
+function addInvestRow() {
+  createInvestRow();
+  const tbody = document.getElementById('invest-body');
+  const lastInput = tbody.lastElementChild.querySelector('input[type="text"]');
+  if (lastInput) lastInput.focus();
+  recalculateInvest();
+}
+
+function deleteInvestRow(id) {
+  const tr = document.getElementById(id);
+  if (tr) tr.remove();
+  recalculateInvest();
+}
+
+function coletarInvestimentos() {
+  const rows = [];
+  document.querySelectorAll('#invest-body tr').forEach(tr => {
+    rows.push({
+      nome: tr.querySelector('.invest-nome')?.value || '',
+      banco: tr.querySelector('.invest-banco')?.value || '',
+      data: tr.querySelector('.invest-data')?.value || '',
+      valor: parseFloat(tr.querySelector('.invest-valor')?.value) || 0,
+      rendimento: parseFloat(tr.querySelector('.invest-rendimento')?.value) || 0,
+    });
+  });
+  return rows;
+}
+
+function recalculateInvest() {
+  let totalValor = 0, totalRend = 0;
+  document.querySelectorAll('#invest-body tr').forEach(tr => {
+    const v = parseFloat(tr.querySelector('.invest-valor')?.value) || 0;
+    const r = parseFloat(tr.querySelector('.invest-rendimento')?.value) || 0;
+    totalValor += v;
+    totalRend += r;
+    const at = tr.querySelector('.invest-atual');
+    if (at) at.textContent = formatBRL(v + r);
+  });
+  const el = id => document.getElementById(id);
+  if (el('invest-total-guardado')) el('invest-total-guardado').textContent = formatBRL(totalValor);
+  if (el('invest-total-rendimento')) el('invest-total-rendimento').textContent = formatBRL(totalRend);
+  if (el('invest-total-atual')) el('invest-total-atual').textContent = formatBRL(totalValor + totalRend);
+  saveData();
+}
+
 // ── CLIENTES: PACOTES E SESSÕES AVULSAS ─────────────────────────
 
 let clienteBlocoSeq = 0;
@@ -7500,6 +7619,26 @@ async function exportWord() {
       return xml;
     }
 
+    function investimentoSection() {
+      const inv = coletarInvestimentos();
+      if (!inv.length) return '';
+      let xml = par('INVESTIMENTOS E CAIXINHAS', {bold:true, size:26, color:'6B5B95', spBefore:560, spAfter:160});
+      const w0=2300,w1=1700,w2=1300,w3=1360,w4=1360,w5=1340;
+      xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/><w:gridCol w:w="${w3}"/><w:gridCol w:w="${w4}"/><w:gridCol w:w="${w5}"/></w:tblGrid>`;
+      xml += `<w:tr>${tc('Investimento',{w:w0,bold:true,bg:'EDE7F6'})}${tc('Banco',{w:w1,bold:true,bg:'EDE7F6'})}${tc('Data',{w:w2,bold:true,bg:'EDE7F6',align:'center'})}${tc('Guardado',{w:w3,bold:true,bg:'EDE7F6',align:'right'})}${tc('Rendimento',{w:w4,bold:true,bg:'EDE7F6',align:'right'})}${tc('Total atual',{w:w5,bold:true,bg:'EDE7F6',align:'right'})}</w:tr>`;
+      inv.forEach(r => {
+        xml += `<w:tr>${tc(r.nome||'-',{w:w0})}${tc(r.banco||'-',{w:w1})}${tc(fmtDataBR(r.data),{w:w2,align:'center'})}${tc(fBRL(r.valor),{w:w3,align:'right'})}${tc(fBRL(r.rendimento),{w:w4,align:'right'})}${tc(fBRL(r.valor+r.rendimento),{w:w5,align:'right'})}</w:tr>`;
+      });
+      xml += `</w:tbl>`;
+      const tv = inv.reduce((t,r)=>t+r.valor,0), trd = inv.reduce((t,r)=>t+r.rendimento,0);
+      xml += summaryTable([
+        ['Total guardado', fBRL(tv)],
+        ['Rendimento ate agora', fBRL(trd)],
+        ['Total com rendimento', fBRL(tv+trd)],
+      ]);
+      return xml;
+    }
+
     const body =
       par('Fluxo . Gestao Financeira', {bold:true, size:36, color:'3D5C42', spAfter:60}) +
       par(`Relatorio - ${mesC} de ${ano}`, {size:20, color:'7A7A7A', spAfter:320}) +
@@ -7556,6 +7695,7 @@ async function exportWord() {
       ]) +
       metaSemanalSection() +
       objetivoSection() +
+      investimentoSection() +
       clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
       clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D') +
       mentoriasSection() +
@@ -8025,6 +8165,19 @@ async function exportExcel() {
       sheets.push({ name: 'Objetivos', rows: objSheetRows });
     }
 
+    // INVESTIMENTOS E CAIXINHAS
+    const investX = coletarInvestimentos();
+    if (investX.length) {
+      const invRows = [tit('INVESTIMENTOS E CAIXINHAS'), [], hdr('Investimento','Banco','Data','Quanto guardei','Rendimento até agora','Total atual')];
+      investX.forEach(r => invRows.push([r.nome||'-', r.banco||'-', fmtDataBR(r.data), fBRL(r.valor), fBRL(r.rendimento), fBRL(r.valor + r.rendimento)]));
+      const tvX = investX.reduce((t,r)=>t+r.valor,0), trX = investX.reduce((t,r)=>t+r.rendimento,0);
+      invRows.push([]);
+      invRows.push(['Total guardado', fBRL(tvX)]);
+      invRows.push(['Rendimento até agora', fBRL(trX)]);
+      invRows.push([{v:'Total com rendimento',bold:true}, {v:fBRL(tvX + trX),bold:true}]);
+      sheets.push({ name: 'Investimentos', rows: invRows });
+    }
+
     // CLIENTES (pacotes e avulsos)
     function clientesSheet(kind, title, sheetName) {
       const blocks = document.querySelectorAll(`.cliente-bloco[data-kind="${kind}"]`);
@@ -8310,6 +8463,7 @@ function saveData() {
     });
   });
   data.objetivos = objetivos;
+  data.investimentos = coletarInvestimentos();
 
   // Clientes: pacotes e sessões avulsas, não vinculados ao mês atual/próximo
   function collectClienteBlocos(kind) {
@@ -8541,6 +8695,10 @@ async function loadData() {
     if (data.objetivos && data.objetivos.length) {
       data.objetivos.slice(0, 100).forEach(o => createObjetivoRow(o.name || '', parseFloat(o.necessario) || 0, parseFloat(o.guardado) || 0, o.dataAlvo || '', o.concluido || false));
       recalculateObjetivos();
+    }
+    if (data.investimentos && data.investimentos.length) {
+      data.investimentos.slice(0, 200).forEach(i => createInvestRow(i.nome || '', i.banco || '', i.data || '', parseFloat(i.valor) || 0, parseFloat(i.rendimento) || 0));
+      recalculateInvest();
     }
 
     function loadClienteBlocos(kind, blocos) {
