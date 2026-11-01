@@ -7326,11 +7326,13 @@ async function exportWord() {
     const previsaoExp = getPrevisaoMesAtual();
 
     const fluxoDash = fluxoParaRelatorio();
+    const investDash = (() => { const l = coletarInvestimentos(); return { valor: l.reduce((t, r) => t + r.valor, 0), rendimento: l.reduce((t, r) => t + r.rendimento, 0) }; })();
     function dashboardSection() {
       let xml = par('DASHBOARD', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160});
       xml += summaryTable([
         ['Meta de Faturamento', fBRL(metaDashExp) + (metaDashExp > 0 ? ' (' + Math.min(100, Math.round(receitaClientesExp / metaDashExp * 100)) + '% atingido, so clientes)' : '') + ' | Previsao ' + previsaoExp.monthLabel + ' (sessoes agendadas nao pagas, ate dia ' + previsaoExp.ultimoDia + '): ' + fBRL(previsaoExp.total)],
         ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+        ['Total Investido', fBRL(investDash.valor + investDash.rendimento) + ' (' + fBRL(investDash.valor) + ' guardados + ' + fBRL(investDash.rendimento) + ' de rendimento)'],
         ['Receita de Clientes', fBRL(receitaClientesExp)],
         ['Outras Receitas', fBRL(outrasReceitasExp)],
         ['TOTAL DE RECEITA', fBRL(receitaTotalGeral)],
@@ -7892,6 +7894,7 @@ async function exportExcel() {
     // DASHBOARD
     const receitaClientesX = clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias;
     const metaDashX = parseFloat(document.getElementById('meta-goal')?.value) || 0;
+    const investDash = (() => { const l = coletarInvestimentos(); return { valor: l.reduce((t, r) => t + r.valor, 0), rendimento: l.reduce((t, r) => t + r.rendimento, 0) }; })();
     const previsaoX = getPrevisaoMesAtual();
     sheets.push({ name: 'Dashboard', rows: [
       tit('DASHBOARD'),
@@ -7899,6 +7902,7 @@ async function exportExcel() {
       ['Meta de Faturamento', fBRL(metaDashX) + (metaDashX > 0 ? ' (' + Math.min(100, Math.round(receitaClientesX / metaDashX * 100)) + '% atingido, só clientes)' : '')],
       ['   Previsão ' + previsaoX.monthLabel + ' (sessões agendadas não pagas, até dia ' + previsaoX.ultimoDia + ')', fBRL(previsaoX.total)],
       ['Objetivos - guardado', fBRL(objGuardadoTotal) + ' de ' + fBRL(objNecessarioTotal)],
+      ['Total Investido', fBRL(investDash.valor + investDash.rendimento) + ' (' + fBRL(investDash.valor) + ' guardados + ' + fBRL(investDash.rendimento) + ' de rendimento)'],
       ['Receita de Clientes', fBRL(receitaClientesX)],
       ['Outras Receitas', fBRL(receitaTotalGeral - receitaClientesX)],
       [{v:'TOTAL DE RECEITA',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}],
