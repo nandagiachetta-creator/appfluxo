@@ -2270,11 +2270,16 @@
       <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
       <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
     </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
+      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
+    </div>
     <div class="dash-card highlight">
       <div class="dash-card-label">Saldo do Mês</div>
       <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-saldo-conta">—</div>
-      <div class="dash-card-sub">Saldo real, igual ao do Fluxo de Caixa: o que sobrou do mês anterior + o que entrou − o que sai no mês.</div>
+      <div class="dash-card-sub">Valor que você tem na conta agora (igual ao "Em caixa hoje" do Fluxo de Caixa): saldo do mês anterior + entradas recebidas − saídas já pagas.</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
@@ -2319,17 +2324,10 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
     </div>
-    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:inherit">
-      <div class="dash-card">
-        <div class="dash-card-label">Objetivos Financeiros</div>
-        <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-        <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
-        <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
-        <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
-      </div>
+    <div class="dash-card" style="grid-column:1/-1">
+      <div class="dash-card-label">Objetivos Financeiros</div>
+      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
     </div>
   </div>
 
@@ -5854,13 +5852,13 @@ function atualizarSaldoDash() {
   const saldoValueEl = document.getElementById('dash-saldo');
   if (!saldoValueEl) return;
   const totalEntradas = coletarEntradasFluxo().reduce((t, e) => t + e.valor, 0);
-  const totalSaidas = coletarSaidasFluxo().reduce((t, s) => t + s.valor, 0);
+  const saidasPagas = coletarSaidasFluxo().filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
   const saldoAnterior = getSaldoAnterior();
-  const saldo = saldoAnterior + totalEntradas - totalSaidas;
+  const saldo = saldoAnterior + totalEntradas - saidasPagas;
   saldoValueEl.textContent = formatBRL(saldo);
   const conta = document.getElementById('dash-saldo-conta');
   if (conta) {
-    conta.textContent = `${formatBRL(saldoAnterior)} anterior + ${formatBRL(totalEntradas)} entradas − ${formatBRL(totalSaidas)} saídas`;
+    conta.textContent = `${formatBRL(saldoAnterior)} anterior + ${formatBRL(totalEntradas)} entradas − ${formatBRL(saidasPagas)} já pagos`;
   }
   const saldoCard = saldoValueEl.closest('.dash-card');
   if (saldoCard) saldoCard.classList.toggle('negative', saldo < 0);
