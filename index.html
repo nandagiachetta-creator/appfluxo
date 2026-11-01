@@ -6452,6 +6452,16 @@ function collectMentorias() {
   });
 }
 
+// Dados de cada mentorado para os relatórios (Word e planilha)
+function mentoriasParaRelatorio() {
+  return collectMentorias().map(m => {
+    const pg = m.pagamento, lt = m.leitura;
+    const recebido = (pg.pago ? parseFloat(pg.valor) || 0 : 0) + (!lt.cortesia && lt.pago ? parseFloat(lt.valor) || 0 : 0);
+    const total = (parseFloat(pg.valor) || 0) + (lt.cortesia ? 0 : parseFloat(lt.valor) || 0);
+    return { ...m, recebido, total, realizados: m.encontros.filter(e => e.realizada).length };
+  });
+}
+
 // ── OUTRAS ENTRADAS DE CLIENTES (linhas soltas: cliente, data, valor, pago, feita) ──
 function createClienteExtraRow(cliente = '', valor = '', dataPgto = '', pago = false, realizada = false, fluxoOculto = false, data = '', hora = '') {
   const tbody = document.getElementById('clientes-extra-body');
@@ -7112,6 +7122,34 @@ async function exportWord() {
       return xml;
     }
 
+    function mentoriasSection() {
+      const lista = mentoriasParaRelatorio();
+      if (!lista.length) return '';
+      const fd = d => d ? d.split('-').reverse().join('/') : '-';
+      let xml = par('CLIENTES - MENTORIAS', {bold:true, size:26, color:'7A5C8C', spBefore:560, spAfter:160});
+      lista.forEach(m => {
+        const pg = m.pagamento, lt = m.leitura;
+        xml += par(m.cliente || 'Mentorado sem nome', {bold:true, size:22, color:'3D5C42', spBefore:200, spAfter:40});
+        xml += par(`Recebido: ${fBRL(m.recebido)} de ${fBRL(m.total)}   -   Encontros realizados: ${m.realizados} de ${m.encontros.length}`, {size:18, color:'7A7A7A', spAfter:80});
+        const pgTxt = pg.pago ? 'Pago' + (pg.dataPgto ? ' em ' + fd(pg.dataPgto) : ' (sem data)') : 'Pendente';
+        const ltTxt = lt.cortesia ? 'Cortesia (sem cobranca)' : (fBRL(parseFloat(lt.valor) || 0) + ' - ' + (lt.pago ? 'Paga' + (lt.dataPgto ? ' em ' + fd(lt.dataPgto) : '') : 'Pendente'));
+        xml += summaryTable([
+          ['Pagamento da mentoria (a vista)', fBRL(parseFloat(pg.valor) || 0) + ' - ' + pgTxt],
+          ['Leitura da Realidade', (lt.data ? fd(lt.data) + (lt.hora ? ' ' + lt.hora : '') + ' - ' : '') + ltTxt + (lt.realizada ? ' - Realizada' : '')],
+        ]);
+        xml += par('Aplicacao da Mentoria - encontros', {bold:true, size:20, color:'7A7A7A', spBefore:120, spAfter:60});
+        if (!m.encontros.length) { xml += par('Nenhum encontro cadastrado.', {size:18, color:'AAAAAA', spAfter:120}); return; }
+        const w0=3600, w1=2880, w2=2880;
+        xml += `<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="${w0}"/><w:gridCol w:w="${w1}"/><w:gridCol w:w="${w2}"/></w:tblGrid>`;
+        xml += `<w:tr>${tc('Data',{w:w0,bold:true,bg:'F0EAD8'})}${tc('Horario',{w:w1,bold:true,bg:'F0EAD8',align:'center'})}${tc('Realizado',{w:w2,bold:true,bg:'F0EAD8',align:'center'})}</w:tr>`;
+        m.encontros.forEach(e => {
+          xml += `<w:tr>${tc(fd(e.data),{w:w0})}${tc(e.hora||'-',{w:w1,align:'center'})}${tc(e.realizada?'Sim':'Nao',{w:w2,align:'center',color:e.realizada?'3D5C42':'AAAAAA'})}</w:tr>`;
+        });
+        xml += `</w:tbl>`;
+      });
+      return xml;
+    }
+
     const receitaClientesExp = clientesRecebido.pacotes + clientesRecebido.avulsos + clientesRecebido.mentorias;
     const outrasReceitasExp = receitaTotalGeral - receitaClientesExp;
     const metaDashExp = parseFloat(document.getElementById('meta-goal')?.value) || 0;
@@ -7386,6 +7424,7 @@ async function exportWord() {
         ['Sem Nota Fiscal', fBRL(receitaSemNf)],
         ['Receita de Pacotes', fBRL(clientesRecebido.pacotes)],
         ['Receita de Atendimentos Avulsos', fBRL(clientesRecebido.avulsos)],
+        ['Receita de Mentorias', fBRL(clientesRecebido.mentorias)],
         ['TOTAL GERAL RECEBIDO', fBRL(receitaTotalGeral), 'D4E8D4'],
       ]);
       return xml;
@@ -7489,6 +7528,7 @@ async function exportWord() {
       objetivoSection() +
       clientesGroupSection('pacote', 'CLIENTES - PACOTES DE SESSOES', '3D7A8C') +
       clientesGroupSection('avulso', 'CLIENTES - SESSOES AVULSAS', '8C6B3D') +
+      mentoriasSection() +
       clientesExtrasSection() +
       agendaSection() +
       briefingSection();
@@ -7870,6 +7910,7 @@ async function exportExcel() {
     receitaSheetRows.push(['Sem Nota Fiscal', fBRL(receitaSemNf)]);
     receitaSheetRows.push(['Receita de Pacotes', fBRL(clientesRecebido.pacotes)]);
     receitaSheetRows.push(['Receita de Atendimentos Avulsos', fBRL(clientesRecebido.avulsos)]);
+    receitaSheetRows.push(['Receita de Mentorias', fBRL(clientesRecebido.mentorias)]);
     receitaSheetRows.push([{v:'TOTAL GERAL RECEBIDO',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}]);
     sheets.push({ name: 'Receita', rows: receitaSheetRows });
 
@@ -7994,6 +8035,28 @@ async function exportExcel() {
     if (pacoteSheet) sheets.push(pacoteSheet);
     const avulsoSheet = clientesSheet('avulso', 'CLIENTES - SESSÕES AVULSAS', 'Clientes Avulsos');
     if (avulsoSheet) sheets.push(avulsoSheet);
+
+    // CLIENTES - MENTORIAS
+    {
+      const lista = mentoriasParaRelatorio();
+      if (lista.length) {
+        const fdM = d => d ? d.split('-').reverse().join('/') : '-';
+        const mRows = [tit('CLIENTES - MENTORIAS'), []];
+        lista.forEach(m => {
+          const pg = m.pagamento, lt = m.leitura;
+          mRows.push(tit(m.cliente || 'Mentorado sem nome'));
+          mRows.push([`Recebido: ${fBRL(m.recebido)} de ${fBRL(m.total)}`, `Encontros realizados: ${m.realizados} de ${m.encontros.length}`]);
+          mRows.push(hdr('Item','Data','Horário','Valor','Pago','Data do Pagamento','Realizada'));
+          mRows.push(['Pagamento à vista', '-', '-', fBRL(parseFloat(pg.valor) || 0), pg.pago ? 'Sim' : 'Não', fdM(pg.dataPgto), '-']);
+          mRows.push(['Leitura da Realidade' + (lt.cortesia ? ' (cortesia)' : ''), fdM(lt.data), lt.hora || '-',
+            fBRL(lt.cortesia ? 0 : parseFloat(lt.valor) || 0), lt.cortesia ? '-' : (lt.pago ? 'Sim' : 'Não'),
+            lt.cortesia ? '-' : fdM(lt.dataPgto), lt.realizada ? 'Sim' : 'Não']);
+          m.encontros.forEach((e, i) => mRows.push(['Encontro ' + (i + 1), fdM(e.data), e.hora || '-', '-', '-', '-', e.realizada ? 'Sim' : 'Não']));
+          mRows.push([]);
+        });
+        sheets.push({ name: 'Clientes Mentorias', rows: mRows });
+      }
+    }
 
     // AGENDA
     {
