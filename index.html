@@ -1428,6 +1428,9 @@
   .month-tab.active.next-tab {
     background: #5a6e8c;
   }
+  .month-tab.active.prev-tab {
+    background: #a6763f;
+  }
 
   /* APP VIEW TABS */
   .view-nav {
@@ -1983,6 +1986,7 @@
     color: #3a4e6c;
   }
   .preview-banner.visible { display: flex; }
+  .preview-banner.prev-banner { background: #f8f1e8; border-color: #e3d0b5; color: #7a5a2e; }
   .preview-banner strong { font-weight: 600; }
 
   /* META SEMANAL CALCULATOR */
@@ -2234,9 +2238,15 @@
 
   <!-- MONTH NAVIGATION -->
   <div class="month-nav">
+    <button class="month-tab prev-tab" id="tab-prev" style="display:none" onclick="switchMonth('prev')"></button>
     <button class="month-tab active" id="tab-current" onclick="switchMonth('current')"></button>
     <button class="month-tab next-tab" id="tab-next" onclick="switchMonth('next')"></button>
   </div>
+  <div class="preview-banner prev-banner" id="prev-banner">
+    <span style="font-size:18px">🕘</span>
+    <div style="flex:1"><strong>Mês anterior</strong> — Você está vendo <b id="prev-banner-label"></b>. Dê baixa nos pagamentos e ajuste o que faltou; esta aba some depois do dia 5.</div>
+  </div>
+
   <div class="preview-banner" id="preview-banner">
     <span style="font-size:18px">📋</span>
     <div style="flex:1"><strong>Modo Previsão</strong> — Você está planejando os pagamentos e receitas do próximo mês. Os dados do mês atual estão preservados.</div>
@@ -4531,7 +4541,13 @@ let receitaRowId = 0;
 function getActiveMonthDate() {
   const d = new Date();
   if (activeMonth === 'next') return new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  if (activeMonth === 'prev') return new Date(d.getFullYear(), d.getMonth() - 1, 1);
   return d;
+}
+
+// Deslocamento (em meses) da aba ativa em relação ao mês real.
+function getActiveMonthOffset() {
+  return activeMonth === 'next' ? 1 : activeMonth === 'prev' ? -1 : 0;
 }
 
 function getActiveMonthKey() {
@@ -4547,7 +4563,7 @@ function isReceitaDoMes(dataPgto) {
 // Data sugerida para uma nova linha: hoje (ou o dia 1º, no modo previsão).
 function defaultReceitaDate() {
   const d = getActiveMonthDate();
-  const day = activeMonth === 'next' ? 1 : d.getDate();
+  const day = activeMonth === 'current' ? d.getDate() : 1;
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 
@@ -4632,7 +4648,7 @@ function recalculateReceita() {
   });
 
   const mesLabelEl = document.getElementById('receita-mes-label');
-  if (mesLabelEl) mesLabelEl.textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
+  if (mesLabelEl) mesLabelEl.textContent = getMonthLabel(getActiveMonthOffset());
 
   const ignoradasEl = document.getElementById('receita-ignoradas');
   if (ignoradasEl) {
@@ -5214,7 +5230,7 @@ function atualizarTotaisFluxo() {
   const saldo = saldoAnterior + totalEntradas - totalSaidas;
 
   const el = id => document.getElementById(id);
-  if (el('fluxo-mes-label')) el('fluxo-mes-label').textContent = getMonthLabel(activeMonth === 'next' ? 1 : 0);
+  if (el('fluxo-mes-label')) el('fluxo-mes-label').textContent = getMonthLabel(getActiveMonthOffset());
   if (el('fluxo-total-entradas')) el('fluxo-total-entradas').textContent = formatBRL(totalEntradas);
   if (el('fluxo-total-saidas')) el('fluxo-total-saidas').textContent = formatBRL(totalSaidas);
   if (el('fluxo-foot-entradas')) el('fluxo-foot-entradas').textContent = formatBRL(totalEntradas);
@@ -5323,11 +5339,12 @@ function calcMeta() {
 
 // ── NAVEGAÇÃO POR MÊS ────────────────────────────────────────
 
-let activeMonth = 'current'; // 'current' | 'next'
+let activeMonth = 'current'; // 'prev' | 'current' | 'next'
+const PREV_MONTH_LAST_DAY = 5; // a aba do mês anterior fica disponível até esse dia
 
 function getMonthLabel(offset) {
-  const d = new Date();
-  d.setMonth(d.getMonth() + offset);
+  const n = new Date();
+  const d = new Date(n.getFullYear(), n.getMonth() + offset, 1);
   const name = d.toLocaleString('pt-BR', { month: 'long' });
   return name.charAt(0).toUpperCase() + name.slice(1) + ' ' + d.getFullYear();
 }
@@ -5337,20 +5354,27 @@ function initMonthTabs() {
   const tabNext = document.getElementById('tab-next');
   if (tabCurrent) tabCurrent.textContent = getMonthLabel(0) + ' (atual)';
   if (tabNext) tabNext.textContent = getMonthLabel(1) + ' (previsão)';
+  const tabPrev = document.getElementById('tab-prev');
+  if (tabPrev) {
+    tabPrev.textContent = getMonthLabel(-1) + ' (anterior)';
+    tabPrev.style.display = (new Date().getDate() <= PREV_MONTH_LAST_DAY || activeMonth === 'prev') ? '' : 'none';
+  }
 }
 
 function updateMonthTabs() {
   const tabCurrent = document.getElementById('tab-current');
   const tabNext = document.getElementById('tab-next');
+  const tabPrev = document.getElementById('tab-prev');
   const banner = document.getElementById('preview-banner');
-  if (activeMonth === 'current') {
-    tabCurrent?.classList.add('active');
-    tabNext?.classList.remove('active');
-    if (banner) banner.classList.remove('visible');
-  } else {
-    tabCurrent?.classList.remove('active');
-    tabNext?.classList.add('active');
-    if (banner) banner.classList.add('visible');
+  const prevBanner = document.getElementById('prev-banner');
+  tabPrev?.classList.toggle('active', activeMonth === 'prev');
+  tabCurrent?.classList.toggle('active', activeMonth === 'current');
+  tabNext?.classList.toggle('active', activeMonth === 'next');
+  if (banner) banner.classList.toggle('visible', activeMonth === 'next');
+  if (prevBanner) {
+    prevBanner.classList.toggle('visible', activeMonth === 'prev');
+    const lb = document.getElementById('prev-banner-label');
+    if (lb) lb.textContent = getMonthLabel(-1);
   }
 }
 
@@ -5691,7 +5715,7 @@ function fluxoParaRelatorio() {
   const saidasPagas = saidas.filter(x => x.pago).reduce((t, x) => t + x.valor, 0);
   const saldoAnterior = getSaldoAnterior();
   return {
-    mesLabel: getMonthLabel(activeMonth === 'next' ? 1 : 0),
+    mesLabel: getMonthLabel(getActiveMonthOffset()),
     saldoAnterior, totalEntradas, totalSaidas, saidasPagas,
     pendentes: totalSaidas - saidasPagas,
     saldo: saldoAnterior + totalEntradas - totalSaidas,
@@ -6453,10 +6477,25 @@ function switchMonth(view) {
   clearAllTables();
   let data = {};
   try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
-  const monthData = view === 'current' ? data : (data.nextMonth || { tables: {}, receita: [] });
+  let monthData;
+  if (view === 'current') monthData = data;
+  else if (view === 'next') monthData = data.nextMonth || { tables: {}, receita: [] };
+  else monthData = getPrevMonthData(data) || { tables: {}, receita: [] };
   loadMonthIntoDOM(monthData);
   recalculate();
   updateMonthTabs();
+}
+
+// Dados do mês anterior: o instantâneo guardado na virada do mês (sincronizado)
+// ou, na falta dele, o arquivo local do histórico.
+function getPrevMonthData(data) {
+  const prevKey = monthKey(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
+  if (data.prevMonth && data.prevMonth.key === prevKey) return data.prevMonth;
+  try {
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}')[prevKey];
+    if (h && h.tables) return h;
+  } catch(e) {}
+  return null;
 }
 
 function copyCurrentMonthToNext() {
@@ -7970,6 +8009,13 @@ function saveData() {
     data.saldoAnterior = saldoAnteriorVal;
     data.savedAt = new Date().toISOString();
     archiveToHistory(data);
+  } else if (activeMonth === 'prev') {
+    const n = new Date();
+    data.prevMonth = {
+      key: monthKey(new Date(n.getFullYear(), n.getMonth() - 1, 1)),
+      tables: monthTables, receita: monthReceita,
+      fluxoManual: FLUXO_MANUAL, saldoAnterior: saldoAnteriorVal,
+    };
   } else {
     if (!data.nextMonth) data.nextMonth = {};
     data.nextMonth.tables = monthTables;
@@ -8076,6 +8122,13 @@ async function loadData() {
       const nowKey = monthKey();
       if (savedMonthKey !== nowKey) {
         archiveToHistory(data);
+        // Guarda o mês que acabou para poder dar baixa nele até o dia 5
+        data.prevMonth = {
+          key: savedMonthKey,
+          tables: data.tables, receita: data.receita || [],
+          fluxoManual: data.fluxoManual || [], saldoAnterior: data.saldoAnterior || '',
+        };
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
         // Promote nextMonth to current if it exists
         if (data.nextMonth && data.nextMonth.tables) {
           data.tables = data.nextMonth.tables;
