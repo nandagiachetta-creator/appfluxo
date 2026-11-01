@@ -2323,10 +2323,17 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
     </div>
-    <div class="dash-card" style="grid-column:1/-1">
-      <div class="dash-card-label">Objetivos Financeiros</div>
-      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:inherit">
+      <div class="dash-card">
+        <div class="dash-card-label">Objetivos Financeiros</div>
+        <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+        <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-label">Contas em aberto</div>
+        <div class="dash-card-value" id="dash-contas-abertas">R$ 0,00</div>
+        <div class="dash-card-sub" id="dash-contas-abertas-sub">Contas do mês ainda não pagas</div>
+      </div>
     </div>
   </div>
 
@@ -5851,7 +5858,18 @@ function atualizarSaldoDash() {
   const saldoValueEl = document.getElementById('dash-saldo');
   if (!saldoValueEl) return;
   const totalEntradas = coletarEntradasFluxo().reduce((t, e) => t + e.valor, 0);
-  const saidasPagas = coletarSaidasFluxo().filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
+  const saidasTodas = coletarSaidasFluxo();
+  const saidasPagas = saidasTodas.filter(s => s.pago).reduce((t, s) => t + s.valor, 0);
+  const saidasPendentes = saidasTodas.filter(s => !s.pago);
+  const totalPendente = saidasPendentes.reduce((t, s) => t + s.valor, 0);
+  const elAbertas = document.getElementById('dash-contas-abertas');
+  if (elAbertas) elAbertas.textContent = formatBRL(totalPendente);
+  const elAbertasSub = document.getElementById('dash-contas-abertas-sub');
+  if (elAbertasSub) {
+    elAbertasSub.textContent = saidasPendentes.length
+      ? `${saidasPendentes.length} ${saidasPendentes.length === 1 ? 'conta' : 'contas'} a pagar neste mês`
+      : 'tudo pago';
+  }
   const saldoAnterior = getSaldoAnterior();
   const saldo = saldoAnterior + totalEntradas - saidasPagas;
   saldoValueEl.textContent = formatBRL(saldo);
