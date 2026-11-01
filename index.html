@@ -2268,17 +2268,21 @@
       </div>
       <div class="dash-meta-bar"><div class="dash-meta-bar-fill" id="dash-meta-bar-fill"></div></div>
       <div class="dash-card-sub" id="dash-meta-sub">defina sua meta do mês</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Previsão · <span id="dash-previsao-mes">—</span></div>
-      <div class="dash-card-value" id="dash-previsao-total">R$ 0,00</div>
-      <div class="dash-card-sub" id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</div>
+      <div class="dash-card-sub" style="font-size:11px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+        Previsão · <span id="dash-previsao-mes">—</span>: <strong id="dash-previsao-total">R$ 0,00</strong><br>
+        <span id="dash-previsao-sub">Sessões agendadas ainda não pagas, até o fim do mês</span>
+      </div>
     </div>
     <div class="dash-card highlight">
-      <div class="dash-card-label">Saldo do Mês</div>
+      <div class="dash-card-label">Saldo em Conta</div>
       <div class="dash-card-value" id="dash-saldo">R$ 0,00</div>
       <div class="dash-card-sub" id="dash-saldo-conta">—</div>
       <div class="dash-card-sub">Valor que você tem na conta agora (igual ao "Em caixa hoje" do Fluxo de Caixa): saldo do mês anterior + entradas recebidas − saídas já pagas.</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-card-label">Contas em aberto</div>
+      <div class="dash-card-value" id="dash-contas-abertas">R$ 0,00</div>
+      <div class="dash-card-sub" id="dash-contas-abertas-sub">Contas do mês ainda não pagas</div>
     </div>
     <div class="dash-card">
       <div class="dash-card-label">Receita de Clientes</div>
@@ -2323,17 +2327,10 @@
       <div class="dash-card-value" id="dash-custos-total">R$ 0,00</div>
       <div class="dash-card-sub">PF + PJ + Cartões + Empréstimos (inclui o já pago)</div>
     </div>
-    <div style="grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:inherit">
-      <div class="dash-card">
-        <div class="dash-card-label">Objetivos Financeiros</div>
-        <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
-        <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
-      </div>
-      <div class="dash-card">
-        <div class="dash-card-label">Contas em aberto</div>
-        <div class="dash-card-value" id="dash-contas-abertas">R$ 0,00</div>
-        <div class="dash-card-sub" id="dash-contas-abertas-sub">Contas do mês ainda não pagas</div>
-      </div>
+    <div class="dash-card" style="grid-column:1/-1">
+      <div class="dash-card-label">Objetivos Financeiros</div>
+      <div class="dash-card-value" id="dash-objetivo-pct">0%</div>
+      <div class="dash-card-sub" id="dash-objetivo-sub">R$ 0,00 guardados</div>
     </div>
   </div>
 
