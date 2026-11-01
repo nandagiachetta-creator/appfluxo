@@ -7184,6 +7184,7 @@ async function exportWord() {
     const metaDashExp = parseFloat(document.getElementById('meta-goal')?.value) || 0;
     const previsaoExp = getPrevisaoMesAtual();
 
+    const fluxoDash = fluxoParaRelatorio();
     function dashboardSection() {
       let xml = par('DASHBOARD', {bold:true, size:26, color:'3D5C42', spBefore:200, spAfter:160});
       xml += summaryTable([
@@ -7193,7 +7194,8 @@ async function exportWord() {
         ['Receita de Clientes', fBRL(receitaClientesExp)],
         ['Outras Receitas', fBRL(outrasReceitasExp)],
         ['TOTAL DE RECEITA', fBRL(receitaTotalGeral)],
-        ['SALDO DO MES', fBRL(saldoMes), saldoMes >= 0 ? 'D4E8D4' : 'FDECEA'],
+        ['SALDO EM CONTA', fBRL(fluxoDash.emCaixa), fluxoDash.emCaixa >= 0 ? 'D4E8D4' : 'FDECEA'],
+        ['CONTAS EM ABERTO', fBRL(fluxoDash.pendentes)],
         ['Orcamento PF (mensal)', fBRL(pessoalM)],
         ['Orcamento PJ (mensal)', fBRL(empresaM)],
         ['Cartoes do mes', fBRL(cartaoTotal)],
@@ -7739,7 +7741,8 @@ async function exportExcel() {
       ['Receita de Clientes', fBRL(receitaClientesX)],
       ['Outras Receitas', fBRL(receitaTotalGeral - receitaClientesX)],
       [{v:'TOTAL DE RECEITA',bold:true}, {v:fBRL(receitaTotalGeral),bold:true}],
-      [{v:'SALDO DO MÊS',bold:true}, {v:fBRL(saldoMes),bold:true}],
+      [{v:'SALDO EM CONTA',bold:true}, {v:fBRL(fluxoParaRelatorio().emCaixa),bold:true}],
+      [{v:'CONTAS EM ABERTO',bold:true}, {v:fBRL(fluxoParaRelatorio().pendentes),bold:true}],
       ['Orçamento PF (mensal)', fBRL(pessoalM)],
       ['Orçamento PJ (mensal)', fBRL(empresaM)],
       ['Cartões do mês', fBRL(cartaoTotal)],
