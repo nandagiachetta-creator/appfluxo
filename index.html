@@ -1548,6 +1548,27 @@
     padding: 2px 5px;
     white-space: nowrap;
   }
+  .cartao-summary-item.emp-mes-atual {
+    border: 2px solid var(--sage-dark);
+    border-left-width: 8px;
+    background: #eef4ee;
+    padding-top: 14px;
+    padding-bottom: 14px;
+    box-shadow: 0 2px 10px rgba(61,92,66,0.18);
+  }
+  .cartao-summary-item.emp-mes-atual > .cartao-summary-info > span { font-weight: 700; font-size: 15px; color: var(--sage-dark); }
+  .cartao-summary-item.emp-mes-atual strong { color: var(--sage-dark); font-size: 20px; }
+  .emp-mes-atual-tag {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--sage-dark);
+    border-radius: 4px;
+    padding: 2px 6px;
+    white-space: nowrap;
+  }
   .cartao-mes-input {
     border: 1px solid var(--border);
     background: var(--cream);
@@ -3975,18 +3996,27 @@ function renderResumoEmprestimos() {
       if (it.pago) acc.pago += it.valor; else acc.aberto += it.valor;
       porMes.set(chave, acc);
     });
+    // O mês real de hoje sempre aparece na lista e fica em destaque, mesmo sem parcelas.
+    const mesAtual = monthKey(new Date());
+    if (!porMes.has(mesAtual)) porMes.set(mesAtual, { aberto: 0, pago: 0 });
     const chaves = Array.from(porMes.keys()).filter(k => k !== 'sem-mes').sort();
     if (porMes.has('sem-mes')) chaves.push('sem-mes');
-    const mesAtivo = getActiveMonthKey();
     mesList.innerHTML = '';
     chaves.forEach(chave => {
       const { aberto, pago } = porMes.get(chave);
+      const ehAtual = chave === mesAtual;
       const div = document.createElement('div');
-      div.className = 'cartao-summary-item' + (chave === mesAtivo ? ' mes-ativo' : '');
+      div.className = 'cartao-summary-item' + (ehAtual ? ' emp-mes-atual' : '');
       const rotulo = chave === 'sem-mes' ? 'Sem mês definido' : ptMonthName(chave);
-      const tag = chave === mesAtivo ? '<span class="cartao-mes-tag">mês aberto</span>' : '';
-      const notaPago = pago ? `<small class="cartao-summary-pago">${aberto ? 'pago ' : 'tudo pago · '}${formatBRL(pago)}</small>` : '';
-      div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div>`;
+      const tag = ehAtual ? '<span class="emp-mes-atual-tag">mês atual</span>' : '';
+      if (ehAtual) {
+        // Mês atual: mostra a soma total do mês (em aberto + já pago).
+        const totalMes = aberto + pago;
+        div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:8px">${rotulo}${tag}</span><div class="cartao-summary-valores"><strong>${formatBRL(totalMes)}</strong><small class="cartao-summary-pago">total do mês · ${formatBRL(aberto)} em aberto · ${formatBRL(pago)} já pagos</small></div></div>`;
+      } else {
+        const notaPago = pago ? `<small class="cartao-summary-pago">${aberto ? 'pago ' : 'tudo pago · '}${formatBRL(pago)}</small>` : '';
+        div.innerHTML = `<div class="cartao-summary-info"><span style="display:inline-flex;align-items:center;gap:6px">${rotulo}${tag}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div>`;
+      }
       mesList.appendChild(div);
     });
     if (!chaves.length) mesList.innerHTML = '<span class="cartao-summary-empty">Nenhuma parcela lançada ainda.</span>';
