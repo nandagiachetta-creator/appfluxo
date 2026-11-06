@@ -3851,6 +3851,8 @@ function emprestimoAbertoPagoNoMes(mes) {
 
 let emprestimoCardSeq = 0;
 function addEmprestimoCard(name = '', id = null) {
+  // Já salvos entram sempre fechados (a usuária abre na seta); um novo, criado pelo botão, abre para preencher.
+  const abrirAgora = !id;
   if (!id) {
     id = 'e' + (emprestimoCardSeq++);
   } else {
@@ -3864,7 +3866,7 @@ function addEmprestimoCard(name = '', id = null) {
   card.dataset.cardId = id;
   card.innerHTML = `
     <div class="cartao-card-header">
-      <button class="emp-toggle" type="button" id="emprestimo-toggle-${id}" onclick="toggleEmprestimoCard('${id}')" title="Mostrar ou esconder as parcelas">▾</button>
+      <button class="emp-toggle" type="button" id="emprestimo-toggle-${id}" onclick="toggleEmprestimoCard('${id}')" title="Mostrar ou esconder as parcelas">${abrirAgora ? '▾' : '▸'}</button>
       <input type="text" class="cartao-card-name" placeholder="Nome do empréstimo (ex: Banco X)" oninput="recalculate()" />
       <span class="cartao-card-subtotal" id="emprestimo-subtotal-${id}">R$ 0,00</span>
       <span class="emp-ordem">
@@ -3873,7 +3875,7 @@ function addEmprestimoCard(name = '', id = null) {
       </span>
       <button class="btn-del" onclick="deleteEmprestimoCard('${id}')" title="Remover empréstimo">×</button>
     </div>
-    <div class="emprestimo-body" id="emprestimo-body-${id}">
+    <div class="emprestimo-body" id="emprestimo-body-${id}" style="display:${abrirAgora ? '' : 'none'}">
     <div class="cliente-gerar-row">
       <label>Valor total que peguei
         <input type="number" class="emp-total-pego" min="0" step="0.01" placeholder="0,00" oninput="recalculate()">
