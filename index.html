@@ -1532,6 +1532,14 @@
     margin: 0 0 10px;
   }
   .cartao-summary-sub-title.espaco { margin-top: 20px; }
+  .cartao-summary-venc {
+    display: block;
+    font-size: 10px;
+    line-height: 1.3;
+    color: var(--text-muted);
+    margin-top: 2px;
+    font-weight: 500;
+  }
   .cartao-summary-item.mes-ativo {
     border-color: #a6763f;
     background: #f7efe4;
@@ -3772,12 +3780,27 @@ function coletarItensCartao() {
       itens.push({
         cardId, cardNome, tr,
         mes: cartaoMesDaLinha(tr),
+        dia: parseInt(tr.querySelector('.due-input')?.value, 10) || 0,
         valor: parseFloat(tr.querySelector('input[type="number"]:not(.due-input)')?.value) || 0,
         pago: tr.querySelector('.paid-check')?.checked || false,
       });
     });
   });
   return itens;
+}
+
+// Vencimentos (dd/mm) dos itens ainda em aberto, sem repetir e em ordem de data.
+// Sem mês definido no item, mostra só "dia N".
+function vencimentosEmAbertoCartao(itens) {
+  const vistos = new Map();
+  itens.forEach(it => {
+    if (it.pago || it.valor <= 0 || it.dia < 1 || it.dia > 31) return;
+    const dd = String(it.dia).padStart(2, '0');
+    const mm = it.mes ? it.mes.slice(5, 7) : '';
+    const ordem = (it.mes || '9999-99') + '-' + dd;
+    vistos.set(ordem, mm ? `${dd}/${mm}` : `dia ${it.dia}`);
+  });
+  return Array.from(vistos.keys()).sort().map(k => vistos.get(k));
 }
 
 // Quanto os cartões pesam num mês específico ("2026-08").
@@ -4334,7 +4357,9 @@ function recalculate() {
       const item = document.createElement('div');
       item.className = 'cartao-summary-item';
       const notaPago = pago ? `<small class="cartao-summary-pago">pago ${formatBRL(pago)}</small>` : '';
-      item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaPago}</div></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
+      const vencs = vencimentosEmAbertoCartao(doCartao);
+      const notaVenc = vencs.length ? `<small class="cartao-summary-venc">vence ${vencs.join(' · ')}</small>` : '';
+      item.innerHTML = `<div class="cartao-summary-info"><span>${escHtml(name)}</span><div class="cartao-summary-valores"><strong>${formatBRL(aberto)}</strong>${notaVenc}${notaPago}</div></div><button class="btn-del" onclick="deleteCartaoCard('${id}')" title="Remover cartão">×</button>`;
       summaryList.appendChild(item);
     });
     if (!cards.length) summaryList.innerHTML = '<span class="cartao-summary-empty">Nenhum cartão cadastrado ainda.</span>';
