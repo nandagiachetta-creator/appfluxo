@@ -8436,6 +8436,17 @@ async function exportExcel() {
 // ── PERSISTÊNCIA ──────────────────────────────────────────────
 const STORAGE_KEY = 'fluxo_v1';
 const HISTORY_KEY = 'fluxo_history_v1';
+// TRAVA DE SEGURANCA: nada e gravado (local ou Supabase) ate os dados terem
+// sido carregados com sucesso. Antes, qualquer tecla digitada no login
+// disparava saveData() com a tela vazia e apagava tudo no Supabase.
+let _dataReady = false;
+function contarItens(d) {
+  if (!d) return 0;
+  let n = 0;
+  if (d.tables) Object.values(d.tables).forEach(a => n += (a || []).length);
+  ['cartoes','emprestimos','objetivos','investimentos','pacotes','avulsos','mentorias','clientesExtras','receita','detalheFatura'].forEach(k => n += (d[k] || []).length);
+  return n;
+}
 const PRICING_IDS = ['work-days','hours-per-day','profit-margin','hour-session-duration','monthly-goal','session-price','session-duration','actual-sessions','meta-goal','meta-session-price','meta-days-week','meta-session-min','meta-today','hour-cost-manual','pacote-valor','pacote-quantidade'];
 
 function monthKey(date) {
@@ -8456,8 +8467,10 @@ function archiveToHistory(data) {
 }
 
 let _syncTimer = null;
+let _loadFailed = false;
 
 function saveData() {
+  if (!_dataReady) return;
   // Read existing data to preserve the other month's slot
   let data = {};
   try { data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
@@ -8625,6 +8638,7 @@ function saveData() {
     data.nextMonth.saldoAnterior = saldoAnteriorVal;
   }
 
+  try { data.historico = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}'); } catch(e) {}
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   // Debounce: sincroniza com Supabase 2s após última alteração
   clearTimeout(_syncTimer);
@@ -8665,10 +8679,19 @@ async function manualSaveClientes() {
 }
 
 async function syncToSupabase(data) {
-  if (!data) return false;
+  if (!data || !_dataReady) return false;
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session?.user) return false;
+    // Nunca troca dados cheios por dados vazios: guarda copia e recusa.
+    if (contarItens(data) === 0) {
+      const { data: cur } = await sb.from('user_data').select('data').eq('user_id', session.user.id).maybeSingle();
+      if (contarItens(cur?.data) > 0) {
+        try { localStorage.setItem('fluxo_backup_remoto_' + Date.now(), JSON.stringify(cur.data)); } catch(e) {}
+        console.error('[SYNC] Bloqueado: tentativa de gravar dados vazios sobre dados existentes.');
+        return false;
+      }
+    }
     const { error } = await sb.from('user_data').upsert(
       { user_id: session.user.id, data: data, updated_at: new Date().toISOString() }
     );
@@ -8687,16 +8710,31 @@ async function loadData() {
         .single();
       console.log('[LOAD] Supabase response:', { remote, remoteErr });
       if (remoteErr) console.error('[LOAD] Supabase error:', remoteErr.message, remoteErr.code);
+      if (remoteErr && remoteErr.code !== 'PGRST116') { _loadFailed = true; return false; }
       if (remote?.data) {
         // Supabase é a fonte de verdade — sempre usa o dado remoto
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
+        // Historico dos 3 meses tambem vem do Supabase (une com o do navegador)
+        if (remote.data.historico) {
+          try {
+            const loc = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
+            const merged = Object.assign({}, loc, remote.data.historico);
+            Object.keys(merged).sort().reverse().slice(3).forEach(k => delete merged[k]);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
+          } catch(e) {}
+        }
+        // Copia de seguranca diaria no navegador (mantem as 7 mais recentes)
+        try {
+          localStorage.setItem('fluxo_backup_' + new Date().toISOString().slice(0,10), JSON.stringify(remote.data));
+          Object.keys(localStorage).filter(k => k.startsWith('fluxo_backup_2')).sort().reverse().slice(7).forEach(k => localStorage.removeItem(k));
+        } catch(e) {}
       } else {
         console.warn('[LOAD] Nenhum dado no Supabase para este usuário');
       }
     } else {
       console.warn('[LOAD] Sessão não encontrada');
     }
-  } catch(e) { console.error('[LOAD] Erro inesperado:', e); }
+  } catch(e) { console.error('[LOAD] Erro inesperado:', e); _loadFailed = true; return false; }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return false;
@@ -8839,7 +8877,7 @@ async function loadData() {
     setSaldoAnterior(data.saldoAnterior || '');
     recalculateReceita();
     return true;
-  } catch(e) { return false; }
+  } catch(e) { console.error('[LOAD] Erro ao montar a tela:', e); _loadFailed = true; return false; }
 }
 
 // ── HISTÓRICO ────────────────────────────────────────────────
@@ -8974,12 +9012,19 @@ async function onAuthLogin(user) {
 
   // Load saved data or fall back to defaults
   const loaded = await loadData();
+  if (_loadFailed) {
+    // Falhou ao carregar: NAO libera gravacao, para nao sobrescrever os dados guardados.
+    document.body.insertAdjacentHTML('afterbegin', '<div style="position:fixed;z-index:99999;top:0;left:0;right:0;background:#c0392b;color:#fff;padding:14px;text-align:center;font-weight:600">Não foi possível carregar seus dados. Nada foi alterado ou apagado. Recarregue a página (Ctrl+F5); se persistir, fale com a Nanda.</div>');
+    _appLoaded = false;
+    return;
+  }
   if (!loaded) {
     FIXED_DEFAULTS.forEach(d => createRow('fixed', d.name, d.value));
     VARIABLE_DEFAULTS.forEach(d => createRow('variable', d.name, d.value));
     BIZ_FIXED_DEFAULTS.forEach(d => createRow('biz-fixed', d.name, d.value));
     BIZ_VARIABLE_DEFAULTS.forEach(d => createRow('biz-variable', d.name, d.value));
   }
+  _dataReady = true;
   recalculate();
 
   // Pre-fill meta-today with current day if not already saved
