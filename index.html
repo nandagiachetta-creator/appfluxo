@@ -8468,6 +8468,7 @@ function archiveToHistory(data) {
 
 let _syncTimer = null;
 let _loadFailed = false;
+let _restaurarLocalNoRemoto = false;
 
 function saveData() {
   if (!_dataReady) return;
@@ -8711,7 +8712,13 @@ async function loadData() {
       console.log('[LOAD] Supabase response:', { remote, remoteErr });
       if (remoteErr) console.error('[LOAD] Supabase error:', remoteErr.message, remoteErr.code);
       if (remoteErr && remoteErr.code !== 'PGRST116') { _loadFailed = true; return false; }
-      if (remote?.data) {
+      let _localRaw = null; try { _localRaw = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch(e) {}
+      if (remote?.data && contarItens(remote.data) === 0 && contarItens(_localRaw) > 0) {
+        // Remoto vazio mas este aparelho tem dados: NAO sobrescreve o local; devolve ao Supabase.
+        console.warn('[LOAD] Remoto vazio, mantendo dados locais e restaurando no Supabase');
+        try { localStorage.setItem('fluxo_backup_local_' + Date.now(), JSON.stringify(_localRaw)); } catch(e) {}
+        _restaurarLocalNoRemoto = true;
+      } else if (remote?.data) {
         // Supabase é a fonte de verdade — sempre usa o dado remoto
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
         // Historico dos 3 meses tambem vem do Supabase (une com o do navegador)
@@ -9026,6 +9033,7 @@ async function onAuthLogin(user) {
   }
   _dataReady = true;
   recalculate();
+  if (_restaurarLocalNoRemoto) { saveData(); clearTimeout(_syncTimer); syncToSupabase(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); }
 
   // Pre-fill meta-today with current day if not already saved
   const metaTodayEl = document.getElementById('meta-today');
