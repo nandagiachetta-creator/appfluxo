@@ -8454,12 +8454,22 @@ function monthKey(date) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
 
+// Snapshots do historico NUNCA carregam o proprio historico (senao ele se multiplica a cada salvamento e estoura o localStorage).
+function semHistorico(d) {
+  if (!d || typeof d !== 'object') return d;
+  const c = Object.assign({}, d); delete c.historico; return c;
+}
+function limparHistorico(h) {
+  const out = {};
+  Object.keys(h || {}).sort().reverse().slice(0, 3).forEach(k => { out[k] = semHistorico(h[k]); });
+  return out;
+}
 function archiveToHistory(data) {
   if (!data || !data.savedAt) return;
   const key = monthKey(new Date(data.savedAt));
   try {
     const history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-    history[key] = data;
+    history[key] = semHistorico(data);
     const keys = Object.keys(history).sort().reverse();
     keys.slice(3).forEach(k => delete history[k]);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
@@ -8639,7 +8649,7 @@ function saveData() {
     data.nextMonth.saldoAnterior = saldoAnteriorVal;
   }
 
-  try { data.historico = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}'); } catch(e) {}
+  try { data.historico = limparHistorico(JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}')); } catch(e) {}
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
   // Debounce: sincroniza com Supabase 2s após última alteração
   clearTimeout(_syncTimer);
@@ -8720,12 +8730,14 @@ async function loadData() {
         _restaurarLocalNoRemoto = true;
       } else if (remote?.data) {
         // Supabase é a fonte de verdade — sempre usa o dado remoto
+        if (remote.data.historico) remote.data.historico = limparHistorico(remote.data.historico);
+        try { localStorage.removeItem(HISTORY_KEY); } catch(e) {}
         localStorage.setItem(STORAGE_KEY, JSON.stringify(remote.data));
         // Historico dos 3 meses tambem vem do Supabase (une com o do navegador)
         if (remote.data.historico) {
           try {
             const loc = JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}');
-            const merged = Object.assign({}, loc, remote.data.historico);
+            const merged = limparHistorico(Object.assign({}, loc, remote.data.historico));
             Object.keys(merged).sort().reverse().slice(3).forEach(k => delete merged[k]);
             localStorage.setItem(HISTORY_KEY, JSON.stringify(merged));
           } catch(e) {}
